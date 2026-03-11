@@ -576,7 +576,7 @@ export default function ReportsDashboard() {
                   className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Select an animal...</option>
-                  {(archivedAnimals || []).filter(a => a.archive_reason === 'Death').map(animal => (
+                  {(archivedAnimals || []).filter(a => a.archive_type === 'Death').map(animal => (
                     <option key={animal.id} value={animal.id}>{animal.name} ({animal.species})</option>
                   ))}
                 </select>

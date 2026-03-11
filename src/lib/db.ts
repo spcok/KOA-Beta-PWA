@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Animal, LogEntry, Task, ClinicalNote, MARChart, QuarantineRecord, InternalMovement, ExternalTransfer, Timesheet, Holiday, User, OrgProfileSettings, Contact, ZLADocument, SafetyDrill, MaintenanceLog, FirstAidLog, Incident, DailyRound, RolePermissionConfig, SyncQueueItem, OperationalList } from '../types';
+import { Animal, LogEntry, Task, ClinicalNote, MARChart, QuarantineRecord, InternalMovement, ExternalTransfer, Timesheet, Holiday, User, OrgProfileSettings, Contact, ZLADocument, SafetyDrill, MaintenanceLog, FirstAidLog, Incident, DailyRound, RolePermissionConfig, SyncQueueItem, OperationalList, Shift } from '../types';
 
 export class AppDatabase extends Dexie {
   animals!: Table<Animal, string>;
@@ -25,11 +25,12 @@ export class AppDatabase extends Dexie {
   incidents!: Table<Incident, string>;
   daily_rounds!: Table<DailyRound, string>;
   operational_lists!: Table<OperationalList, string>;
+  shifts!: Table<Shift, string>;
   sync_queue!: Table<SyncQueueItem, number>;
 
   constructor() {
     super('KentOwlAcademyDB');
-    this.version(23).stores({
+    this.version(24).stores({
       animals: 'id, name, species, category, location',
       archived_animals: 'id, name, species, category, location',
       daily_logs: 'id, animal_id, log_type, log_date, created_at',
@@ -52,6 +53,7 @@ export class AppDatabase extends Dexie {
       incidents: 'id, date, severity',
       daily_rounds: 'id, date, shift, status',
       operational_lists: 'id, type, category, value',
+      shifts: 'id, user_id, date, user_role',
       sync_queue: '++id, table_name, operation, created_at'
     });
   }

@@ -1,3 +1,24 @@
+export enum ShiftType {
+  FULL_DAY = 'Full Day',
+  MORNING = 'Morning',
+  AFTERNOON = 'Afternoon',
+  NIGHT = 'Night',
+  CUSTOM = 'Custom'
+}
+export interface Shift {
+  id: string;
+  user_id: string;
+  user_name: string; // denormalized for fast offline rendering
+  user_role: string; // denormalized for filtering
+  date: string; // YYYY-MM-DD
+  shift_type: ShiftType;
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
+  assigned_area?: string; // e.g. "Owls", "Mammals", "Site Maintenance"
+  notes?: string;
+  pattern_id?: string; // UUID linking a repeating block
+}
+
 export enum AnimalCategory {
   ALL = 'ALL',
   OWLS = 'OWLS',
@@ -198,6 +219,7 @@ export interface UserPermissions {
   missingRecords: boolean;
   reports: boolean;
   rounds: boolean;
+  view_archived_records?: boolean;
   userManagement?: boolean;
 }
 
@@ -207,6 +229,7 @@ export interface UserProfile {
   name: string;
   role: UserRole;
   initials: string;
+  pin?: string;
   job_position?: string;
   permissions?: Partial<UserPermissions>;
   signature_data?: string;
@@ -256,6 +279,7 @@ export interface RolePermissionConfig {
   approve_holidays: boolean;
   // Compliance & Admin
   view_missing_records: boolean;
+  view_archived_records: boolean;
   manage_zla_documents: boolean;
   generate_reports: boolean;
   view_settings: boolean;

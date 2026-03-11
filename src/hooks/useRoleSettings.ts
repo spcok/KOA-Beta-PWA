@@ -39,6 +39,7 @@ const defaultPermissions: Omit<RolePermissionConfig, 'role'> = {
   request_holidays: false,
   approve_holidays: false,
   view_missing_records: false,
+  view_archived_records: false,
   manage_zla_documents: false,
   generate_reports: false,
   view_settings: false,

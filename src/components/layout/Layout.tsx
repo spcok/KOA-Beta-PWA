@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
-  LayoutDashboard, ClipboardList, ListTodo, Map, CloudSun,
+  LayoutDashboard, ClipboardList, ListTodo, Map, CloudSun, CalendarDays,
   ArrowLeftRight, ShieldAlert, Stethoscope, Heart, Wrench,
   AlertOctagon, Clock, Settings as SettingsIcon, LogOut, Menu, Power, X,
   ChevronLeft, ChevronRight,
@@ -146,6 +146,7 @@ const Layout: React.FC<LayoutProps> = () => {
         <SectionHeader title="Staff" isSidebarCollapsed={isSidebarCollapsed} />
         <NavItem to="/timesheets" icon={Clock} label="Time Sheets" permission={submit_timesheets} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
         <NavItem to="/holidays" icon={Calendar} label="Holiday Registry" permission={request_holidays} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
+        <NavItem to="/rota" icon={CalendarDays} label="Staff Rota" permission={true} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
 
         <SectionHeader title="Compliance" isSidebarCollapsed={isSidebarCollapsed} />
         <NavItem to="/compliance" icon={ShieldCheck} label="ZLA Compliance" permission={view_missing_records} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />

@@ -66,6 +66,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
   const [healthRecordType, setHealthRecordType] = useState(existingLog?.health_record_type || '');
   const [litterSize, setLitterSize] = useState<number | ''>('');
   const [litterHealth, setLitterHealth] = useState<string>('Healthy');
+  const [userInitials, setUserInitials] = useState('');
   const [isWeatherLoading, setIsWeatherLoading] = useState(false);
 
   const handleFetchWeatherInsideModal = async () => {
@@ -93,6 +94,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
       log_type: logType,
       log_date: date,
       value: value || logType,
+      user_initials: userInitials.toUpperCase(),
       notes: logType === LogType.FEED ? JSON.stringify({ cast, feedTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), userNotes: notes }) : notes,
     };
 
@@ -432,6 +434,21 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+              Staff Initials <span className="text-red-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              value={userInitials}
+              onChange={e => setUserInitials(e.target.value)}
+              className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:ring-0 transition-all font-bold text-sm"
+              placeholder="e.g. JD"
+              required
+              minLength={2}
+            />
           </div>
 
           {renderFields()}

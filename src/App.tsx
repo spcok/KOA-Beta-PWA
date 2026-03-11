@@ -4,6 +4,8 @@ import Layout from './components/layout/Layout';
 import { AppProvider } from './context/AppContext';
 import { useAuthStore } from './store/authStore';
 import LoginScreen from './features/auth/LoginScreen';
+import LockScreen from './features/auth/LockScreen';
+import { useInactivityTimer } from './hooks/useInactivityTimer';
 import DashboardContainer from './features/dashboard/DashboardContainer';
 import WeatherView from './features/dashboard/WeatherView';
 import Tasks from './features/husbandry/Tasks';
@@ -15,6 +17,7 @@ import Movements from './features/logistics/Movements';
 import FlightRecords from './features/logistics/FlightRecords';
 import Timesheets from './features/staff/Timesheets';
 import Holidays from './features/staff/Holidays';
+import StaffRota from './features/staff/StaffRota';
 import MissingRecords from './features/compliance/MissingRecords';
 import SettingsLayout from './features/settings/SettingsLayout';
 import HelpSupport from './features/help/HelpSupport';
@@ -28,6 +31,7 @@ import PwaManager from './components/ui/PwaManager';
 
 export default function App() {
   const { initialize, isLoading, session } = useAuthStore();
+  useInactivityTimer();
 
   useEffect(() => {
     let cleanup: () => void;
@@ -84,6 +88,7 @@ export default function App() {
 
   return (
     <AppProvider>
+      <LockScreen />
       <PwaManager />
       <BrowserRouter>
         <Routes>
@@ -110,6 +115,7 @@ export default function App() {
             {/* PHASE 6: STAFF & COMPLIANCE */}
             <Route path="timesheets" element={<Timesheets />} />
             <Route path="holidays" element={<Holidays />} />
+            <Route path="rota" element={<StaffRota />} />
             <Route path="compliance" element={<MissingRecords />} />
             <Route path="reports" element={<ReportsDashboard />} />
             <Route path="missing-records" element={<MissingRecords />} />
