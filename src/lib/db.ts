@@ -30,7 +30,7 @@ export class AppDatabase extends Dexie {
 
   constructor() {
     super('KentOwlAcademyDB');
-    this.version(24).stores({
+    this.version(25).stores({
       animals: 'id, name, species, category, location',
       archived_animals: 'id, name, species, category, location',
       daily_logs: 'id, animal_id, log_type, log_date, created_at',
@@ -43,7 +43,7 @@ export class AppDatabase extends Dexie {
       timesheets: 'id, staff_name, date, status',
       holidays: 'id, staff_name, status',
       users: 'id, email, name, role',
-      role_permissions: 'role, view_animals, add_animals, edit_animals, archive_animals, delete_animals, view_daily_logs, create_daily_logs, edit_daily_logs, view_tasks, complete_tasks, manage_tasks, view_daily_rounds, log_daily_rounds, view_medical, add_clinical_notes, prescribe_medications, administer_medications, manage_quarantine, view_movements, log_internal_movements, manage_external_transfers, view_incidents, report_incidents, manage_incidents, view_maintenance, report_maintenance, resolve_maintenance, view_safety_drills, view_first_aid, submit_timesheets, manage_all_timesheets, request_holidays, approve_holidays, view_missing_records, manage_zla_documents, generate_reports, view_settings, manage_users, manage_roles',
+      role_permissions: 'role, view_animals, add_animals, edit_animals, archive_animals, view_daily_logs, create_daily_logs, edit_daily_logs, view_tasks, complete_tasks, manage_tasks, view_daily_rounds, log_daily_rounds, view_medical, add_clinical_notes, prescribe_medications, administer_medications, manage_quarantine, view_movements, log_internal_movements, manage_external_transfers, view_incidents, report_incidents, manage_incidents, view_maintenance, report_maintenance, resolve_maintenance, view_safety_drills, view_first_aid, submit_timesheets, manage_all_timesheets, request_holidays, approve_holidays, view_missing_records, manage_zla_documents, generate_reports, view_settings, manage_users, manage_roles',
       settings: 'id',
       contacts: 'id, name, role',
       zla_documents: 'id, name, category',
@@ -53,7 +53,7 @@ export class AppDatabase extends Dexie {
       incidents: 'id, date, severity',
       daily_rounds: 'id, date, shift, status',
       operational_lists: 'id, type, category, value',
-      shifts: 'id, user_id, date, user_role',
+      shifts: 'id, user_id, user_name, date, user_role, assigned_area, pattern_id, notes',
       sync_queue: '++id, table_name, operation, created_at'
     });
   }

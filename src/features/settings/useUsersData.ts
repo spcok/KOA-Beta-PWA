@@ -38,6 +38,10 @@ export function useUsersData() {
   };
 
   const deleteUser = async (id: string) => {
+    const userShifts = await db.shifts.where('user_id').equals(id).toArray();
+    for (const shift of userShifts) {
+      await mutateOnlineFirst('shifts', { id: shift.id }, 'delete');
+    }
     await mutateOnlineFirst('users', { id }, 'delete');
   };
 

@@ -16,8 +16,8 @@ import {
 import { renderAsync } from 'docx-preview';
 import { db } from '../../lib/db';
 import { useHybridQuery } from '../../lib/dataEngine';
-import { Animal } from '../../types';
-import { generateDailyLogDocx, generateInternalMovementsDocx, generateExternalTransfersDocx, generateSiteMaintenanceDocx, generateAnimalCensusDocx, generateSection9Docx, generateDeathCertificateDocx } from './utils/docxExportService';
+import { Animal, UserRole, Shift } from '../../types';
+import { generateDailyLogDocx, generateInternalMovementsDocx, generateExternalTransfersDocx, generateSiteMaintenanceDocx, generateAnimalCensusDocx, generateSection9Docx, generateDeathCertificateDocx, generateStaffRotaDocx } from './utils/docxExportService';
 import { useAuthStore } from '../../store/authStore';
 
 interface ReportDefinition {
@@ -113,6 +113,14 @@ const REPORTS: ReportDefinition[] = [
     icon: FileText,
     exportFn: async () => { return true; },
     columns: ['Name', 'Species', 'Date of Death']
+  },
+  {
+    id: 'staff_rota',
+    title: 'Staff Rota Schedule',
+    description: 'Export scheduled staff shifts, times, and coverage areas.',
+    icon: CalendarDays,
+    exportFn: async () => { return true; },
+    columns: ['Date', 'Staff Member', 'Role', 'Shift Type', 'Times', 'Assigned Area']
   }
 ];
 
@@ -125,11 +133,12 @@ export default function ReportsDashboard() {
   
   const animals = useHybridQuery<Animal[]>('animals', () => db.animals.toArray(), []);
   const archivedAnimals = useHybridQuery<Animal[]>('archived_animals', () => db.archived_animals.toArray(), []);
+  const rawShifts = useHybridQuery<Shift[]>('shifts', () => db.table('shifts').toArray(), []);
   const { currentUser } = useAuthStore();
 
-  const uniqueSections = Array.from(
-    new Set((animals || []).map(a => (a as unknown as Record<string, string>).section || a.category).filter(Boolean))
-  ).sort();
+  const uniqueSections = activeReportId === 'staff_rota'
+    ? Object.values(UserRole)
+    : Array.from(new Set((animals || []).map(a => (a as unknown as Record<string, string>).section || a.category).filter(Boolean))).sort();
 
   // Preview State
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
@@ -441,6 +450,39 @@ export default function ReportsDashboard() {
           });
         }
         return;
+      } else if (activeReportId === 'staff_rota') {
+        const filteredShifts = (rawShifts || []).filter(shift => {
+          // 1. Filter by Date
+          const sDate = new Date(shift.date).getTime();
+          const start = new Date(startDate).getTime();
+          const end = new Date(endDate).setHours(23, 59, 59, 999);
+          if (sDate < start || sDate > end) return false;
+
+          // 2. Filter by Role (using selectedSection state)
+          if (selectedSection && shift.user_role !== selectedSection) return false;
+
+          return true;
+        });
+
+        const blob = await generateStaffRotaDocx(
+          filteredShifts,
+          {
+            reportName: dynamicTitle,
+            startDate,
+            endDate,
+            generatedBy: currentUser?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'STAFF'
+          },
+          orientation
+        );
+        setPreviewBlob(blob);
+
+        if (previewContainerRef.current) {
+          await renderAsync(blob, previewContainerRef.current, undefined, {
+            className: 'docx-preview-page',
+            inWrapper: true,
+          });
+        }
+        return;
       }
       // ... handle other reports ...
     } catch (err) {
@@ -456,7 +498,7 @@ export default function ReportsDashboard() {
       const url = URL.createObjectURL(previewBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'Daily_Log.docx';
+      a.download = `${activeReport.title.replace(/\s+/g, '_')}.docx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -553,13 +595,15 @@ export default function ReportsDashboard() {
 
             {activeReport?.id !== 'site_maintenance' && activeReport?.id !== 'death_certificate' && uniqueSections.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Animal Section</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {activeReportId === 'staff_rota' ? 'Filter by Role' : 'Animal Section'}
+                </label>
                 <select
                   value={selectedSection}
                   onChange={(e) => setSelectedSection(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="">All Sections</option>
+                  <option value="">{activeReportId === 'staff_rota' ? 'All Roles' : 'All Sections'}</option>
                   {uniqueSections.map(section => (
                     <option key={section as string} value={section as string}>{section as string}</option>
                   ))}

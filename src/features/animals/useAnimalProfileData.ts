@@ -4,10 +4,27 @@ import { supabase } from '../../lib/supabase';
 import { Animal, LogEntry, Task } from '../../types';
 
 export function useAnimalProfileData(animalId: string) {
-  const animal = useHybridQuery<Animal | undefined>(
+  // 1. Fetch from live collection
+  const liveAnimal = useHybridQuery<Animal | null>(
     'animals',
-    supabase.from('animals').select('*').eq('id', animalId),
-    () => (animalId ? db.animals.get(animalId) : undefined),
+    supabase.from('animals').select('*').eq('id', animalId).maybeSingle(),
+    async () => {
+      if (!animalId) return null;
+      const a = await db.animals.get(animalId);
+      return a || null; // Force null if undefined
+    },
+    [animalId]
+  );
+
+  // 2. Fetch from archived collection
+  const archivedAnimal = useHybridQuery<Animal | null>(
+    'archived_animals',
+    supabase.from('archived_animals').select('*').eq('id', animalId).maybeSingle(),
+    async () => {
+      if (!animalId) return null;
+      const a = await db.archived_animals.get(animalId);
+      return a || null; // Force null if undefined
+    },
     [animalId]
   );
 
@@ -24,8 +41,13 @@ export function useAnimalProfileData(animalId: string) {
     () => (animalId ? db.tasks.where('animal_id').equals(animalId).toArray() : []),
     [animalId]
   );
-  
-  const isLoading = animal === undefined || logs === undefined || tasks === undefined;
+
+  // 3. Resolve Loading State
+  // It is ONLY loading if the queries are strictly undefined (initial fetch state)
+  const isLoading = liveAnimal === undefined || archivedAnimal === undefined || logs === undefined || tasks === undefined;
+
+  // 4. Determine Active Record
+  const animal = liveAnimal || archivedAnimal || null;
 
   const archiveAnimal = async (reason: string, type: NonNullable<Animal['archive_type']>) => {
     if (animal) {

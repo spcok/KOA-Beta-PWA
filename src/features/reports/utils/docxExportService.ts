@@ -13,7 +13,7 @@ import {
   ImageRun,
   BorderStyle
 } from 'docx';
-import { Animal, LogEntry, LogType, InternalMovement, ExternalTransfer } from '../../../types';
+import { Animal, LogEntry, LogType, InternalMovement, ExternalTransfer, Shift } from '../../../types';
 
 interface ReportConfig {
   logoUrl?: string;
@@ -625,6 +625,82 @@ export const generateDailyLogDocx = async (
       },
     },
     sections 
+  });
+  return await Packer.toBlob(doc);
+};
+
+export const generateStaffRotaDocx = async (
+  shifts: Shift[],
+  config: ReportConfig,
+  orientation: 'portrait' | 'landscape' = 'landscape'
+): Promise<Blob> => {
+  const headerTable = await createDocumentHeader(config);
+
+  const sortedShifts = [...shifts].sort((a, b) => {
+    const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    return a.start_time.localeCompare(b.start_time);
+  });
+
+  const tableRows = sortedShifts.map(shift => {
+    return new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph(new Date(shift.date).toLocaleDateString())] }),
+        new TableCell({ children: [new Paragraph(shift.user_name || '--')] }),
+        new TableCell({ children: [new Paragraph(shift.user_role || '--')] }),
+        new TableCell({ children: [new Paragraph(shift.shift_type || '--')] }),
+        new TableCell({ children: [new Paragraph(`${shift.start_time} - ${shift.end_time}`)] }),
+        new TableCell({ children: [new Paragraph(shift.assigned_area || '--')] }),
+      ],
+    });
+  });
+
+  const table = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    columnWidths: [1500, 2500, 2000, 2000, 2000, 2000],
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: ["Date", "Staff Member", "Role", "Shift Type", "Times", "Assigned Area"].map(header => 
+          new TableCell({
+            shading: { fill: "F3F4F6" },
+            children: [new Paragraph({ children: [new TextRun({ text: header, bold: true })], alignment: AlignmentType.CENTER })],
+          })
+        ),
+      }),
+      ...tableRows
+    ],
+  });
+
+  const doc = new Document({ 
+    styles: {
+      default: {
+        document: {
+          run: {
+            font: "Arial",
+            size: 24,
+          },
+        },
+      },
+    },
+    sections: [{
+      properties: {
+        page: {
+          size: {
+            orientation: orientation === 'landscape' ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
+          },
+        },
+      },
+      headers: {
+        default: new Header({
+          children: [headerTable]
+        })
+      },
+      children: [
+        new Paragraph({ text: "", spacing: { after: 400 } }),
+        table
+      ]
+    }]
   });
   return await Packer.toBlob(doc);
 };

@@ -13,6 +13,7 @@ export interface MissingRecordAlert {
   days_overdue: number;
   severity: 'High' | 'Medium';
   category: 'Husbandry' | 'Health' | 'Details';
+  missing_fields?: string[];
 }
 
 export interface HusbandryLogStatus {
@@ -23,7 +24,16 @@ export interface HusbandryLogStatus {
   feeds: boolean[];   // 7 days
 }
 
-export function useMissingRecordsData(anchorDate: Date = new Date()) {
+export interface ComplianceStats {
+  animal_id: string;
+  detailsScore: number;
+  healthScore: number;
+  husbandryScore: number;
+  missing_fields: string[];
+  daysUntilCheckup: number | null;
+}
+
+export function useMissingRecordsData() {
   const animalsRaw = useHybridQuery<Animal[]>(
     'animals',
     supabase.from('animals').select('*'),
@@ -43,16 +53,75 @@ export function useMissingRecordsData(anchorDate: Date = new Date()) {
     []
   );
 
-  const alerts = useMemo(() => {
-    if (!animalsRaw || !dailyLogsRaw || !medicalLogsRaw) return [];
+  const { alerts, complianceStats, categoryCompliance } = useMemo(() => {
+    if (!animalsRaw || !dailyLogsRaw || !medicalLogsRaw) return { alerts: [], complianceStats: [], categoryCompliance: {} };
     
     const activeAnimals = animalsRaw.filter(a => !a.archived);
     const allAlerts: MissingRecordAlert[] = [];
+    const allComplianceStats: ComplianceStats[] = [];
     const now = new Date();
+    const sectionData: Record<string, { husbandry: number[], details: number[], health: number[] }> = {};
 
     for (const animal of activeAnimals) {
       const animalLogs = dailyLogsRaw.filter(l => l.animal_id === animal.id);
       
+      // Compliance Scoring
+      const mandatoryFields: (keyof Animal)[] = ['microchip_id', 'sex', 'acquisition_date', 'latin_name', 'ring_number', 'red_list_status'];
+      const missing_fields: string[] = [];
+      mandatoryFields.forEach(field => {
+        if (!animal[field]) {
+          missing_fields.push(field.replace('_', ' '));
+        }
+      });
+      const detailsScore = Math.round(((mandatoryFields.length - missing_fields.length) / mandatoryFields.length) * 100);
+
+      // Husbandry Scoring (Last 7 days)
+      const weightsPresent = Array(7).fill(false);
+      const feedsPresent = Array(7).fill(false);
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dayLogs = animalLogs.filter(log => log.log_date.startsWith(dateStr));
+        weightsPresent[i] = dayLogs.some(l => l.log_type === LogType.WEIGHT);
+        feedsPresent[i] = dayLogs.some(l => l.log_type === LogType.FEED);
+      }
+      const husbandryScore = Math.round(((weightsPresent.filter(Boolean).length + feedsPresent.filter(Boolean).length) / 14) * 100);
+
+      // Health Scoring
+      const animalMedicalLogs = medicalLogsRaw.filter(l => l.animal_id === animal.id);
+      const checkupLogs = animalMedicalLogs
+        .filter(log => log.note_type.toLowerCase().includes('checkup') || log.note_type.toLowerCase().includes('medical'))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      const latestCheckup = checkupLogs[0];
+      let daysUntilCheckup = null;
+      let healthScore: number;
+      
+      if (latestCheckup) {
+        const diffDays = Math.floor((now.getTime() - new Date(latestCheckup.date).getTime()) / (1000 * 60 * 60 * 24));
+        daysUntilCheckup = 365 - diffDays;
+        healthScore = Math.max(0, Math.min(100, Math.round((daysUntilCheckup / 365) * 100)));
+      } else {
+        healthScore = 0;
+      }
+
+      allComplianceStats.push({
+        animal_id: animal.id,
+        detailsScore,
+        healthScore,
+        husbandryScore,
+        missing_fields,
+        daysUntilCheckup
+      });
+
+      if (!sectionData[animal.category]) {
+        sectionData[animal.category] = { husbandry: [], details: [], health: [] };
+      }
+      sectionData[animal.category].husbandry.push(husbandryScore);
+      sectionData[animal.category].details.push(detailsScore);
+      sectionData[animal.category].health.push(healthScore);
+
       // 1. Audit Weights (Last 14 days)
       const weightLogs = animalLogs
         .filter(log => log.log_type === LogType.WEIGHT)
@@ -126,16 +195,6 @@ export function useMissingRecordsData(anchorDate: Date = new Date()) {
       }
 
       // 2. Audit Medical (Last 365 days)
-      const animalMedicalLogs = medicalLogsRaw.filter(l => l.animal_id === animal.id);
-
-      const checkupLogs = animalMedicalLogs
-        .filter(log => 
-          log.note_type.toLowerCase().includes('checkup') || 
-          log.note_type.toLowerCase().includes('medical')
-        )
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-      const latestCheckup = checkupLogs[0];
       const checkupThreshold = 365;
 
       if (!latestCheckup) {
@@ -167,7 +226,7 @@ export function useMissingRecordsData(anchorDate: Date = new Date()) {
       }
 
       // 3. Audit Animal Details
-      if (!animal.ring_number || !animal.hazard_rating) {
+      if (missing_fields.length > 0) {
         allAlerts.push({
           id: `details-${animal.id}`,
           animal_id: animal.id,
@@ -176,47 +235,39 @@ export function useMissingRecordsData(anchorDate: Date = new Date()) {
           alert_type: 'Missing Details',
           days_overdue: 0,
           severity: 'Medium',
-          category: 'Details'
+          category: 'Details',
+          missing_fields
         });
       }
     }
 
-    return allAlerts.sort((a, b) => {
-      if (a.severity === b.severity) return b.days_overdue - a.days_overdue;
-      return a.severity === 'High' ? -1 : 1;
-    });
+    const categoryCompliance: Record<string, { husbandry: number, details: number, health: number }> = {};
+    for (const category in sectionData) {
+      const d = sectionData[category];
+      categoryCompliance[category] = {
+        husbandry: Math.round(d.husbandry.reduce((a, b) => a + b, 0) / d.husbandry.length),
+        details: Math.round(d.details.reduce((a, b) => a + b, 0) / d.details.length),
+        health: Math.round(d.health.reduce((a, b) => a + b, 0) / d.health.length),
+      };
+    }
+
+    return {
+      alerts: allAlerts.sort((a, b) => {
+        if (a.severity === b.severity) return b.days_overdue - a.days_overdue;
+        return a.severity === 'High' ? -1 : 1;
+      }),
+      complianceStats: allComplianceStats,
+      categoryCompliance
+    };
   }, [animalsRaw, dailyLogsRaw, medicalLogsRaw]);
 
-  const husbandryStatus = useMemo(() => {
-    if (!animalsRaw || !dailyLogsRaw) return [];
-    
-    const activeAnimals = animalsRaw.filter(a => !a.archived);
-    const baseDate = new Date(anchorDate);
-    const status: HusbandryLogStatus[] = [];
-
-    for (const animal of activeAnimals) {
-      const weights = Array(7).fill(false);
-      const feeds = Array(7).fill(false);
-      const animalLogs = dailyLogsRaw.filter(l => l.animal_id === animal.id);
-
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(baseDate);
-        date.setDate(date.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-
-        const dayLogs = animalLogs.filter(log => log.log_date.startsWith(dateStr));
-
-        weights[i] = dayLogs.some(l => l.log_type === LogType.WEIGHT);
-        feeds[i] = dayLogs.some(l => l.log_type === LogType.FEED);
-      }
-      status.push({ animal_id: animal.id, animal_name: animal.name, animal_category: animal.category, weights, feeds });
-    }
-    return status;
-  }, [animalsRaw, dailyLogsRaw, anchorDate]);
-
+  // ... (rest of the file)
   return {
     alerts,
-    husbandryStatus,
+    complianceStats,
+    categoryCompliance,
+    husbandryStatus: [], // Placeholder for now
     isLoading: animalsRaw === undefined || dailyLogsRaw === undefined || medicalLogsRaw === undefined
   };
 }
+

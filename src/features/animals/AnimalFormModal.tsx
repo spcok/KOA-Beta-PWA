@@ -15,7 +15,6 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
   const {
     form,
     isAiPending,
-    handleAutoFill,
     handleImageUpload,
     onSubmit,
     isSubmitting,
@@ -152,7 +151,6 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                         <input {...register('species')} className={inputClass} placeholder="e.g. Barn Owl" />
                                         <button 
                                           type="button" 
-                                          onClick={handleAutoFill} 
                                           disabled={isAiPending} 
                                           className="px-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
                                         >

@@ -243,7 +243,6 @@ export interface RolePermissionConfig {
   add_animals: boolean;
   edit_animals: boolean;
   archive_animals: boolean;
-  delete_animals: boolean;
   // Husbandry
   view_daily_logs: boolean;
   create_daily_logs: boolean;

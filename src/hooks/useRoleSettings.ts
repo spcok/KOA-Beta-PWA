@@ -9,7 +9,6 @@ const defaultPermissions: Omit<RolePermissionConfig, 'role'> = {
   add_animals: false,
   edit_animals: false,
   archive_animals: false,
-  delete_animals: false,
   view_daily_logs: false,
   create_daily_logs: false,
   edit_daily_logs: false,

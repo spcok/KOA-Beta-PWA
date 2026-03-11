@@ -16,12 +16,23 @@ export const useTaskData = () => {
     async () => await db.tasks.toArray(),
     []
   );
-  const animals = useHybridQuery<Animal[]>(
+  const activeAnimals = useHybridQuery<Animal[]>(
     'animals',
     supabase.from('animals').select('*'),
     async () => await db.animals.toArray(),
     []
   );
+
+  const archivedAnimals = useHybridQuery<Animal[]>(
+    'archived_animals',
+    supabase.from('archived_animals').select('*'),
+    async () => await db.archived_animals.toArray(),
+    []
+  );
+
+  const animals = useMemo(() => {
+    return activeAnimals && archivedAnimals ? [...activeAnimals, ...archivedAnimals] : undefined;
+  }, [activeAnimals, archivedAnimals]);
 
   const [filter, setFilter] = useState<'assigned' | 'pending' | 'completed'>('pending');
   const [searchTerm, setSearchTerm] = useState('');

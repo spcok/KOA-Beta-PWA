@@ -3,6 +3,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { X } from 'lucide-react';
 import { User, UserRole } from '../../../types';
 import { SignatureCapture } from '../../../components/ui/SignatureCapture';
+import { supabase } from '../../../lib/supabase';
 
 interface UserFormModalProps {
   isOpen: boolean;
@@ -17,6 +18,8 @@ interface UserFormInputs {
   role: UserRole;
   initials: string;
   signature_data?: string;
+  password?: string;
+  pin?: string;
 }
 
 const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, initialData }) => {
@@ -31,13 +34,16 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
       setValue('role', initialData.role);
       setValue('initials', initialData.initials);
       setValue('signature_data', initialData.signature_data);
+      setValue('pin', initialData.pin);
     } else {
       reset({
         name: '',
         email: '',
         role: UserRole.VOLUNTEER,
         initials: '',
-        signature_data: undefined
+        signature_data: undefined,
+        password: '',
+        pin: ''
       });
     }
   }, [initialData, setValue, reset, isOpen]);
@@ -45,29 +51,60 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
   if (!isOpen) return null;
 
   const onSubmit = async (data: UserFormInputs) => {
-    await onSave({
-      ...data,
-      initials: data.initials.toUpperCase(),
-      permissions: initialData?.permissions || {
-        dashboard: true,
-        dailyLog: true,
-        tasks: true,
-        medical: false,
-        movements: false,
-        safety: false,
-        maintenance: false,
-        settings: false,
-        flightRecords: false,
-        feedingSchedule: false,
-        attendance: true,
-        holidayApprover: false,
-        attendanceManager: false,
-        missingRecords: false,
-        reports: false,
-        rounds: true
+    try {
+      if (initialData) {
+        // Edit existing user
+        await onSave({
+          ...data,
+          initials: data.initials.toUpperCase(),
+          permissions: initialData.permissions || {}
+        } as Omit<User, 'id'>);
+      } else {
+        // Create new user via Edge Function
+        if (!data.password) throw new Error('Password is required');
+        
+        const profileData = {
+          name: data.name,
+          role: data.role,
+          initials: data.initials.toUpperCase(),
+          pin: data.pin,
+          signature_data: data.signature_data,
+          permissions: {
+            dashboard: true,
+            dailyLog: true,
+            tasks: true,
+            medical: false,
+            movements: false,
+            safety: false,
+            maintenance: false,
+            settings: false,
+            flightRecords: false,
+            feedingSchedule: false,
+            attendance: true,
+            holidayApprover: false,
+            attendanceManager: false,
+            missingRecords: false,
+            reports: false,
+            rounds: true
+          }
+        };
+
+        const { data: response, error } = await supabase.functions.invoke('create-staff-account', {
+          body: {
+            email: data.email,
+            password: data.password,
+            profileData: profileData
+          }
+        });
+
+        if (error) throw new Error(error.message);
+        if (response?.error) throw new Error(response.error);
       }
-    });
-    onClose();
+      onClose();
+    } catch (error: unknown) {
+      console.error('Failed to create/save account:', error);
+      alert(`Account Operation Failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   return (
@@ -113,6 +150,30 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
                 placeholder="e.g. john@kentowlacademy.com"
               />
               {errors.email && <p className="text-rose-500 text-[10px] font-bold uppercase mt-1 ml-1">{errors.email.message}</p>}
+            </div>
+
+            {!initialData && (
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Password</label>
+                <input
+                  {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } })}
+                  type="password"
+                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none transition-all font-bold text-slate-900"
+                  placeholder="••••••••"
+                />
+                {errors.password && <p className="text-rose-500 text-[10px] font-bold uppercase mt-1 ml-1">{errors.password.message}</p>}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">PIN</label>
+              <input
+                {...register('pin', { required: 'PIN is required' })}
+                type="password"
+                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none transition-all font-bold text-slate-900"
+                placeholder="••••"
+              />
+              {errors.pin && <p className="text-rose-500 text-[10px] font-bold uppercase mt-1 ml-1">{errors.pin.message}</p>}
             </div>
 
             <div className="grid grid-cols-1 gap-4">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../../../types';
 import { mutateOnlineFirst } from '../../../lib/dataEngine';
+import { SignatureCapture } from '../../../components/ui/SignatureCapture';
 
 interface EditUserModalProps {
   user: User;
@@ -9,6 +10,7 @@ interface EditUserModalProps {
 
 const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose }) => {
   const [formData, setFormData] = useState<User>(user);
+  const [isCapturingSignature, setIsCapturingSignature] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +70,30 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose }) => {
               onChange={(e) => setFormData({ ...formData, job_position: e.target.value })}
               className="w-full border rounded px-3 py-2"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Digital Signature</label>
+            {isCapturingSignature ? (
+              <SignatureCapture
+                onSave={(base64) => {
+                  setFormData({ ...formData, signature_data: base64 });
+                  setIsCapturingSignature(false);
+                }}
+                onCancel={() => setIsCapturingSignature(false)}
+                initialSignature={formData.signature_data}
+              />
+            ) : (
+              <div className="space-y-2">
+                {formData.signature_data && <img src={formData.signature_data} alt="Signature" className="h-16 border rounded" />}
+                <button
+                  type="button"
+                  onClick={() => setIsCapturingSignature(true)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                >
+                  {formData.signature_data ? 'Clear and Re-sign' : 'Add Signature'}
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2 mt-6">
             <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:text-slate-900">Cancel</button>

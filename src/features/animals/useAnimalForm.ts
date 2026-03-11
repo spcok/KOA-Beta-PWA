@@ -1,11 +1,11 @@
-import { useTransition } from 'react';
+import { useTransition, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadFile } from '../../lib/storageEngine';
 import { Animal, AnimalCategory, HazardRating, ConservationStatus } from '../../types';
-import { getLatinName, getConservationStatus } from '../../services/geminiService';
+import { batchGetSpeciesData } from '../../services/geminiService';
 import { mutateOnlineFirst } from '../../lib/dataEngine';
 
 export const animalFormSchema = z.object({
@@ -120,23 +120,24 @@ export function useAnimalForm({ initialData, onClose }: UseAnimalFormProps) {
     },
   });
 
-  const handleAutoFill = async () => {
-    const species = form.getValues('species');
-    if (!species) return;
+  const species = form.watch('species');
+  const redListStatus = form.watch('red_list_status');
 
-    startAiTransition(async () => {
-      try {
-        const [latin, status] = await Promise.all([
-          getLatinName(species),
-          getConservationStatus(species)
-        ]);
-        if (latin) form.setValue('latin_name', latin, { shouldDirty: true });
-        if (status) form.setValue('red_list_status', status as ConservationStatus, { shouldDirty: true });
-      } catch (error) {
-        console.error('AI Autofill failed:', error);
-      }
-    });
-  };
+  useEffect(() => {
+    if (species && (redListStatus === ConservationStatus.NE || !redListStatus)) {
+      startAiTransition(async () => {
+        try {
+          const data = await batchGetSpeciesData([species]);
+          if (data[species]) {
+            form.setValue('latin_name', data[species].latin_name, { shouldDirty: true });
+            form.setValue('red_list_status', data[species].conservation_status as ConservationStatus, { shouldDirty: true });
+          }
+        } catch (error) {
+          console.error('AI Autofill failed:', error);
+        }
+      });
+    }
+  }, [species, redListStatus]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'image_url' | 'distribution_map_url') => {
     const file = e.target.files?.[0];
@@ -171,7 +172,6 @@ export function useAnimalForm({ initialData, onClose }: UseAnimalFormProps) {
   return {
     form,
     isAiPending,
-    handleAutoFill,
     handleImageUpload,
     onSubmit: form.handleSubmit(onSubmit),
     isSubmitting: form.formState.isSubmitting,

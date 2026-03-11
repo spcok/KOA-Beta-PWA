@@ -22,17 +22,26 @@ export function useMedicalData() {
     () => db.quarantine_records.toArray(),
     []
   );
-  const animals = useHybridQuery<Animal[]>(
+  const activeAnimals = useHybridQuery<Animal[]>(
     'animals',
     supabase.from('animals').select('*'),
     () => db.animals.toArray(),
     []
   );
 
+  const archivedAnimals = useHybridQuery<Animal[]>(
+    'archived_animals',
+    supabase.from('archived_animals').select('*'),
+    () => db.archived_animals.toArray(),
+    []
+  );
+
+  const animals = activeAnimals && archivedAnimals ? [...activeAnimals, ...archivedAnimals] : undefined;
+
   const isLoading = clinicalNotes === undefined || marCharts === undefined || quarantineRecords === undefined || animals === undefined;
 
   const addClinicalNote = async (note: Omit<ClinicalNote, 'id' | 'animal_name'>) => {
-    const animal = await db.animals.get(note.animal_id);
+    const animal = await db.animals.get(note.animal_id) || await db.archived_animals.get(note.animal_id);
     const newNote: ClinicalNote = {
       ...note,
       id: crypto.randomUUID(),
@@ -46,7 +55,7 @@ export function useMedicalData() {
   };
 
   const addMarChart = async (chart: Omit<MARChart, 'id' | 'animal_name' | 'administered_dates' | 'status'>) => {
-    const animal = await db.animals.get(chart.animal_id);
+    const animal = await db.animals.get(chart.animal_id) || await db.archived_animals.get(chart.animal_id);
     const newChart: MARChart = {
       ...chart,
       id: crypto.randomUUID(),
@@ -73,7 +82,7 @@ export function useMedicalData() {
   };
 
   const addQuarantineRecord = async (record: Omit<QuarantineRecord, 'id' | 'animal_name' | 'status'>) => {
-    const animal = await db.animals.get(record.animal_id);
+    const animal = await db.animals.get(record.animal_id) || await db.archived_animals.get(record.animal_id);
     const newRecord: QuarantineRecord = {
       ...record,
       id: crypto.randomUUID(),

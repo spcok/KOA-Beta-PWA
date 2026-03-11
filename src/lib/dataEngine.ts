@@ -30,8 +30,10 @@ export async function archiveAnimal(animal: Animal, reason: string, type: NonNul
     await db.animals.delete(animal.id);
   });
 
+  const pendingCount = await db.sync_queue.count();
+
   // Supabase
-  if (navigator.onLine) {
+  if (pendingCount === 0 && navigator.onLine) {
     try {
       await supabase.from('archived_animals').upsert(archivedAnimal).throwOnError();
       await supabase.from('animals').delete().eq('id', animal.id).throwOnError();
@@ -57,8 +59,10 @@ export async function restoreAnimal(animal: Animal) {
     await db.archived_animals.delete(animal.id);
   });
 
+  const pendingCount = await db.sync_queue.count();
+
   // Supabase
-  if (navigator.onLine) {
+  if (pendingCount === 0 && navigator.onLine) {
     try {
       await supabase.from('animals').upsert(animal).throwOnError();
       await supabase.from('archived_animals').delete().eq('id', animal.id).throwOnError();
@@ -74,13 +78,18 @@ export async function restoreAnimal(animal: Animal) {
 }
 
 async function queueSync(tableName: string, recordId: string, operation: 'upsert' | 'delete', payload: Record<string, unknown>) {
-  await db.sync_queue.add({
-    table_name: tableName,
-    record_id: recordId,
-    operation,
-    payload,
-    created_at: new Date().toISOString()
-  });
+  const existing = await db.sync_queue.filter(item => item.table_name === tableName && item.record_id === recordId).first();
+  if (existing) {
+    await db.sync_queue.put({ ...existing, payload, operation });
+  } else {
+    await db.sync_queue.add({
+      table_name: tableName,
+      record_id: recordId,
+      operation,
+      payload,
+      created_at: new Date().toISOString()
+    });
+  }
 }
 
 /**
@@ -196,7 +205,7 @@ export async function mutateOnlineFirst<T extends { id?: string | number }>(
   } catch (error) {
     console.warn('Offline mode: queuing mutation', error);
     // Queue for later
-    const existing = await db.sync_queue.where({ table_name: tableName, record_id: payload.id }).first();
+    const existing = await db.sync_queue.filter(item => item.table_name === tableName && item.record_id === payload.id).first();
     if (existing) {
       await db.sync_queue.put({ ...existing, payload, operation });
     } else {
