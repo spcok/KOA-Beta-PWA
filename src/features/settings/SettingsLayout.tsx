@@ -1,0 +1,80 @@
+import React, { useState } from 'react';
+import { 
+  ShieldCheck, Users, FileText, Brain, 
+  Database, List, Building, HeartPulse, Bug 
+} from 'lucide-react';
+import AccessControl from './tabs/AccessControl';
+import Directory from './tabs/Directory';
+import ZLADocuments from './tabs/ZLADocuments';
+import Intelligence from './tabs/Intelligence';
+import Migration from './tabs/Migration';
+import OperationalLists from './tabs/OperationalLists';
+import OrgProfile from './tabs/OrgProfile';
+import SystemHealth from './tabs/SystemHealth';
+import BugReports from './tabs/BugReports';
+import { usePermissions } from '../../hooks/usePermissions';
+
+type TabType = 'access' | 'directory' | 'zla' | 'intelligence' | 'migration' | 'lists' | 'org' | 'health' | 'bugs';
+
+const SettingsLayout: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<TabType>('org');
+  const permissions = usePermissions();
+
+  const tabs: { id: TabType; label: string; icon: React.ElementType; permission?: keyof typeof permissions }[] = [
+    { id: 'access', label: 'Access Control', icon: ShieldCheck, permission: 'manage_roles' },
+    { id: 'directory', label: 'Directory', icon: Users, permission: 'manage_users' },
+    { id: 'zla', label: 'ZLA Documents', icon: FileText, permission: 'manage_zla_documents' },
+    { id: 'intelligence', label: 'Intelligence', icon: Brain, permission: 'view_settings' },
+    { id: 'migration', label: 'Migration', icon: Database, permission: 'view_settings' },
+    { id: 'lists', label: 'Operational Lists', icon: List, permission: 'view_settings' },
+    { id: 'org', label: 'Organisation Profile', icon: Building, permission: 'view_settings' },
+    { id: 'health', label: 'System Health', icon: HeartPulse, permission: 'view_settings' },
+    { id: 'bugs', label: 'Bug Reports', icon: Bug, permission: 'manage_incidents' },
+  ];
+
+  const visibleTabs = tabs.filter(tab => !tab.permission || permissions[tab.permission]);
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'access': return <AccessControl />;
+      case 'directory': return <Directory />;
+      case 'zla': return <ZLADocuments />;
+      case 'intelligence': return <Intelligence />;
+      case 'migration': return <Migration />;
+      case 'lists': return <OperationalLists />;
+      case 'org': return <OrgProfile />;
+      case 'health': return <SystemHealth />;
+      case 'bugs': return <BugReports />;
+      default: return <OrgProfile />;
+    }
+  };
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <h1 className="text-3xl font-bold text-slate-900">System Settings</h1>
+      <div className="flex gap-6">
+        <nav className="w-64 space-y-1">
+          {visibleTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                activeTab === tab.id 
+                  ? 'bg-blue-50 text-blue-700' 
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <tab.icon size={18} />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+        <main className="flex-1 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+          {renderContent()}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default SettingsLayout;

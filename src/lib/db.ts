@@ -1,0 +1,60 @@
+import Dexie, { Table } from 'dexie';
+import { Animal, LogEntry, Task, ClinicalNote, MARChart, QuarantineRecord, InternalMovement, ExternalTransfer, Timesheet, Holiday, User, OrgProfileSettings, Contact, ZLADocument, SafetyDrill, MaintenanceLog, FirstAidLog, Incident, DailyRound, RolePermissionConfig, SyncQueueItem, OperationalList } from '../types';
+
+export class AppDatabase extends Dexie {
+  animals!: Table<Animal, string>;
+  archived_animals!: Table<Animal, string>;
+  daily_logs!: Table<LogEntry, string>;
+  daily_logs_v2!: Table<LogEntry, string>; // Placeholder for future migration if needed
+  tasks!: Table<Task, string>;
+  medical_logs!: Table<ClinicalNote, string>;
+  mar_charts!: Table<MARChart, string>;
+  quarantine_records!: Table<QuarantineRecord, string>;
+  internal_movements!: Table<InternalMovement, string>;
+  external_transfers!: Table<ExternalTransfer, string>;
+  timesheets!: Table<Timesheet, string>;
+  holidays!: Table<Holiday, string>;
+  users!: Table<User, string>;
+  role_permissions!: Table<RolePermissionConfig, string>;
+  settings!: Table<OrgProfileSettings, string>;
+  contacts!: Table<Contact, string>;
+  zla_documents!: Table<ZLADocument, string>;
+  safety_drills!: Table<SafetyDrill, string>;
+  maintenance_logs!: Table<MaintenanceLog, string>;
+  first_aid_logs!: Table<FirstAidLog, string>;
+  incidents!: Table<Incident, string>;
+  daily_rounds!: Table<DailyRound, string>;
+  operational_lists!: Table<OperationalList, string>;
+  sync_queue!: Table<SyncQueueItem, number>;
+
+  constructor() {
+    super('KentOwlAcademyDB');
+    this.version(23).stores({
+      animals: 'id, name, species, category, location',
+      archived_animals: 'id, name, species, category, location',
+      daily_logs: 'id, animal_id, log_type, log_date, created_at',
+      tasks: 'id, animal_id, due_date, completed',
+      medical_logs: 'id, animal_id, date, note_type',
+      mar_charts: 'id, animal_id, medication_name',
+      quarantine_records: 'id, animal_id, status',
+      internal_movements: 'id, animal_id, log_date, movement_type',
+      external_transfers: 'id, animal_id, date, transfer_type',
+      timesheets: 'id, staff_name, date, status',
+      holidays: 'id, staff_name, status',
+      users: 'id, email, name, role',
+      role_permissions: 'role, view_animals, add_animals, edit_animals, archive_animals, delete_animals, view_daily_logs, create_daily_logs, edit_daily_logs, view_tasks, complete_tasks, manage_tasks, view_daily_rounds, log_daily_rounds, view_medical, add_clinical_notes, prescribe_medications, administer_medications, manage_quarantine, view_movements, log_internal_movements, manage_external_transfers, view_incidents, report_incidents, manage_incidents, view_maintenance, report_maintenance, resolve_maintenance, view_safety_drills, view_first_aid, submit_timesheets, manage_all_timesheets, request_holidays, approve_holidays, view_missing_records, manage_zla_documents, generate_reports, view_settings, manage_users, manage_roles',
+      settings: 'id',
+      contacts: 'id, name, role',
+      zla_documents: 'id, name, category',
+      safety_drills: 'id, date, title',
+      maintenance_logs: 'id, enclosure_id, task_type, status, date_logged',
+      first_aid_logs: 'id, date, personName, type',
+      incidents: 'id, date, severity',
+      daily_rounds: 'id, date, shift, status',
+      operational_lists: 'id, type, category, value',
+      sync_queue: '++id, table_name, operation, created_at'
+    });
+  }
+}
+
+export const db = new AppDatabase();

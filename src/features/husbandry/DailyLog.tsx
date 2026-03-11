@@ -1,0 +1,151 @@
+import React, { useState, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { Animal, LogEntry, LogType, AnimalCategory } from '../../types';
+import { useDailyLogData } from './useDailyLogData';
+import { useWeatherSync } from './hooks/useWeatherSync';
+import AddEntryModal from './AddEntryModal';
+import { BirdRow } from './components/BirdRow';
+import { MammalRow } from './components/MammalRow';
+import { ExoticRow } from './components/ExoticRow';
+
+const DailyLog: React.FC = () => {
+  const [viewDate] = useState(new Date().toISOString().split('T')[0]);
+  const [activeCategory, setActiveCategory] = useState<AnimalCategory>(AnimalCategory.OWLS);
+  const isProcessing = useRef<Set<string>>(new Set());
+  
+  const { animals, getTodayLog, addLogEntry, isLoading } = useDailyLogData(viewDate, activeCategory);
+  const { isSyncing } = useWeatherSync(animals, getTodayLog, addLogEntry, viewDate, isProcessing);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
+  const [selectedType, setSelectedType] = useState<LogType>(LogType.GENERAL);
+
+  const categories = [
+    AnimalCategory.OWLS,
+    AnimalCategory.RAPTORS,
+    AnimalCategory.MAMMALS,
+    AnimalCategory.EXOTICS
+  ];
+
+  const handleCellClick = (animal: Animal, type: LogType) => {
+    setSelectedAnimal(animal);
+    setSelectedType(type);
+    setIsModalOpen(true);
+  };
+
+  const renderHeaders = () => {
+    switch (activeCategory) {
+      case AnimalCategory.EXOTICS:
+        return (
+          <tr>
+            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">Animal</th>
+            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">FEED</th>
+            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">MISTING</th>
+            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">ENV</th>
+          </tr>
+        );
+      default:
+        return (
+          <tr>
+            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">Animal</th>
+            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">WT</th>
+            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">FEED</th>
+            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">ENV</th>
+          </tr>
+        );
+    }
+  };
+
+  const renderRow = (animal: Animal) => {
+    switch (animal.category) {
+      case AnimalCategory.OWLS:
+      case AnimalCategory.RAPTORS:
+        return <BirdRow key={animal.id} animal={animal} getTodayLog={getTodayLog} onCellClick={handleCellClick} />;
+      case AnimalCategory.MAMMALS:
+        return <MammalRow key={animal.id} animal={animal} getTodayLog={getTodayLog} onCellClick={handleCellClick} />;
+      case AnimalCategory.EXOTICS:
+        return <ExoticRow key={animal.id} animal={animal} getTodayLog={getTodayLog} onCellClick={handleCellClick} />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Daily Operations - {viewDate}</h1>
+        {isSyncing && <span className="text-sm text-slate-500 animate-pulse">Syncing Weather...</span>}
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-4 hide-scrollbar">
+        {categories.map(category => (
+          <button
+            key={category}
+            onClick={() => setActiveCategory(category)}
+            className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${
+              activeCategory === category 
+                ? 'bg-slate-800 text-white' 
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+
+      <table className="w-full bg-white rounded-xl shadow-sm overflow-hidden">
+        <thead className="bg-slate-50 border-b border-slate-100">
+          {renderHeaders()}
+        </thead>
+        <tbody>
+          {isLoading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <tr key={i} className="border-b border-slate-100 animate-pulse">
+                <td className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-200"></div>
+                  <div>
+                    <div className="h-4 w-24 bg-slate-200 rounded mb-2"></div>
+                    <div className="h-3 w-16 bg-slate-200 rounded"></div>
+                  </div>
+                </td>
+                <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
+                <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
+                <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
+              </tr>
+            ))
+          ) : (
+            animals.map(renderRow)
+          )}
+        </tbody>
+      </table>
+
+      {isModalOpen && selectedAnimal && (
+        <AddEntryModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={async (entry) => {
+            if (entry.animal_id && isProcessing.current.has(entry.animal_id)) return;
+            if (entry.animal_id) isProcessing.current.add(entry.animal_id);
+            try {
+              if (!entry.id) entry.id = uuidv4();
+              await addLogEntry(entry as LogEntry);
+              setIsModalOpen(false);
+            } finally {
+              if (entry.animal_id) isProcessing.current.delete(entry.animal_id);
+            }
+          }}
+          animal={selectedAnimal}
+          initialType={selectedType}
+          existingLog={getTodayLog(selectedAnimal.id, selectedType)}
+          foodOptions={[]}
+          feedMethods={[]}
+          eventTypes={[]}
+          initialDate={viewDate}
+          allAnimals={animals}
+        />
+      )}
+    </div>
+  );
+};
+
+export default DailyLog;
