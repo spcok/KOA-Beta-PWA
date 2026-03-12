@@ -20,7 +20,6 @@ export function useUsersData() {
         if (navigator.onLine) {
           // 1. ONLINE: Fetch absolute truth directly from the Cloud
           const { data: usersData, error: usersErr } = await supabase.from('users').select('*').order('name');
-          // Order roles by a specific hierarchy if possible, or just fetch them
           const { data: rolesData, error: rolesErr } = await supabase.from('role_permissions').select('*');
 
           if (usersErr) throw usersErr;
@@ -73,9 +72,18 @@ export function useUsersData() {
     };
   }, [refreshCount, refresh]);
 
+  // --- SECURE USER DELETION PIPELINE ---
   const deleteUser = async (id: string) => {
     if (!navigator.onLine) throw new Error("You must be online to delete a user.");
-    await supabase.from('users').delete().eq('id', id);
+    
+    // Invoke the secure Edge Function to destroy the Auth login and Database profile
+    const { data, error } = await supabase.functions.invoke('delete-staff-account', {
+      body: { userId: id }
+    });
+
+    if (error) throw new Error(`Network Error: ${error.message}`);
+    if (data?.error) throw new Error(`Deletion Failed: ${data.error}`);
+    
     refresh();
   };
 
@@ -85,7 +93,6 @@ export function useUsersData() {
     refresh();
   };
 
-  // NEW: Direct Cloud Mutation for the Matrix
   const updateRolePermissions = async (role: string, updates: Partial<RolePermissionConfig>) => {
     if (!navigator.onLine) throw new Error("You must be online to update role permissions.");
     const { error } = await supabase.from('role_permissions').update(updates).eq('role', role);
