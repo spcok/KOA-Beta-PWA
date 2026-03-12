@@ -270,7 +270,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                                     {latestWeight?.weight ? `${latestWeight.weight}${latestWeight.weight_unit || 'g'}` : latestWeight?.weight_grams ? formatWeightDisplay(latestWeight.weight_grams, animal.weight_unit) : String(latestWeight?.value || 'N/A')}
                                 </h3>
                                 <p className="text-sm font-medium text-slate-500">
-                                    {latestWeight ? `Last recorded ${new Date(latestWeight.log_date).toLocaleDateString()}` : 'No records found'}
+                                    {latestWeight ? `Last recorded ${new Date(latestWeight.log_date).toLocaleDateString('en-GB')}` : 'No records found'}
                                 </p>
                             </div>
                         </div>
@@ -391,7 +391,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                                     <div className="grid grid-cols-1 gap-3">
                                         <div className="flex justify-between items-center">
                                             <span className="text-sm text-slate-500">Arrival Date</span>
-                                            <span className="text-sm font-medium text-slate-900">{animal.acquisition_date ? new Date(animal.acquisition_date).toLocaleDateString() : 'N/A'}</span>
+                                            <span className="text-sm font-medium text-slate-900">{animal.acquisition_date ? new Date(animal.acquisition_date).toLocaleDateString('en-GB') : 'N/A'}</span>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span className="text-sm text-slate-500">Origin</span>
@@ -541,7 +541,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                                                 <p className="text-xs font-medium text-slate-500 mb-0.5">Due Date</p>
                                                 <p className="text-xs font-semibold text-slate-900 flex items-center gap-1.5 justify-end">
                                                     <Clock size={12} className="text-slate-400" />
-                                                    {new Date(task.due_date).toLocaleDateString()}
+                                                    {new Date(task.due_date).toLocaleDateString('en-GB')}
                                                 </p>
                                             </div>
                                         </div>

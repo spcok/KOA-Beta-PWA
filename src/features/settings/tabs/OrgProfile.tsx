@@ -17,7 +17,7 @@ const schema = z.object({
   contact_email: z.string().email('Invalid email'),
   contact_phone: z.string().min(1, 'Contact Phone is required'),
   address: z.string().min(1, 'Address is required'),
-  zla_license_number: z.string().min(1, 'ZLA License Number is required'),
+  zla_license_number: z.string().min(1, 'ZLA Licence Number is required'),
   official_website: z.string().optional(),
   adoption_portal: z.string().optional(),
 });

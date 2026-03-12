@@ -77,98 +77,98 @@ const Dashboard: React.FC<DashboardProps> = ({
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-6 w-full max-w-7xl mx-auto font-sans">
+    <div className="p-4 md:p-6 space-y-4 w-full max-w-7xl mx-auto font-sans">
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-500 mt-1 flex items-center gap-2 text-xs lg:text-base">
+          <h1 className="text-xl lg:text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-slate-500 mt-0.5 flex items-center gap-2 text-[10px] lg:text-xs">
             {new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} <span className="text-slate-300">|</span> 🌤️ 14°C Partly Cloudy
           </p>
         </div>
       </div>
 
       {/* Tasks & Health Rota Bento */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col transition-all duration-300">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col transition-all duration-300">
               <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsBentoMinimized(!isBentoMinimized)}>
-                  <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><ClipboardCheck size={20} /></div>
-                      <h2 className="text-lg font-semibold text-slate-800">Pending Duties</h2>
+                  <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><ClipboardCheck size={18} /></div>
+                      <h2 className="text-base font-semibold text-slate-800">Pending Duties</h2>
                   </div>
-                  <div className="flex items-center gap-3">
-                      <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">{taskStats?.pendingTasks?.length || 0}</span>
+                  <div className="flex items-center gap-2">
+                      <span className="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{taskStats?.pendingTasks?.length || 0}</span>
                       <button className="text-slate-400 hover:text-slate-600 transition-colors">
-                          {isBentoMinimized ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                          {isBentoMinimized ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
                       </button>
                   </div>
               </div>
               {!isBentoMinimized && (
-                  <div className="mt-4 flex-1 overflow-y-auto max-h-64 pr-2 space-y-3 scrollbar-hide">
+                  <div className="mt-3 flex-1 overflow-y-auto max-h-48 pr-2 space-y-2 scrollbar-hide">
                       {(taskStats?.pendingTasks?.length || 0) > 0 ? (
                           (taskStats?.pendingTasks || []).map(t => (
-                              <div key={t.id} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100 hover:border-blue-200 hover:bg-white transition-all group">
-                                  <div className="mt-1 p-1 bg-amber-100 rounded-full">
-                                    <AlertCircle size={14} className="text-amber-600 shrink-0"/>
+                              <div key={t.id} className="flex items-start gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100 hover:border-blue-200 hover:bg-white transition-all group">
+                                  <div className="mt-1 p-0.5 bg-amber-100 rounded-full">
+                                    <AlertCircle size={12} className="text-amber-600 shrink-0"/>
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-slate-900 leading-tight truncate">{t.title}</p>
-                                      <div className="flex items-center gap-2 mt-1">
-                                        <Calendar size={12} className="text-slate-400" />
-                                        <p className="text-xs text-slate-500">Due: {getSafeDate(t.due_date)}</p>
+                                      <p className="text-xs font-medium text-slate-900 leading-tight truncate">{t.title}</p>
+                                      <div className="flex items-center gap-1.5 mt-0.5">
+                                        <Calendar size={10} className="text-slate-400" />
+                                        <p className="text-[10px] text-slate-500">Due: {getSafeDate(t.due_date)}</p>
                                       </div>
                                   </div>
                               </div>
                           ))
                       ) : (
-                          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-8">
-                              <div className="p-3 bg-emerald-50 rounded-full mb-3">
-                                <CheckCircle size={32} className="text-emerald-500 opacity-80"/>
+                          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-6">
+                              <div className="p-2 bg-emerald-50 rounded-full mb-2">
+                                <CheckCircle size={24} className="text-emerald-500 opacity-80"/>
                               </div>
-                              <p className="text-sm font-medium text-slate-500">All Duties Satisfied</p>
+                              <p className="text-xs font-medium text-slate-500">All Duties Satisfied</p>
                           </div>
                       )}
                   </div>
               )}
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col transition-all duration-300">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col transition-all duration-300">
               <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsBentoMinimized(!isBentoMinimized)}>
-                  <div className="flex items-center gap-3">
-                      <div className="p-2 bg-rose-50 text-rose-600 rounded-lg"><Heart size={20} /></div>
-                      <h2 className="text-lg font-semibold text-slate-800">Health Rota</h2>
+                  <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-rose-50 text-rose-600 rounded-lg"><Heart size={18} /></div>
+                      <h2 className="text-base font-semibold text-slate-800">Health Rota</h2>
                   </div>
-                  <div className="flex items-center gap-3">
-                      <span className="bg-rose-50 text-rose-700 text-xs font-bold px-2.5 py-1 rounded-full">{taskStats?.pendingHealth?.length || 0}</span>
+                  <div className="flex items-center gap-2">
+                      <span className="bg-rose-50 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{taskStats?.pendingHealth?.length || 0}</span>
                       <button className="text-slate-400 hover:text-slate-600 transition-colors">
-                          {isBentoMinimized ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                          {isBentoMinimized ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
                       </button>
                   </div>
               </div>
               {!isBentoMinimized && (
-                  <div className="mt-4 flex-1 overflow-y-auto max-h-64 pr-2 space-y-3 scrollbar-hide">
+                  <div className="mt-3 flex-1 overflow-y-auto max-h-48 pr-2 space-y-2 scrollbar-hide">
                       {(taskStats?.pendingHealth?.length || 0) > 0 ? (
                           (taskStats?.pendingHealth || []).map(t => (
-                              <div key={t.id} className="flex items-start gap-3 p-3 rounded-lg bg-rose-50/30 border border-rose-100 hover:border-rose-300 hover:bg-white transition-all group">
-                                  <div className="mt-1 p-1 bg-rose-100 rounded-full">
-                                    <Heart size={14} className="text-rose-600 shrink-0"/>
+                              <div key={t.id} className="flex items-start gap-2 p-2 rounded-lg bg-rose-50/30 border border-rose-100 hover:border-rose-300 hover:bg-white transition-all group">
+                                  <div className="mt-1 p-0.5 bg-rose-100 rounded-full">
+                                    <Heart size={12} className="text-rose-600 shrink-0"/>
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-slate-900 leading-tight truncate">{t.title}</p>
-                                      <div className="flex items-center gap-2 mt-1">
-                                        <Calendar size={12} className="text-slate-400" />
-                                        <p className="text-xs text-slate-500">Mandatory: {getSafeDate(t.due_date)}</p>
+                                      <p className="text-xs font-medium text-slate-900 leading-tight truncate">{t.title}</p>
+                                      <div className="flex items-center gap-1.5 mt-0.5">
+                                        <Calendar size={10} className="text-slate-400" />
+                                        <p className="text-[10px] text-slate-500">Mandatory: {getSafeDate(t.due_date)}</p>
                                       </div>
                                   </div>
                               </div>
                           ))
                       ) : (
-                          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-8">
-                              <div className="p-3 bg-rose-50 rounded-full mb-3">
-                                <Heart size={32} className="text-rose-300 opacity-60"/>
+                          <div className="h-full flex flex-col items-center justify-center text-slate-400 py-6">
+                              <div className="p-2 bg-rose-50 rounded-full mb-2">
+                                <Heart size={24} className="text-rose-300 opacity-60"/>
                               </div>
-                              <p className="text-sm font-medium text-slate-500">Collection Stable</p>
+                              <p className="text-xs font-medium text-slate-500">Collection Stable</p>
                           </div>
                       )}
                   </div>
@@ -177,65 +177,66 @@ const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-        <div className="bg-[#0fa968] rounded-xl p-6 text-white flex justify-between items-center shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+        <div className="bg-[#0fa968] rounded-xl p-4 text-white flex justify-between items-center shadow-sm">
           <div>
-            <div className="text-xs lg:text-sm font-medium opacity-90 mb-1">Weighed Today</div>
-            <div className="text-2xl lg:text-4xl font-bold">
-              {animalStats?.weighed || 0}<span className="text-sm lg:text-xl opacity-80">/{animalStats?.total || 0}</span>
+            <div className="text-[10px] font-medium opacity-90 mb-0.5">Weighed Today</div>
+            <div className="text-xl lg:text-2xl font-bold">
+              {animalStats?.weighed || 0}<span className="text-xs lg:text-sm opacity-80">/{animalStats?.total || 0}</span>
             </div>
           </div>
-          <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
-            <Scale size={28} className="text-white" />
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+            <Scale size={20} className="text-white" />
           </div>
         </div>
-        <div className="bg-[#f97316] rounded-xl p-6 text-white flex justify-between items-center shadow-sm">
+        <div className="bg-[#f97316] rounded-xl p-4 text-white flex justify-between items-center shadow-sm">
           <div>
-            <div className="text-xs lg:text-sm font-medium opacity-90 mb-1">Fed Today</div>
-            <div className="text-2xl lg:text-4xl font-bold">
-              {animalStats?.fed || 0}<span className="text-sm lg:text-xl opacity-80">/{animalStats?.total || 0}</span>
+            <div className="text-[10px] font-medium opacity-90 mb-0.5">Fed Today</div>
+            <div className="text-xl lg:text-2xl font-bold">
+              {animalStats?.fed || 0}<span className="text-xs lg:text-sm opacity-80">/{animalStats?.total || 0}</span>
             </div>
           </div>
-          <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
-            <Drumstick size={28} className="text-white" />
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+            <Drumstick size={20} className="text-white" />
           </div>
         </div>
       </div>
 
       {/* Viewing Options Control Bar */}
-      <div className="flex flex-col gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
         {/* Row 1: Date Controls */}
-        <div className="flex flex-wrap items-center justify-center gap-4 w-full">
-          <div className="flex items-center gap-2 text-slate-700 font-medium whitespace-nowrap text-xs lg:text-sm">
-            <Calendar size={20} className="text-blue-600" />
+        <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+          <div className="flex items-center gap-1.5 text-slate-700 font-medium whitespace-nowrap text-[10px] lg:text-xs">
+            <Calendar size={16} className="text-blue-600" />
             Viewing Date:
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => { const d = new Date(viewDate); d.setDate(d.getDate() - 1); setViewDate(d.toISOString().split('T')[0]); }} className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs lg:text-sm hover:bg-slate-50 whitespace-nowrap flex-1 sm:flex-none text-center">← Previous</button>
-            <div className="relative flex-1 sm:flex-none min-w-[140px]">
-              <input type="date" value={viewDate} onChange={e => setViewDate(e.target.value)} className="w-full pl-3 pr-10 py-1.5 border border-slate-200 rounded-lg text-xs lg:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <Calendar size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button onClick={() => { const d = new Date(viewDate); d.setDate(d.getDate() - 1); setViewDate(d.toISOString().split('T')[0]); }} className="px-2 py-1 border border-slate-200 rounded-lg text-[10px] lg:text-xs hover:bg-slate-50 whitespace-nowrap flex-1 sm:flex-none text-center">← Prev</button>
+            <div className="relative flex-1 sm:flex-none min-w-[120px]">
+              <input type="date" value={viewDate} onChange={e => setViewDate(e.target.value)} className="w-full pl-2 pr-8 py-1 border border-slate-200 rounded-lg text-[10px] lg:text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <Calendar size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
-            <button onClick={() => { const d = new Date(viewDate); d.setDate(d.getDate() + 1); setViewDate(d.toISOString().split('T')[0]); }} className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs lg:text-sm hover:bg-slate-50 whitespace-nowrap flex-1 sm:flex-none text-center">Next →</button>
-            <button onClick={() => setViewDate(new Date().toISOString().split('T')[0])} className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs lg:text-sm hover:bg-slate-50 whitespace-nowrap flex-1 sm:flex-none text-center">Today</button>
+            <button onClick={() => { const d = new Date(viewDate); d.setDate(d.getDate() + 1); setViewDate(d.toISOString().split('T')[0]); }} className="px-2 py-1 border border-slate-200 rounded-lg text-[10px] lg:text-xs hover:bg-slate-50 whitespace-nowrap flex-1 sm:flex-none text-center">Next →</button>
+            <button onClick={() => setViewDate(new Date().toISOString().split('T')[0])} className="px-2 py-1 border border-slate-200 rounded-lg text-[10px] lg:text-xs hover:bg-slate-50 whitespace-nowrap flex-1 sm:flex-none text-center">Today</button>
           </div>
         </div>
         
         {/* Row 2: Sort, Lock, Add */}
-        <div className="flex flex-wrap items-center justify-center gap-2 w-full">
-            <button onClick={cycleSort} className="flex items-center justify-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-xs lg:text-sm font-medium hover:bg-slate-50 text-slate-700 bg-white min-w-[100px]">
-              <ArrowUpDown size={16} /> {sortOption === 'alpha-asc' ? 'A-Z' : sortOption === 'alpha-desc' ? 'Z-A' : 'Custom'}
+        <div className="flex flex-wrap items-center justify-center gap-1.5 w-full">
+            <button onClick={cycleSort} className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-[10px] lg:text-xs font-medium hover:bg-slate-50 text-slate-700 bg-white min-w-[80px]">
+              <ArrowUpDown size={14} /> {sortOption === 'alpha-asc' ? 'A-Z' : sortOption === 'alpha-desc' ? 'Z-A' : 'Custom'}
             </button>
-            <button onClick={() => toggleOrderLock(!isOrderLocked)} className={`shrink-0 p-2.5 border border-slate-200 rounded-lg ${isOrderLocked ? 'bg-slate-800 text-white' : 'bg-white text-slate-600'}`}>
-              {isOrderLocked ? <Lock size={16} /> : <Unlock size={16} />}
+            <button onClick={() => toggleOrderLock(!isOrderLocked)} className={`shrink-0 p-2 border border-slate-200 rounded-lg ${isOrderLocked ? 'bg-slate-800 text-white' : 'bg-white text-slate-600'}`}>
+              {isOrderLocked ? <Lock size={14} /> : <Unlock size={14} />}
             </button>
           {permissions.add_animals && (
-            <button onClick={() => setIsCreateAnimalModalOpen(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs lg:text-sm font-medium hover:bg-blue-700 shadow-sm whitespace-nowrap w-full sm:w-auto">
-              <Plus size={16} /> Add {activeTab.charAt(0) + activeTab.slice(1).toLowerCase()}
+            <button onClick={() => setIsCreateAnimalModalOpen(true)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] lg:text-xs font-medium hover:bg-blue-700 shadow-sm whitespace-nowrap w-full sm:w-auto">
+              <Plus size={14} /> Add {activeTab.charAt(0) + activeTab.slice(1).toLowerCase()}
             </button>
           )}
         </div>
       </div>
+
 
       {/* Tabs */}
       <div className="flex overflow-x-auto scrollbar-hide bg-slate-100 p-1 rounded-xl gap-1">

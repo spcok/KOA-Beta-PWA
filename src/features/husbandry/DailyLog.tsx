@@ -38,19 +38,19 @@ const DailyLog: React.FC = () => {
       case AnimalCategory.EXOTICS:
         return (
           <tr>
-            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">Animal</th>
-            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">FEED</th>
-            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">MISTING</th>
-            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">ENV</th>
+            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">Animal</th>
+            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">FEED</th>
+            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">MISTING</th>
+            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">ENV</th>
           </tr>
         );
       default:
         return (
           <tr>
-            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">Animal</th>
-            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">WT</th>
-            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">FEED</th>
-            <th className="p-4 text-left text-xs font-bold text-slate-500 uppercase">ENV</th>
+            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">Animal</th>
+            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">WT</th>
+            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">FEED</th>
+            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">ENV</th>
           </tr>
         );
     }
@@ -71,9 +71,11 @@ const DailyLog: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Daily Operations - {viewDate}</h1>
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-slate-900">
+          Daily Operations - {new Date(viewDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </h1>
         {isSyncing && <span className="text-sm text-slate-500 animate-pulse">Syncing Weather...</span>}
       </div>
 
@@ -82,10 +84,10 @@ const DailyLog: React.FC = () => {
           <button
             key={category}
             onClick={() => setActiveCategory(category)}
-            className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${
+            className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
               activeCategory === category 
-                ? 'bg-slate-800 text-white' 
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-blue-50 text-blue-700' 
+                : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
             {category}
@@ -93,31 +95,33 @@ const DailyLog: React.FC = () => {
         ))}
       </div>
 
-      <table className="w-full bg-white rounded-xl shadow-sm overflow-hidden">
-        <thead className="bg-slate-50 border-b border-slate-100">
-          {renderHeaders()}
-        </thead>
-        <tbody>
-          {isLoading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <tr key={i} className="border-b border-slate-100 animate-pulse">
-                <td className="p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-slate-200"></div>
-                  <div>
-                    <div className="h-4 w-24 bg-slate-200 rounded mb-2"></div>
-                    <div className="h-3 w-16 bg-slate-200 rounded"></div>
-                  </div>
-                </td>
-                <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
-                <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
-                <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
-              </tr>
-            ))
-          ) : (
-            animals.map(renderRow)
-          )}
-        </tbody>
-      </table>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            {renderHeaders()}
+          </thead>
+          <tbody>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="border-b border-slate-100 animate-pulse">
+                  <td className="p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-200"></div>
+                    <div>
+                      <div className="h-4 w-24 bg-slate-200 rounded mb-2"></div>
+                      <div className="h-3 w-16 bg-slate-200 rounded"></div>
+                    </div>
+                  </td>
+                  <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
+                  <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
+                  <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
+                </tr>
+              ))
+            ) : (
+              animals.map(renderRow)
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {isModalOpen && selectedAnimal && (
         <AddEntryModal 

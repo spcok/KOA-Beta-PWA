@@ -64,7 +64,7 @@ const MedicalRecords: React.FC = () => {
           </head>
           <body>
             <h1>Clinical Note: ${note.animal_name}</h1>
-            <p><span class="label">Date:</span> ${note.date}</p>
+            <p><span class="label">Date:</span> ${new Date(note.date).toLocaleDateString('en-GB')}</p>
             <p><span class="label">Type:</span> ${note.note_type}</p>
             <p><span class="label">Staff:</span> ${note.staff_initials}</p>
             ${note.diagnosis ? `<p><span class="label">Diagnosis:</span> ${note.diagnosis}</p>` : ''}
@@ -83,7 +83,7 @@ const MedicalRecords: React.FC = () => {
               </div>
             ` : ''}
 
-            ${note.recheck_date ? `<div class="section"><p><span class="label">Recheck Date:</span> ${note.recheck_date}</p></div>` : ''}
+            ${note.recheck_date ? `<div class="section"><p><span class="label">Recheck Date:</span> ${new Date(note.recheck_date).toLocaleDateString('en-GB')}</p></div>` : ''}
           </body>
         </html>
       `);
@@ -184,7 +184,7 @@ const MedicalRecords: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 font-medium">
-                        <span>{String(n.date)}</span>
+                        <span>{new Date(n.date).toLocaleDateString('en-GB')}</span>
                         <span className="hidden sm:inline text-slate-300">•</span>
                         <span>By: {String(n.staff_initials)}</span>
                       </div>
@@ -214,7 +214,7 @@ const MedicalRecords: React.FC = () => {
                   <div className="flex justify-between items-start border-b border-slate-100 pb-4">
                     <div>
                       <h2 className="text-xl font-bold text-slate-900">{selectedNote.animal_name}</h2>
-                      <p className="text-sm text-slate-500 font-medium">{selectedNote.date}</p>
+                      <p className="text-sm text-slate-500 font-medium">{new Date(selectedNote.date).toLocaleDateString('en-GB')}</p>
                     </div>
                     <div className="flex gap-2">
                       <button 
@@ -280,7 +280,7 @@ const MedicalRecords: React.FC = () => {
                   <div className="border-t border-slate-100 pt-4 flex justify-between items-center text-sm text-slate-500">
                     <span>Recorded by: <span className="font-medium text-slate-700">{selectedNote.staff_initials}</span></span>
                     {selectedNote.recheck_date && (
-                      <span className="text-amber-600 font-medium">Recheck: {selectedNote.recheck_date}</span>
+                      <span className="text-amber-600 font-medium">Recheck: {new Date(selectedNote.recheck_date).toLocaleDateString('en-GB')}</span>
                     )}
                   </div>
                 </div>
@@ -316,7 +316,7 @@ const MedicalRecords: React.FC = () => {
                       <td className="px-6 py-4 text-base font-semibold text-slate-900">{String(m.medication)}</td>
                       <td className="px-6 py-4 text-slate-600">{String(m.animal_name)}</td>
                       <td className="px-6 py-4 text-slate-600">{String(m.dosage)} / {String(m.frequency)}</td>
-                      <td className="px-6 py-4 text-slate-600">{String(m.start_date)} - {String(m.end_date || 'Ongoing')}</td>
+                      <td className="px-6 py-4 text-slate-600">{new Date(m.start_date).toLocaleDateString('en-GB')} - {m.end_date ? new Date(m.end_date).toLocaleDateString('en-GB') : 'Ongoing'}</td>
                       <td className="px-6 py-4">
                         <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
                           {String(m.status)}
@@ -349,8 +349,8 @@ const MedicalRecords: React.FC = () => {
                     <tr key={q.id}>
                       <td className="px-6 py-4 text-base font-semibold text-slate-900">{String(q.animal_name)}</td>
                       <td className="px-6 py-4 text-slate-600">{String(q.reason)}</td>
-                      <td className="px-6 py-4 text-slate-600">{String(q.start_date)}</td>
-                      <td className="px-6 py-4 text-slate-600">{String(q.end_date)}</td>
+                      <td className="px-6 py-4 text-slate-600">{new Date(q.start_date).toLocaleDateString('en-GB')}</td>
+                      <td className="px-6 py-4 text-slate-600">{new Date(q.end_date).toLocaleDateString('en-GB')}</td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${q.status === 'Active' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
                           {String(q.status)}

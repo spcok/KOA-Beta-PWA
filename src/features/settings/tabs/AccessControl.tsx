@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Loader2, Trash2, UserPlus, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Loader2, Trash2, UserPlus } from 'lucide-react';
 import { mutateOnlineFirst } from '../../../lib/dataEngine';
 import { User, UserRole, RolePermissionConfig } from '../../../types';
-import EditUserModal from './EditUserModal';
 import UserFormModal from '../components/UserFormModal';
 import { useUsersData } from '../useUsersData';
 
@@ -49,7 +48,7 @@ const permissionLabels: Record<keyof Omit<RolePermissionConfig, 'role' | 'id'>, 
 };
 
 const UsersView: React.FC = () => {
-  const { users, isLoading, deleteUser, addUser } = useUsersData();
+  const { users, isLoading, deleteUser, addUser, updateUser } = useUsersData();
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -85,11 +84,6 @@ const UsersView: React.FC = () => {
         </button>
       </div>
 
-      <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-yellow-800 flex items-start gap-3">
-        <AlertTriangle className="shrink-0" size={20} />
-        <p className="text-sm">Attention: You must first create this user's email and password in the Supabase Auth Dashboard before adding them here.</p>
-      </div>
-
       <div className="overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50">
@@ -123,8 +117,24 @@ const UsersView: React.FC = () => {
           </tbody>
         </table>
       </div>
-      {editingUser && <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} />}
-      {isAddModalOpen && <UserFormModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleAddUser} />}
+      {editingUser && (
+        <UserFormModal 
+          isOpen={!!editingUser} 
+          onClose={() => setEditingUser(null)} 
+          initialData={editingUser}
+          onSave={async (data) => {
+            await updateUser(editingUser.id, data);
+            setEditingUser(null);
+          }} 
+        />
+      )}
+      {isAddModalOpen && (
+        <UserFormModal 
+          isOpen={isAddModalOpen} 
+          onClose={() => setIsAddModalOpen(false)} 
+          onSave={handleAddUser} 
+        />
+      )}
     </div>
   );
 };

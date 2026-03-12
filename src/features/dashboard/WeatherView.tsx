@@ -119,15 +119,15 @@ const WeatherView: React.FC = () => {
   const isWindRisk = windGust > 18 || windSpeed > 15;
 
   return (
-    <div className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6 pb-32">
+    <div className="p-4 md:p-6 max-w-[1600px] mx-auto space-y-4 pb-12">
       
       {/* TOP HEADER */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-           <h1 className="text-3xl font-semibold text-slate-900 tracking-tight flex items-center gap-3">
-             <CloudSun className="text-emerald-600" size={32} /> Meteorological Station
+           <h1 className="text-2xl font-semibold text-slate-900 tracking-tight flex items-center gap-2">
+             <CloudSun className="text-emerald-600" size={28} /> Meteorological Station
            </h1>
-           <p className="text-slate-600 text-sm font-medium mt-1">Kent Owl Academy • Flight Safety Briefing</p>
+           <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest mt-0.5">Kent Owl Academy • Flight Safety Briefing</p>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -150,22 +150,22 @@ const WeatherView: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
           
           {/* SIDEBAR: LIVE & AI */}
-          <div className="xl:col-span-4 space-y-6">
+          <div className="xl:col-span-4 space-y-4">
               {/* CURRENT WEATHER CARD */}
-              <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-sm relative overflow-hidden flex flex-col justify-between">
+              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
                   <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 blur-[80px] -mr-10 -mt-10 rounded-full"></div>
                   <div className="relative z-10">
-                      <div className="flex justify-between items-start mb-6">
+                      <div className="flex justify-between items-start mb-4">
                           <div>
                               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1">Local Telemetry</p>
                               <h1 className="text-4xl font-semibold tracking-tighter tabular-nums text-slate-900">{Math.round(temp)}<span className="text-2xl text-slate-500">°C</span></h1>
                           </div>
-                          <WeatherIcon code={Number(current.weatherCode) || 0} size={64} className="filter drop-shadow-lg" />
+                          <WeatherIcon code={Number(current.weatherCode) || 0} size={56} className="filter drop-shadow-lg" />
                       </div>
-                      <p className="text-xl font-semibold text-slate-800 mb-6">{String(current.description || 'Unknown')}</p>
+                      <p className="text-lg font-semibold text-slate-800 mb-4">{String(current.description || 'Unknown')}</p>
                       
                       <div className="grid grid-cols-2 gap-3">
                           <div className="bg-white/5 rounded-xl p-3 border border-white/10">
@@ -186,24 +186,24 @@ const WeatherView: React.FC = () => {
               </div>
 
               {/* AI ADVISOR CARD */}
-              <div className="bg-white rounded-[2rem] border-2 border-slate-300 shadow-xl overflow-hidden flex flex-col">
-                  <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-xl overflow-hidden flex flex-col">
+                  <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                       <div>
-                          <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                              <Sparkles className="text-emerald-500" size={16}/> Flight AI Advisor
+                          <h2 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                              <Sparkles className="text-emerald-500" size={14}/> Flight AI Advisor
                           </h2>
                       </div>
                       <button 
                         onClick={handleGenerateAiAnalysis}
                         disabled={isPendingAi}
-                        className="bg-slate-900 hover:bg-black text-white px-3 py-1.5 rounded-lg font-black uppercase text-[8px] tracking-widest transition-all flex items-center gap-2 disabled:opacity-50"
+                        className="bg-slate-900 hover:bg-black text-white px-2 py-1 rounded-lg font-black uppercase text-[8px] tracking-widest transition-all flex items-center gap-2 disabled:opacity-50"
                       >
                         {isPendingAi ? <Loader2 size={10} className="animate-spin"/> : aiAnalysis ? <RefreshCw size={10}/> : <Play size={10}/>}
-                        {aiAnalysis ? 'Update Audit' : 'Run Audit'}
+                        {aiAnalysis ? 'Update' : 'Run Audit'}
                       </button>
                   </div>
 
-                  <div className="p-5 overflow-y-auto max-h-64 scrollbar-thin">
+                  <div className="p-4 overflow-y-auto max-h-48 scrollbar-thin">
                       {!aiAnalysis && !isPendingAi ? (
                           <div className="flex flex-col items-center justify-center py-10 text-slate-300 text-center">
                               <ShieldAlert size={32} className="mb-2 opacity-20" />
@@ -234,38 +234,38 @@ const WeatherView: React.FC = () => {
           </div>
 
           {/* MAIN: FORECAST TABLE */}
-          <div className="xl:col-span-8 space-y-6">
+          <div className="xl:col-span-8 space-y-4">
               
               {/* DATE TABS */}
-              <div className="bg-white p-2 rounded-2xl border-2 border-slate-300 shadow-sm flex gap-1 overflow-x-auto scrollbar-hide">
+              <div className="bg-white p-1.5 rounded-xl border-2 border-slate-300 shadow-sm flex gap-1 overflow-x-auto scrollbar-hide">
                   {daily.slice(0, 7).map((day: WeatherDaily) => (
                       <button 
                         key={String(day.date)}
                         onClick={() => setSelectedDate(String(day.date))}
-                        className={`flex-1 min-w-[100px] px-4 py-3 rounded-xl flex flex-col items-center transition-all ${
+                        className={`flex-1 min-w-[90px] px-3 py-2 rounded-lg flex flex-col items-center transition-all ${
                             day.date === selectedDate ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'
                         }`}
                       >
                           <span className="text-[8px] font-black uppercase tracking-widest opacity-60 mb-0.5">{new Date(String(day.date)).toLocaleDateString('en-GB', {weekday: 'short'})}</span>
-                          <span className="text-sm font-black tabular-nums">{new Date(String(day.date)).getDate()} {new Date(String(day.date)).toLocaleDateString('en-GB', {month: 'short'}).toUpperCase()}</span>
-                          <div className="mt-2 flex items-center gap-1">
-                              <WeatherIcon code={Number(day.weatherCode) || 0} size={14} />
-                              <span className="text-[10px] font-bold">{Math.round(Number(day.maxTemp) || 0)}°</span>
+                          <span className="text-xs font-black tabular-nums">{new Date(String(day.date)).getDate()} {new Date(String(day.date)).toLocaleDateString('en-GB', {month: 'short'}).toUpperCase()}</span>
+                          <div className="mt-1 flex items-center gap-1">
+                              <WeatherIcon code={Number(day.weatherCode) || 0} size={12} />
+                              <span className="text-[9px] font-bold">{Math.round(Number(day.maxTemp) || 0)}°</span>
                           </div>
                       </button>
                   ))}
               </div>
 
               {/* HOURLY TABLE */}
-              <div className="bg-white rounded-[2rem] border-2 border-slate-300 shadow-xl overflow-hidden">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-xl overflow-hidden">
+                    <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                         <div>
-                            <h2 className="text-xl font-semibold text-slate-800">Hourly Operational Matrix</h2>
-                            <p className="text-sm font-medium text-slate-500 mt-1">High-Resolution Micro-Telemetry Forecast</p>
+                            <h2 className="text-lg font-semibold text-slate-800">Hourly Operational Matrix</h2>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">High-Resolution Micro-Telemetry Forecast</p>
                         </div>
                         <div className="text-right">
-                             <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 shadow-sm">
-                                {selectedDate ? new Date(selectedDate).toLocaleDateString('en-GB', { dateStyle: 'long' }) : '---'}
+                             <span className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 shadow-sm">
+                                {selectedDate ? new Date(selectedDate).toLocaleDateString('en-GB', { dateStyle: 'medium' }) : '---'}
                              </span>
                         </div>
                     </div>
@@ -274,11 +274,11 @@ const WeatherView: React.FC = () => {
                         <table className="w-full text-left border-collapse whitespace-nowrap">
                             <thead>
                                 <tr className="bg-slate-50 border-b-2 border-slate-200">
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Time</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Status</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Temp (°C)</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Wind / Gust (MPH)</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Precip %</th>
+                                    <th className="px-4 py-3 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Time</th>
+                                    <th className="px-4 py-3 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Status</th>
+                                    <th className="px-4 py-3 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Temp</th>
+                                    <th className="px-4 py-3 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Wind / Gust</th>
+                                    <th className="px-4 py-3 text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Precip</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -289,45 +289,45 @@ const WeatherView: React.FC = () => {
                                     
                                     return (
                                         <tr key={idx} className={`hover:bg-slate-50/80 transition-colors ${!isDaytime ? 'bg-slate-50/30' : 'bg-white'}`}>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="font-black text-slate-900 text-sm tabular-nums">{timeStr}</span>
+                                            <td className="px-4 py-2.5 whitespace-nowrap">
+                                                <span className="font-black text-slate-900 text-xs tabular-nums">{timeStr}</span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-3">
-                                                    <WeatherIcon code={Number(hour.weatherCode) || 0} size={20} />
-                                                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide truncate max-w-[120px]">{String(hour.description || 'Unknown')}</span>
+                                            <td className="px-4 py-2.5 whitespace-nowrap">
+                                                <div className="flex items-center gap-2">
+                                                    <WeatherIcon code={Number(hour.weatherCode) || 0} size={16} />
+                                                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide truncate max-w-[100px]">{String(hour.description || 'Unknown')}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-base font-black text-slate-800 tabular-nums">{Math.round(Number(hour.temp) || 0)}°</span>
+                                            <td className="px-4 py-2.5 whitespace-nowrap">
+                                                <span className="text-sm font-black text-slate-800 tabular-nums">{Math.round(Number(hour.temp) || 0)}°</span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="flex items-center gap-2">
+                                            <td className="px-4 py-2.5 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-1.5">
                                                         <Navigation 
-                                                            size={14} 
+                                                            size={12} 
                                                             style={{transform: `rotate(${Number(hour.windDirection) || 0}deg)`}} 
                                                             className="text-blue-500"
                                                         />
-                                                        <span className="text-base font-black text-slate-900 tabular-nums">{Math.round(Number(hour.windSpeed) || 0)}</span>
+                                                        <span className="text-sm font-black text-slate-900 tabular-nums">{Math.round(Number(hour.windSpeed) || 0)}</span>
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-[8px] font-black text-rose-500 uppercase leading-none">GUSTS</span>
-                                                        <span className={`text-[11px] font-black tabular-nums ${Number(hour.windGust) > 18 ? 'text-rose-600' : 'text-slate-800'}`}>
+                                                        <span className="text-[7px] font-black text-rose-500 uppercase leading-none">GUSTS</span>
+                                                        <span className={`text-[10px] font-black tabular-nums ${Number(hour.windGust) > 18 ? 'text-rose-600' : 'text-slate-800'}`}>
                                                             {Math.round(Number(hour.windGust) || 0)}
                                                         </span>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-4 py-2.5 whitespace-nowrap">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden w-12 hidden sm:block">
+                                                    <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden w-8 hidden sm:block">
                                                         <div 
                                                             className={`h-full transition-all duration-1000 ${(Number(hour.precipProb) || 0) > 50 ? 'bg-blue-500' : (Number(hour.precipProb) || 0) > 20 ? 'bg-blue-300' : 'bg-slate-300'}`}
                                                             style={{ width: `${Number(hour.precipProb) || 0}%` }}
                                                         />
                                                     </div>
-                                                    <span className={`text-[10px] font-black tabular-nums ${(Number(hour.precipProb) || 0) > 50 ? 'text-blue-600' : 'text-slate-400'}`}>{String(hour.precipProb || 0)}%</span>
+                                                    <span className={`text-[9px] font-black tabular-nums ${(Number(hour.precipProb) || 0) > 50 ? 'text-blue-600' : 'text-slate-400'}`}>{String(hour.precipProb || 0)}%</span>
                                                 </div>
                                             </td>
                                         </tr>

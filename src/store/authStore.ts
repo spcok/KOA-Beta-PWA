@@ -10,12 +10,10 @@ interface AuthState {
   user: SupabaseUser | null;
   currentUser: User | null; // Kept for compatibility with existing components
   isLoading: boolean;
-  shiftPin: string | null;
   isUiLocked: boolean;
   login: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   logout: () => Promise<void>;
   initialize: () => Promise<(() => void) | void>;
-  setShiftPin: (pin: string | null) => void;
   setUiLocked: (locked: boolean) => void;
 }
 
@@ -24,7 +22,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   currentUser: null,
   isLoading: true,
-  shiftPin: null,
   isUiLocked: false,
 
   login: async (email, password) => {
@@ -39,7 +36,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     await supabase.auth.signOut();
   },
 
-  setShiftPin: (pin) => set({ shiftPin: pin }),
   setUiLocked: (locked) => set({ isUiLocked: locked }),
 
   initialize: async () => {

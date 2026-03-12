@@ -1,69 +1,95 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { Lock, Unlock, LogOut } from 'lucide-react';
+import { Lock, LogOut, ShieldAlert } from 'lucide-react';
 
 const LockScreen: React.FC = () => {
-  const { shiftPin, isUiLocked, setShiftPin, setUiLocked, logout } = useAuthStore();
+  const { currentUser, isUiLocked, setUiLocked, logout } = useAuthStore();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
 
-  if (!isUiLocked && shiftPin) return null;
+  // If UI is not locked, don't show the screen
+  if (!isUiLocked) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shiftPin) {
-      if (pin.length === 4 && /^\d+$/.test(pin)) {
-        setShiftPin(pin);
-        setPin('');
-      } else {
-        setError('PIN must be 4 digits');
-      }
-    } else {
-      if (pin === shiftPin) {
+    
+    // Fallback for legacy users who don't have a PIN set yet
+    const userPin = currentUser?.pin;
+    
+    if (!userPin) {
+      // Fallback for legacy users: allow '0000' or just let them in if they are admin
+      // The user said "including a fallback for legacy users".
+      if (pin === '0000') {
         setUiLocked(false);
         setPin('');
         setError('');
       } else {
-        setError('Incorrect PIN');
+        setError('No PIN set. Use 0000 or contact admin.');
+        setPin('');
       }
+      return;
+    }
+
+    if (pin === userPin) {
+      setUiLocked(false);
+      setPin('');
+      setError('');
+    } else {
+      setError('Incorrect PIN');
+      setPin('');
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[999] bg-slate-900/95 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center">
-        <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-          {isUiLocked ? <Lock className="w-8 h-8 text-slate-600" /> : <Unlock className="w-8 h-8 text-slate-600" />}
+    <div className="fixed inset-0 z-[999] bg-slate-900/98 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl p-10 w-full max-w-sm shadow-2xl text-center border border-slate-100">
+        <div className="mx-auto w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-8 border border-slate-100">
+          <Lock className="w-10 h-10 text-slate-900" />
         </div>
         
-        <h2 className="text-2xl font-black text-slate-900 mb-2">
-          {isUiLocked ? 'System Locked' : 'Set Shift PIN'}
+        <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">
+          System Locked
         </h2>
-        <p className="text-slate-500 mb-6 text-sm">
-          {isUiLocked ? 'Enter your 4-digit PIN to unlock' : 'Create a 4-digit PIN to secure your session'}
+        <p className="text-slate-400 mb-8 text-xs font-bold uppercase tracking-widest">
+          Enter your security PIN to continue
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="password"
-            maxLength={4}
-            value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-            className="w-full text-center text-4xl p-4 bg-slate-50 border-2 border-slate-200 rounded-xl tracking-[0.5em] focus:border-blue-500 focus:ring-0"
-            placeholder="****"
-          />
-          {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
-          <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold uppercase tracking-widest text-sm hover:bg-blue-700">
-            {isUiLocked ? 'Unlock' : 'Set PIN'}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="relative">
+            <input
+              type="password"
+              maxLength={4}
+              autoFocus
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+              className="w-full text-center text-5xl p-6 bg-slate-50 border-2 border-slate-100 rounded-2xl tracking-[0.5em] focus:border-slate-900 focus:bg-white outline-none transition-all font-black text-slate-900"
+              placeholder="••••"
+            />
+          </div>
+          
+          {error && (
+            <div className="flex items-center justify-center gap-2 text-rose-500 bg-rose-50 p-3 rounded-xl border border-rose-100">
+              <ShieldAlert size={14} />
+              <p className="text-[10px] font-black uppercase tracking-widest">{error}</p>
+            </div>
+          )}
+
+          <button 
+            type="submit" 
+            className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-xl shadow-slate-200"
+          >
+            Unlock System
           </button>
         </form>
 
-        <button 
-          onClick={logout}
-          className="mt-6 flex items-center justify-center gap-2 text-slate-400 hover:text-red-500 text-xs font-bold uppercase tracking-widest w-full"
-        >
-          <LogOut size={14} /> Logout Completely
-        </button>
+        <div className="mt-10 pt-8 border-t border-slate-50">
+          <button 
+            onClick={logout}
+            className="flex items-center justify-center gap-2 text-slate-400 hover:text-rose-500 text-[10px] font-black uppercase tracking-widest w-full transition-colors"
+          >
+            <LogOut size={14} /> Terminate Session
+          </button>
+        </div>
       </div>
     </div>
   );
