@@ -130,6 +130,26 @@ export default function ReportsDashboard() {
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSection, setSelectedSection] = useState<string>('');
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('landscape');
+  const [rotaPeriod, setRotaPeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+
+  // Auto-calculate End Date based on the selected Rota Period
+  React.useEffect(() => {
+    if (activeReportId === 'staff_rota') {
+      const start = new Date(startDate);
+      const end = new Date(startDate);
+      
+      if (rotaPeriod === 'daily') {
+        // End date is the same as start date
+      } else if (rotaPeriod === 'weekly') {
+        end.setDate(start.getDate() + 6);
+      } else if (rotaPeriod === 'monthly') {
+        end.setMonth(start.getMonth() + 1);
+        end.setDate(end.getDate() - 1);
+      }
+      
+      setEndDate(end.toISOString().split('T')[0]);
+    }
+  }, [startDate, rotaPeriod, activeReportId]);
   
   const animals = useHybridQuery<Animal[]>('animals', () => db.animals.toArray(), []);
   const archivedAnimals = useHybridQuery<Animal[]>('archived_animals', () => db.archived_animals.toArray(), []);
@@ -569,15 +589,30 @@ export default function ReportsDashboard() {
                   />
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
-                  <input 
-                    type="date" 
-                    value={endDate} 
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
+                {activeReport?.id !== 'staff_rota' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
+                    <input 
+                      type="date" 
+                      value={endDate} 
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Period</label>
+                    <select 
+                      value={rotaPeriod} 
+                      onChange={(e) => setRotaPeriod(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                )}
               </>
             )}
 

@@ -11,7 +11,8 @@ import {
   PageOrientation,
   Header,
   ImageRun,
-  BorderStyle
+  BorderStyle,
+  HeightRule
 } from 'docx';
 import { Animal, LogEntry, LogType, InternalMovement, ExternalTransfer, Shift } from '../../../types';
 
@@ -636,71 +637,180 @@ export const generateStaffRotaDocx = async (
 ): Promise<Blob> => {
   const headerTable = await createDocumentHeader(config);
 
-  const sortedShifts = [...shifts].sort((a, b) => {
-    const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-    if (dateDiff !== 0) return dateDiff;
-    return a.start_time.localeCompare(b.start_time);
-  });
+  const start = new Date(config.startDate);
+  const end = new Date(config.endDate);
+  const allDates: Date[] = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    allDates.push(new Date(d));
+  }
 
-  const tableRows = sortedShifts.map(shift => {
-    return new TableRow({
-      children: [
-        new TableCell({ children: [new Paragraph(new Date(shift.date).toLocaleDateString())] }),
-        new TableCell({ children: [new Paragraph(shift.user_name || '--')] }),
-        new TableCell({ children: [new Paragraph(shift.user_role || '--')] }),
-        new TableCell({ children: [new Paragraph(shift.shift_type || '--')] }),
-        new TableCell({ children: [new Paragraph(`${shift.start_time} - ${shift.end_time}`)] }),
-        new TableCell({ children: [new Paragraph(shift.assigned_area || '--')] }),
-      ],
+  const isMonthly = allDates.length > 7;
+  let contentTable: Table;
+
+  if (!isMonthly) {
+    // ==========================================
+    // WEEKLY LAYOUT: Columns = Days, Cell = List
+    // ==========================================
+    const headerCells = allDates.map(date => 
+      new TableCell({
+        shading: { fill: "1E293B" }, // slate-800
+        children: [
+          new Paragraph({ children: [new TextRun({ text: date.toLocaleDateString('en-GB', { weekday: 'long' }), bold: true, color: "FFFFFF", size: 22 })], alignment: AlignmentType.CENTER }),
+          new Paragraph({ children: [new TextRun({ text: date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }), color: "CBD5E1", size: 18 })], alignment: AlignmentType.CENTER })
+        ],
+        margins: { top: 150, bottom: 150, left: 100, right: 100 },
+      })
+    );
+
+    const dataCells = allDates.map(date => {
+      const dateStr = date.toISOString().split('T')[0];
+      const dayShifts = shifts.filter(s => s.date === dateStr).sort((a, b) => a.start_time.localeCompare(b.start_time));
+      
+      const cellParagraphs: Paragraph[] = [];
+      if (dayShifts.length === 0) {
+        cellParagraphs.push(new Paragraph({ children: [new TextRun({ text: "No shifts scheduled", color: "94A3B8", size: 18, italic: true })], alignment: AlignmentType.CENTER }));
+      } else {
+        dayShifts.forEach(s => {
+          const name = s.user_name || 'Unassigned';
+          cellParagraphs.push(new Paragraph({ children: [new TextRun({ text: name, bold: true, size: 20, color: "0F172A" })] }));
+          cellParagraphs.push(new Paragraph({ children: [new TextRun({ text: `${s.start_time} - ${s.end_time}`, size: 16, color: "475569" })] }));
+          cellParagraphs.push(new Paragraph({ children: [new TextRun({ text: s.assigned_area || s.shift_type || 'General', size: 16, color: "059669", bold: true })], spacing: { after: 200 } }));
+        });
+      }
+
+      return new TableCell({
+        children: cellParagraphs.length > 0 ? cellParagraphs : [new Paragraph({text: ""})],
+        margins: { top: 150, bottom: 150, left: 100, right: 100 },
+      });
     });
-  });
 
-  const table = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    columnWidths: [1500, 2500, 2000, 2000, 2000, 2000],
-    rows: [
-      new TableRow({
-        tableHeader: true,
-        children: ["Date", "Staff Member", "Role", "Shift Type", "Times", "Assigned Area"].map(header => 
-          new TableCell({
-            shading: { fill: "F3F4F6" },
-            children: [new Paragraph({ children: [new TextRun({ text: header, bold: true })], alignment: AlignmentType.CENTER })],
-          })
-        ),
-      }),
-      ...tableRows
-    ],
-  });
+    contentTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+        bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+        left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+        right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+        insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      },
+      rows: [
+        new TableRow({ tableHeader: true, children: headerCells }),
+        new TableRow({ children: dataCells })
+      ]
+    });
+
+  } else {
+    // ==========================================
+    // MONTHLY LAYOUT: Traditional Calendar Grid
+    // ==========================================
+    const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const headerCells = dayNames.map(day => 
+      new TableCell({
+        shading: { fill: "1E293B" },
+        children: [new Paragraph({ children: [new TextRun({ text: day, bold: true, color: "FFFFFF", size: 20 })], alignment: AlignmentType.CENTER })],
+        margins: { top: 100, bottom: 100, left: 100, right: 100 },
+      })
+    );
+
+    const rows: TableRow[] = [];
+    let currentCells: TableCell[] = [];
+    
+    // Pad the first week if the month doesn't start on a Monday
+    // (JavaScript getDay: Sun=0, Mon=1. We want Mon=0, Sun=6)
+    const startWeekday = (start.getDay() + 6) % 7; 
+    for (let i = 0; i < startWeekday; i++) {
+      currentCells.push(new TableCell({ children: [new Paragraph("")], shading: { fill: "F8FAFC" } }));
+    }
+
+    allDates.forEach(date => {
+      const dateStr = date.toISOString().split('T')[0];
+      const dayShifts = shifts.filter(s => s.date === dateStr).sort((a, b) => a.start_time.localeCompare(b.start_time));
+      
+      const cellParagraphs: Paragraph[] = [
+        new Paragraph({ 
+          children: [new TextRun({ text: date.getDate().toString(), bold: true, size: 20, color: "64748B" })], 
+          alignment: AlignmentType.RIGHT, 
+          spacing: { after: 100 } 
+        })
+      ];
+
+      dayShifts.forEach(s => {
+        const nameParts = (s.user_name || 'Un').split(' ');
+        const initials = nameParts.map(n => n[0]).join('').toUpperCase().substring(0, 2);
+        const area = s.assigned_area || s.shift_type || 'Gen';
+        
+        cellParagraphs.push(new Paragraph({ 
+          children: [
+            new TextRun({ text: `${initials}: `, bold: true, size: 14, color: "0F172A" }),
+            new TextRun({ text: area.substring(0, 10), size: 14, color: "059669" })
+          ],
+          spacing: { after: 40 }
+        }));
+      });
+
+      currentCells.push(new TableCell({
+        children: cellParagraphs,
+        margins: { top: 100, bottom: 100, left: 100, right: 100 },
+      }));
+
+      // Wrap to next week
+      if (currentCells.length === 7) {
+        rows.push(new TableRow({ 
+          children: currentCells,
+          height: { value: 1800, rule: HeightRule.AT_LEAST } // Forces the square shape
+        }));
+        currentCells = [];
+      }
+    });
+
+    // Pad the last week
+    if (currentCells.length > 0) {
+      while (currentCells.length < 7) {
+        currentCells.push(new TableCell({ children: [new Paragraph("")], shading: { fill: "F8FAFC" } }));
+      }
+      rows.push(new TableRow({ 
+        children: currentCells,
+        height: { value: 1800, rule: HeightRule.AT_LEAST } // Forces the square shape
+      }));
+    }
+
+    contentTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+        bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+        left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+        right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+        insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      },
+      rows: [
+        new TableRow({ tableHeader: true, children: headerCells }),
+        ...rows
+      ]
+    });
+  }
 
   const doc = new Document({ 
     styles: {
-      default: {
-        document: {
-          run: {
-            font: "Arial",
-            size: 24,
-          },
-        },
-      },
+      default: { document: { run: { font: "Arial", size: 24 } } }
     },
     sections: [{
       properties: {
         page: {
-          size: {
-            orientation: orientation === 'landscape' ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
-          },
+          size: { orientation: orientation === 'landscape' ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT },
         },
       },
       headers: {
-        default: new Header({
-          children: [headerTable]
-        })
+        default: new Header({ children: [headerTable] })
       },
       children: [
         new Paragraph({ text: "", spacing: { after: 400 } }),
-        table
+        contentTable
       ]
     }]
   });
+  
   return await Packer.toBlob(doc);
 };

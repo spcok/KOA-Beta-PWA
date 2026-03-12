@@ -17,17 +17,24 @@ const AddShiftModal: React.FC<AddShiftModalProps> = ({ isOpen, onClose }) => {
   const [repeat, setRepeat] = useState(false);
   const [repeatDays, setRepeatDays] = useState<number[]>([]);
   const [weeks, setWeeks] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
   const onSubmit = async (data: Omit<Shift, 'id' | 'pattern_id' | 'user_name' | 'user_role'>) => {
-    const user = users.find(u => u.id === data.user_id);
-    await createShift({
-      ...data,
-      user_name: user?.name || 'Unknown',
-      user_role: user?.role || 'Unknown'
-    }, repeat ? repeatDays : [], repeat ? weeks : 1);
-    onClose();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const user = users.find(u => u.id === data.user_id);
+      await createShift({
+        ...data,
+        user_name: user?.name || 'Unknown',
+        user_role: user?.role || 'Unknown'
+      }, repeat ? repeatDays : [], repeat ? weeks : 1);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -60,9 +67,17 @@ const AddShiftModal: React.FC<AddShiftModalProps> = ({ isOpen, onClose }) => {
           {repeat && (
             <div className="space-y-2">
               <div className="flex gap-1">
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-                  <button key={i} type="button" onClick={() => setRepeatDays(prev => prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i])} className={`p-2 rounded ${repeatDays.includes(i) ? 'bg-emerald-500 text-white' : 'bg-gray-200'}`}>
-                    {day}
+                {[
+                  { label: 'M', val: 1 }, { label: 'T', val: 2 }, { label: 'W', val: 3 }, 
+                  { label: 'T', val: 4 }, { label: 'F', val: 5 }, { label: 'S', val: 6 }, { label: 'S', val: 0 }
+                ].map((day) => (
+                  <button 
+                    key={day.val} 
+                    type="button" 
+                    onClick={() => setRepeatDays(prev => prev.includes(day.val) ? prev.filter(d => d !== day.val) : [...prev, day.val])} 
+                    className={`flex-1 py-2 rounded font-bold text-xs transition-colors ${repeatDays.includes(day.val) ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                  >
+                    {day.label}
                   </button>
                 ))}
               </div>
@@ -70,8 +85,8 @@ const AddShiftModal: React.FC<AddShiftModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          <button type="submit" className="w-full bg-emerald-600 text-white p-2 rounded flex items-center justify-center gap-2">
-            <Save size={18} /> Save Shift
+          <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 text-white p-2 rounded flex items-center justify-center gap-2 disabled:opacity-50">
+            <Save size={18} /> {isSubmitting ? 'Saving...' : 'Save Shift'}
           </button>
         </form>
       </div>

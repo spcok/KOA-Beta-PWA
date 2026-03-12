@@ -16,6 +16,11 @@ const LockScreen: React.FC = () => {
     // Fallback for legacy users who don't have a PIN set yet
     const userPin = currentUser?.pin;
     
+    console.log("🔒 LOCK SCREEN DIAGNOSTIC:");
+    console.log("Entered PIN:", pin);
+    console.log("currentUser Object in AuthStore:", currentUser);
+    console.log("Expected PIN (currentUser.pin):", userPin);
+    
     if (!userPin) {
       // Fallback for legacy users: allow '0000' or just let them in if they are admin
       // The user said "including a fallback for legacy users".

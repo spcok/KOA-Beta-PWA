@@ -29,15 +29,22 @@ const StaffRota: React.FC = () => {
     });
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this shift?')) {
-      await deleteShift(id);
+  const handleDelete = async (shift: Shift) => {
+    if (shift.pattern_id) {
+      const delSeries = window.confirm('Do you want to delete the ENTIRE repeating series?\n\nClick OK to delete all.\nClick Cancel to delete ONLY this specific day.');
+      await deleteShift(shift, delSeries);
+    } else {
+      if (window.confirm('Are you sure you want to delete this shift?')) {
+        await deleteShift(shift, false);
+      }
     }
   };
 
   const getWeekRange = (date: Date) => {
     const start = new Date(date);
-    start.setDate(date.getDate() - date.getDay());
+    const day = start.getDay();
+    const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    start.setDate(diff);
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
     return { start, end };
@@ -99,7 +106,7 @@ const StaffRota: React.FC = () => {
                     <button onClick={() => setEditingShift(s)} className="p-2 text-slate-400 hover:text-emerald-600 rounded-full hover:bg-emerald-50 transition-colors">
                       <Edit2 size={18} />
                     </button>
-                    <button onClick={() => handleDelete(s.id)} className="p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(s); }} className="p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors">
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -145,7 +152,7 @@ const StaffRota: React.FC = () => {
                           <button onClick={() => setEditingShift(s)} className="text-slate-400 hover:text-emerald-600 p-0.5">
                             <Edit2 size={12} />
                           </button>
-                          <button onClick={() => handleDelete(s.id)} className="text-slate-400 hover:text-red-600 p-0.5">
+                          <button onClick={(e) => { e.stopPropagation(); handleDelete(s); }} className="text-slate-400 hover:text-red-600 p-0.5">
                             <Trash2 size={12} />
                           </button>
                         </div>
@@ -167,11 +174,11 @@ const StaffRota: React.FC = () => {
 
   const renderMonthlyView = () => {
     const { start, end } = getMonthRange(currentDate);
-    const startDay = start.getDay(); // 0 = Sun
+    const startDay = start.getDay(); const adjustedStartDay = startDay === 0 ? 6 : startDay - 1;
     const daysInMonth = end.getDate();
     
     const calendarDays = [];
-    for (let i = 0; i < startDay; i++) calendarDays.push(null);
+    for (let i = 0; i < adjustedStartDay; i++) calendarDays.push(null);
     for (let i = 1; i <= daysInMonth; i++) {
       const d = new Date(start);
       d.setDate(i);
@@ -181,7 +188,7 @@ const StaffRota: React.FC = () => {
     return (
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="grid grid-cols-7 bg-slate-100 border-b">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
             <div key={d} className="p-2 text-center font-bold text-sm text-slate-600">{d}</div>
           ))}
         </div>
@@ -207,7 +214,7 @@ const StaffRota: React.FC = () => {
                         <span>{s.user_name.split(' ').map(n => n[0]).join('')}{hasConflict ? ' (H)' : ''}</span>
                         <div className="hidden group-hover:flex items-center gap-0.5 ml-1">
                           <button onClick={(e) => { e.stopPropagation(); setEditingShift(s); }} className="hover:text-emerald-600"><Edit2 size={8} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} className="hover:text-red-600"><Trash2 size={8} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDelete(s); }} className="hover:text-red-600"><Trash2 size={8} /></button>
                         </div>
                       </div>
                     );
@@ -231,47 +238,49 @@ const StaffRota: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Staff Rota</h1>
-          <p className="text-slate-500 text-sm">Manage staff schedules and shifts</p>
+          <h1 className="text-3xl font-bold text-slate-900">Staff Rota</h1>
+          <p className="text-slate-500 text-sm font-medium mt-1">Manage staff schedules and shifts</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <select 
             value={roleFilter} 
             onChange={(e) => setRoleFilter(e.target.value as UserRole | 'ALL')}
-            className="border-slate-300 rounded-lg text-sm"
+            className="border-slate-300 rounded-xl text-sm"
           >
             <option value="ALL">All Roles</option>
             {Object.values(UserRole).map(r => <option key={r} value={r}>{r}</option>)}
           </select>
 
-          <div className="flex bg-white rounded-lg shadow-sm border p-1">
-            <button onClick={() => setViewMode('daily')} className={`p-1.5 rounded ${viewMode === 'daily' ? 'bg-slate-100 text-emerald-600' : 'text-slate-400 hover:text-slate-600'}`} title="Daily View"><List size={18} /></button>
-            <button onClick={() => setViewMode('weekly')} className={`p-1.5 rounded ${viewMode === 'weekly' ? 'bg-slate-100 text-emerald-600' : 'text-slate-400 hover:text-slate-600'}`} title="Weekly View"><Grid size={18} /></button>
-            <button onClick={() => setViewMode('monthly')} className={`p-1.5 rounded ${viewMode === 'monthly' ? 'bg-slate-100 text-emerald-600' : 'text-slate-400 hover:text-slate-600'}`} title="Monthly View"><CalendarIcon size={18} /></button>
+          <div className="flex bg-white rounded-xl shadow-sm border p-1">
+            <button onClick={() => setViewMode('daily')} className={`p-2 rounded-lg ${viewMode === 'daily' ? 'bg-slate-100 text-blue-700' : 'text-slate-400 hover:text-slate-600'}`} title="Daily View"><List size={18} /></button>
+            <button onClick={() => setViewMode('weekly')} className={`p-2 rounded-lg ${viewMode === 'weekly' ? 'bg-slate-100 text-blue-700' : 'text-slate-400 hover:text-slate-600'}`} title="Weekly View"><Grid size={18} /></button>
+            <button onClick={() => setViewMode('monthly')} className={`p-2 rounded-lg ${viewMode === 'monthly' ? 'bg-slate-100 text-blue-700' : 'text-slate-400 hover:text-slate-600'}`} title="Monthly View"><CalendarIcon size={18} /></button>
           </div>
 
-          <button onClick={() => setIsModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ml-auto md:ml-0">
+          <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-bold transition-colors ml-auto md:ml-0">
             <Plus size={16} /> Add Shift
           </button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm mb-6">
+      <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
         <button onClick={() => navigateTime('prev')} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><ChevronLeft size={20} /></button>
-        <h2 className="text-lg font-bold text-slate-800">{getHeaderTitle()}</h2>
+        <h2 className="text-xl font-bold text-slate-800">{getHeaderTitle()}</h2>
         <button onClick={() => navigateTime('next')} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><ChevronRight size={20} /></button>
       </div>
 
-      {viewMode === 'daily' && renderDailyView()}
-      {viewMode === 'weekly' && renderWeeklyView()}
-      {viewMode === 'monthly' && renderMonthlyView()}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6">
+        {viewMode === 'daily' && renderDailyView()}
+        {viewMode === 'weekly' && renderWeeklyView()}
+        {viewMode === 'monthly' && renderMonthlyView()}
+      </div>
 
       <AddShiftModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-      <EditShiftModal isOpen={!!editingShift} onClose={() => setEditingShift(null)} existingShift={editingShift} />
+      <EditShiftModal key={editingShift?.id} isOpen={!!editingShift} onClose={() => setEditingShift(null)} existingShift={editingShift} />
     </div>
   );
 };

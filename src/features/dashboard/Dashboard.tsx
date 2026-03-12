@@ -77,13 +77,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 w-full max-w-7xl mx-auto font-sans">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-500 mt-0.5 flex items-center gap-2 text-[10px] lg:text-xs">
+          <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-slate-500 mt-0.5 flex items-center gap-2 text-xs">
             {new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} <span className="text-slate-300">|</span> 🌤️ 14°C Partly Cloudy
           </p>
         </div>
@@ -269,9 +269,9 @@ const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="w-full overflow-x-auto overflow-y-hidden">
-          <table className="w-full text-left text-[10px] md:text-[11px] lg:text-sm">
+          <table className="w-full text-left text-sm">
             <thead className="bg-white border-b border-slate-200 text-slate-600 font-medium">
               <tr>
                 <th className="px-1 py-2 md:px-2 md:py-3 lg:px-4 lg:py-4 text-[11px] md:text-xs whitespace-normal break-words min-w-[90px] max-w-[140px] md:max-w-[250px] leading-tight">Name</th>

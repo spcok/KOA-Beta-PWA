@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Plus, Calendar, Trash2, Lock } from 'lucide-react';
+import { Plus, Calendar, Trash2, Lock } from 'lucide-react';
 import { useTimesheetData } from './useTimesheetData';
 import AddTimesheetModal from './AddTimesheetModal';
 import { TimesheetStatus } from '@/src/types';
@@ -23,25 +23,23 @@ export default function Timesheets() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-right-4 duration-300 pb-24 p-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-2 border-slate-200 pb-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
-            <Clock className="text-slate-600" size={28} /> Attendance Ledger
-          </h3>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Record of personnel presence and operational hours.</p>
+          <h1 className="text-3xl font-bold text-slate-900">Attendance Ledger</h1>
+          <p className="text-slate-500 text-sm font-medium mt-1">Record of personnel presence and operational hours.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)} 
-          className="bg-slate-900 text-white px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-all shadow-md"
+          className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
           <Plus size={18}/> Record Attendance
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
         {(timesheets || []).map(timesheet => (
-          <div key={timesheet.id} className="bg-white rounded-[2rem] border-2 border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm hover:shadow-md transition-all">
+          <div key={timesheet.id} className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-4 w-full md:w-auto">
               <div className="w-12 h-12 rounded-2xl bg-slate-800 text-white flex items-center justify-center font-black text-xs border-2 border-white shadow-lg shrink-0">
                 {String(timesheet.staff_name).split(' ').map(n => n[0]).join('')}

@@ -16,21 +16,22 @@ export const AnimalsList = ({ animals, onSelectAnimal }: { animals: Animal[], on
   const canViewArchived = permissions.isAdmin || permissions.isOwner;
 
   return (
-    <div className="space-y-4">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <h1 className="text-3xl font-bold text-slate-900">Animals Directory</h1>
       {canViewArchived && (
-        <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+        <div className="flex gap-2 border-b border-slate-200 pb-4 overflow-x-auto">
           <button
             onClick={() => setActiveTab('live')}
-            className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'live' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === 'live' ? 'bg-blue-50 text-blue-700 rounded-xl font-bold' : 'text-slate-600 hover:bg-slate-100 rounded-xl'
             }`}
           >
             Live Collection
           </button>
           <button
             onClick={() => setActiveTab('archived')}
-            className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'archived' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === 'archived' ? 'bg-blue-50 text-blue-700 rounded-xl font-bold' : 'text-slate-600 hover:bg-slate-100 rounded-xl'
             }`}
           >
             Archived Records
@@ -39,7 +40,7 @@ export const AnimalsList = ({ animals, onSelectAnimal }: { animals: Animal[], on
       )}
 
       {activeTab === 'live' ? (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             {/* Render live animals here */}
             {animals.map(animal => (
                 <div key={animal.id} className="p-4 border-b border-slate-100 cursor-pointer hover:bg-slate-50" onClick={() => onSelectAnimal(animal)}>
@@ -48,7 +49,7 @@ export const AnimalsList = ({ animals, onSelectAnimal }: { animals: Animal[], on
             ))}
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {archivedAnimals.map(animal => (
             <div key={animal.id} className="p-4 border-b border-slate-100 cursor-pointer hover:bg-slate-50" onClick={() => onSelectAnimal(animal)}>
               <div className="flex justify-between items-center">

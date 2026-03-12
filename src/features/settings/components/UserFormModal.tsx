@@ -4,6 +4,7 @@ import { X, AlertCircle } from 'lucide-react';
 import { User, UserRole } from '../../../types';
 import { SignatureCapture } from '../../../components/ui/SignatureCapture';
 import { supabase } from '../../../lib/supabase';
+import { db } from '../../../lib/db';
 
 interface UserFormModalProps {
   isOpen: boolean;
@@ -78,10 +79,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
           role: data.role,
           initials: data.initials.toUpperCase(),
           pin: data.pin,
-          signature_data: currentSignature,
-          permissions: {
-            dashboard: true, dailyLog: true, tasks: true, medical: false, movements: false, safety: false, maintenance: false, settings: false, flightRecords: false, feedingSchedule: false, attendance: true, holidayApprover: false, attendanceManager: false, missingRecords: false, reports: false, rounds: true
-          }
+          signature_data: currentSignature
         };
 
         console.log("📍 3. Firing Edge Function. Waiting for Supabase response...");
@@ -96,6 +94,12 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
         console.log("📍 4. Edge Function replied!", { response, error });
         if (error) throw new Error(`Network Error: ${error.message}`);
         if (response?.error) throw new Error(response.error);
+
+        // FORCE LOCAL CACHE UPDATE: Pull the newly created user and insert into Dexie
+        const { data: newUser } = await supabase.from('users').select('*').eq('email', data.email).single();
+        if (newUser) {
+          await db.users.put(newUser);
+        }
       }
       
       console.log("📍 5. Success! Firing onClose()...");
