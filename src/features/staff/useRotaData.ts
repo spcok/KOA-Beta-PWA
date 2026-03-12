@@ -33,7 +33,7 @@ export const useRotaData = () => {
     }
 
     await db.shifts.bulkAdd(shiftsToCreate);
-    for (const s of shiftsToCreate) await mutateOnlineFirst('shifts', s as Record<string, unknown>, 'upsert');
+    for (const s of shiftsToCreate) await mutateOnlineFirst('shifts', s as unknown as Record<string, unknown>, 'upsert');
   };
 
   const updateShift = async (id: string, updates: Partial<Shift>, updateSeries: boolean = false) => {

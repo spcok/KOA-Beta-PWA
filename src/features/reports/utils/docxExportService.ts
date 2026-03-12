@@ -668,7 +668,7 @@ export const generateStaffRotaDocx = async (
       
       const cellParagraphs: Paragraph[] = [];
       if (dayShifts.length === 0) {
-        cellParagraphs.push(new Paragraph({ children: [new TextRun({ text: "No shifts scheduled", color: "94A3B8", size: 18, italic: true })], alignment: AlignmentType.CENTER }));
+        cellParagraphs.push(new Paragraph({ children: [new TextRun({ text: "No shifts scheduled", color: "94A3B8", size: 18, italics: true })], alignment: AlignmentType.CENTER }));
       } else {
         dayShifts.forEach(s => {
           const name = s.user_name || 'Unassigned';
@@ -758,7 +758,7 @@ export const generateStaffRotaDocx = async (
       if (currentCells.length === 7) {
         rows.push(new TableRow({ 
           children: currentCells,
-          height: { value: 1800, rule: HeightRule.AT_LEAST } // Forces the square shape
+          height: { value: 1800, rule: HeightRule.ATLEAST } // Forces the square shape
         }));
         currentCells = [];
       }
@@ -771,7 +771,7 @@ export const generateStaffRotaDocx = async (
       }
       rows.push(new TableRow({ 
         children: currentCells,
-        height: { value: 1800, rule: HeightRule.AT_LEAST } // Forces the square shape
+        height: { value: 1800, rule: HeightRule.ATLEAST } // Forces the square shape
       }));
     }
 
