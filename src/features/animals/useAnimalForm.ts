@@ -137,7 +137,7 @@ export function useAnimalForm({ initialData, onClose }: UseAnimalFormProps) {
         }
       });
     }
-  }, [species, redListStatus]);
+  }, [species, redListStatus, form]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'image_url' | 'distribution_map_url') => {
     const file = e.target.files?.[0];

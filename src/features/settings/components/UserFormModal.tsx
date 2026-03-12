@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, FieldErrors } from 'react-hook-form';
 import { X, AlertCircle } from 'lucide-react';
 import { User, UserRole } from '../../../types';
 import { SignatureCapture } from '../../../components/ui/SignatureCapture';
 import { supabase } from '../../../lib/supabase';
-import { db } from '../../../lib/db';
 
 interface UserFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Omit<User, 'id'>) => Promise<void>;
   initialData?: User | null;
-  onSuccess?: () => void;
+  onSave?: (data: Partial<User>) => Promise<void>;
+  onSuccess: () => void;
 }
 
 interface UserFormInputs {
@@ -23,7 +22,7 @@ interface UserFormInputs {
   pin?: string;
 }
 
-const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, initialData, onSuccess }) => {
+const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, initialData, onSave, onSuccess }) => {
   const { register, handleSubmit, reset, setValue } = useForm<UserFormInputs>();
   
   const [isCapturingSignature, setIsCapturingSignature] = useState(false);
@@ -49,6 +48,11 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
   if (!isOpen) return null;
 
   const onSubmit = async (data: UserFormInputs) => {
+    if (!navigator.onLine) {
+      setGlobalError("You must be connected to the internet to perform this action.");
+      return;
+    }
+
     setGlobalError(null);
     setIsSubmitting(true);
     
@@ -60,16 +64,16 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
         initials: String(data.initials || '').toUpperCase(),
         pin: String(data.pin || ''),
         password: data.password ? String(data.password) : undefined,
+        signature_data: currentSignature ? String(currentSignature) : undefined
       };
 
-      if (initialData) {
-        await onSave({
-          ...cleanData,
-          signature_data: currentSignature,
-          permissions: initialData.permissions || {}
-        } as Omit<User, 'id'>);
-        if (onSuccess) onSuccess(); 
+      if (initialData && onSave) {
+        // --- EDIT MODE ---
+        await onSave(cleanData);
+        onSuccess();
+        onClose();
       } else {
+        // --- CREATE MODE ---
         if (!cleanData.password) throw new Error('Password is required for new accounts.');
         
         const profileData = {
@@ -77,9 +81,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
           role: cleanData.role,
           initials: cleanData.initials,
           pin: cleanData.pin,
-          signature_data: currentSignature
+          signature_data: cleanData.signature_data
         };
 
+        // Bypass Dexie entirely and hit Supabase Edge Function directly
         const { data: response, error } = await supabase.functions.invoke('create-staff-account', {
           body: { email: cleanData.email, password: cleanData.password, profileData: profileData }
         });
@@ -87,28 +92,22 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
         if (error) throw new Error(`Network Error: ${error.message}`);
         if (response?.error) throw new Error(response.error);
 
-        // SMART POLLING: Prevents PGRST116 Race Condition crash
-        let verifiedUser = null;
-        for (let i = 0; i < 4; i++) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          const { data } = await supabase.from('users').select('*').eq('email', cleanData.email).maybeSingle();
-          if (data) {
-            verifiedUser = data;
-            break;
-          }
-        }
-
-        if (verifiedUser) await db.users.put(verifiedUser);
-        if (onSuccess) onSuccess(); // FORCES UI REFRESH
+        // Notify parent to fetch fresh data from cloud
+        onSuccess();
+        onClose();
       }
-      
-      onClose();
     } catch (error: unknown) {
       setGlobalError(error instanceof Error ? error.message : "An unexpected error occurred.");
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const onInvalid = (errors: FieldErrors<UserFormInputs>) => {
+    const missingFields = Object.keys(errors).map(f => f.charAt(0).toUpperCase() + f.slice(1)).join(', ');
+    setGlobalError(`Missing required fields: ${missingFields}.`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -128,41 +127,27 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
           <div className="mx-8 mt-8 p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3">
             <AlertCircle size={20} className="text-rose-500 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-xs font-black text-rose-800 uppercase tracking-widest">Account Update Failed</h4>
+              <h4 className="text-xs font-black text-rose-800 uppercase tracking-widest">Action Failed</h4>
               <p className="text-sm font-medium text-rose-600 mt-1">{globalError}</p>
             </div>
           </div>
         )}
 
-        <form 
-          onSubmit={handleSubmit(
-            onSubmit, 
-            (validationErrors) => {
-              // PREVENTS HTMLInputElement CIRCULAR JSON CRASH
-              const missingFields = Object.keys(validationErrors).map(field => 
-                field.charAt(0).toUpperCase() + field.slice(1)
-              ).join(', ');
-              
-              setGlobalError(`Missing or invalid information in fields: ${missingFields}. Please correct them to continue.`);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-          )} 
-          className="p-8 space-y-6"
-        >
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
               <h4 className="text-xs font-black text-slate-300 uppercase tracking-widest border-b border-slate-100 pb-2">Account Details</h4>
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Full Name</label>
-                <input {...register('name', { required: 'Name is required' })} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none transition-all font-bold text-slate-900" placeholder="e.g. John Smith" />
+                <input {...register('name', { required: true })} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-900" placeholder="e.g. John Smith" />
               </div>
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Email Address</label>
-                <input {...register('email', { required: 'Email is required', pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, message: "Invalid email" }})} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none transition-all font-bold text-slate-900" placeholder="e.g. john@kentowlacademy.com" />
+                <input {...register('email', { required: true })} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-900" placeholder="e.g. john@kentowlacademy.com" />
               </div>
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Initials (Max 3)</label>
-                <input {...register('initials', { required: 'Initials required', maxLength: { value: 3, message: 'Max 3 characters' } })} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none transition-all font-bold text-slate-900 uppercase" placeholder="JS" />
+                <input {...register('initials', { required: true, maxLength: 3 })} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-900 uppercase" placeholder="JS" />
               </div>
             </div>
 
@@ -170,7 +155,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
               <h4 className="text-xs font-black text-slate-300 uppercase tracking-widest border-b border-slate-100 pb-2">Access & Security</h4>
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">System Role</label>
-                <select {...register('role', { required: 'Role is required' })} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none transition-all font-bold text-slate-900 appearance-none">
+                <select {...register('role', { required: true })} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-900 appearance-none cursor-pointer">
                   <option value={UserRole.VOLUNTEER}>Volunteer</option>
                   <option value={UserRole.KEEPER}>Keeper</option>
                   <option value={UserRole.SENIOR_KEEPER}>Senior Keeper</option>
@@ -180,12 +165,12 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
               </div>
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Daily PIN (4 Digits)</label>
-                <input {...register('pin', { required: 'PIN is required', minLength: { value: 4, message: 'Must be 4 chars' } })} type="password" maxLength={4} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none transition-all font-bold text-slate-900 tracking-[0.5em]" placeholder="••••" />
+                <input {...register('pin', { required: true, minLength: 4 })} type="password" maxLength={4} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-900 tracking-[0.5em]" placeholder="••••" />
               </div>
               {!initialData && (
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Login Password</label>
-                  <input {...register('password', { required: 'Password required', minLength: { value: 6, message: 'Min 6 chars' } })} type="password" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none transition-all font-bold text-slate-900" placeholder="••••••••" />
+                  <input {...register('password', { required: true, minLength: 6 })} type="password" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-900" placeholder="••••••••" />
                 </div>
               )}
             </div>
@@ -209,8 +194,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
 
           <div className="mt-8 pt-4 flex justify-end gap-3">
             <button type="button" onClick={onClose} disabled={isSubmitting} className="px-8 py-4 border-2 border-slate-100 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-500 hover:bg-slate-50 transition-all disabled:opacity-50">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black shadow-lg shadow-slate-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px]">
-              {isSubmitting ? 'Saving Account...' : (initialData ? 'Update Profile' : 'Create Account')}
+            <button type="submit" disabled={isSubmitting} className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px]">
+              {isSubmitting ? 'Saving...' : (initialData ? 'Update Profile' : 'Create Account')}
             </button>
           </div>
         </form>

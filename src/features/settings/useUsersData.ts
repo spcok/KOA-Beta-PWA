@@ -1,60 +1,97 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { db } from '../../lib/db';
 import { User, RolePermissionConfig } from '../../types';
-import { v4 as uuidv4 } from 'uuid';
-import { useHybridQuery, mutateOnlineFirst } from '../../lib/dataEngine';
 import { supabase } from '../../lib/supabase';
 
 export function useUsersData() {
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [users, setUsers] = useState<User[]>([]);
+  const [rolePermissions, setRolePermissions] = useState<RolePermissionConfig[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshCount, setRefreshCount] = useState(0);
 
-  // Physically forces the UI table to dump its cache and reload
-  const forceRefresh = useCallback(() => {
-    setRefreshTrigger(prev => prev + 1);
-  }, []);
+  const refresh = useCallback(() => setRefreshCount(c => c + 1), []);
 
-  const usersData = useHybridQuery<User[]>(
-    'users',
-    supabase.from('users').select('*'),
-    () => db.users.toArray(),
-    [refreshTrigger] // Tied to the refresh trigger
-  );
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        if (navigator.onLine) {
+          // 1. ONLINE: Fetch absolute truth directly from the Cloud
+          const { data: usersData, error: usersErr } = await supabase.from('users').select('*').order('name');
+          // Order roles by a specific hierarchy if possible, or just fetch them
+          const { data: rolesData, error: rolesErr } = await supabase.from('role_permissions').select('*');
 
-  const rolePermissionsData = useHybridQuery<RolePermissionConfig[]>(
-    'role_permissions',
-    supabase.from('role_permissions').select('*'),
-    () => db.role_permissions.toArray(),
-    [refreshTrigger] // Tied to the refresh trigger
-  );
+          if (usersErr) throw usersErr;
+          if (rolesErr) throw rolesErr;
 
-  const isLoading = usersData === undefined || rolePermissionsData === undefined;
-  const users = usersData || [];
-  const rolePermissions = rolePermissionsData || [];
+          if (isMounted && usersData && rolesData) {
+            setUsers(usersData as User[]);
+            
+            // Sort roles logically from lowest to highest
+            const roleOrder = ['VOLUNTEER', 'KEEPER', 'SENIOR_KEEPER', 'ADMIN', 'OWNER'];
+            const sortedRoles = (rolesData as RolePermissionConfig[]).sort((a, b) => 
+              roleOrder.indexOf(a.role) - roleOrder.indexOf(b.role)
+            );
+            setRolePermissions(sortedRoles);
 
-  const addUser = async (user: Omit<User, 'id'>) => {
-    const id = uuidv4();
-    const newUser = { ...user, id } as User;
-    await mutateOnlineFirst('users', newUser, 'upsert');
-    forceRefresh();
+            // 2. Quietly update the offline dictionary in a background transaction
+            await db.transaction('rw', db.users, db.role_permissions, async () => {
+              await db.users.clear();
+              await db.users.bulkAdd(usersData);
+              await db.role_permissions.clear();
+              await db.role_permissions.bulkAdd(sortedRoles);
+            });
+          }
+        } else {
+          // 3. OFFLINE: Load the read-only cache from local DB
+          const localUsers = await db.users.toArray();
+          const localRoles = await db.role_permissions.toArray();
+          if (isMounted) {
+            setUsers(localUsers);
+            setRolePermissions(localRoles);
+          }
+        }
+      } catch (error) {
+        console.error("Cloud fetch failed, falling back to local cache:", error);
+        if (isMounted) {
+          setUsers(await db.users.toArray());
+          setRolePermissions(await db.role_permissions.toArray());
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    fetchData();
+    
+    window.addEventListener('online', refresh);
+    return () => { 
+      isMounted = false; 
+      window.removeEventListener('online', refresh);
+    };
+  }, [refreshCount, refresh]);
+
+  const deleteUser = async (id: string) => {
+    if (!navigator.onLine) throw new Error("You must be online to delete a user.");
+    await supabase.from('users').delete().eq('id', id);
+    refresh();
   };
 
   const updateUser = async (id: string, updates: Partial<User>) => {
-    const user = await db.users.get(id);
-    if (user) {
-      const updatedUser = { ...user, ...updates };
-      await mutateOnlineFirst('users', updatedUser, 'upsert');
-      forceRefresh();
-    }
+    if (!navigator.onLine) throw new Error("You must be online to update a user.");
+    await supabase.from('users').update(updates).eq('id', id);
+    refresh();
   };
 
-  const deleteUser = async (id: string) => {
-    const userShifts = await db.shifts.where('user_id').equals(id).toArray();
-    for (const shift of userShifts) {
-      await mutateOnlineFirst('shifts', { id: shift.id }, 'delete');
-    }
-    await mutateOnlineFirst('users', { id }, 'delete');
-    forceRefresh();
+  // NEW: Direct Cloud Mutation for the Matrix
+  const updateRolePermissions = async (role: string, updates: Partial<RolePermissionConfig>) => {
+    if (!navigator.onLine) throw new Error("You must be online to update role permissions.");
+    const { error } = await supabase.from('role_permissions').update(updates).eq('role', role);
+    if (error) throw error;
+    refresh();
   };
 
-  return { users, rolePermissions, isLoading, addUser, updateUser, deleteUser, forceRefresh };
+  return { users, rolePermissions, isLoading, deleteUser, updateUser, updateRolePermissions, refresh };
 }
