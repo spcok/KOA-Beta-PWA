@@ -26,11 +26,19 @@ const AddShiftModal: React.FC<AddShiftModalProps> = ({ isOpen, onClose }) => {
     setIsSubmitting(true);
     try {
       const user = users.find(u => u.id === data.user_id);
-      await createShift({
-        ...data,
-        user_name: user?.name || 'Unknown',
-        user_role: user?.role || 'Unknown'
-      }, repeat ? repeatDays : [], repeat ? weeks : 1);
+      
+      const cleanShiftData = {
+        user_id: String(data.user_id || ''),
+        date: String(data.date || ''),
+        shift_type: data.shift_type as ShiftType,
+        start_time: String(data.start_time || ''),
+        end_time: String(data.end_time || ''),
+        assigned_area: data.assigned_area ? String(data.assigned_area) : undefined,
+        user_name: String(user?.name || 'Unknown'),
+        user_role: String(user?.role || 'Unknown')
+      };
+
+      await createShift(cleanShiftData, repeat ? repeatDays : [], repeat ? weeks : 1);
       onClose();
     } finally {
       setIsSubmitting(false);

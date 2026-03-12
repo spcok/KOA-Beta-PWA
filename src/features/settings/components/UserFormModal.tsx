@@ -61,32 +61,41 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
     setIsSubmitting(true);
     
     try {
+      // STRICT DATA CASTING FIREWALL
+      const cleanData = {
+        name: String(data.name || ''),
+        email: String(data.email || ''),
+        role: data.role as UserRole,
+        initials: String(data.initials || '').toUpperCase(),
+        pin: String(data.pin || ''),
+        password: data.password ? String(data.password) : undefined,
+      };
+
       if (initialData) {
         console.log("📍 2. EDIT MODE detected. Running local onSave prop...");
         await onSave({
-          ...data,
-          initials: data.initials.toUpperCase(),
+          ...cleanData,
           signature_data: currentSignature,
           permissions: initialData.permissions || {}
         } as Omit<User, 'id'>);
         console.log("📍 3. onSave completed successfully.");
       } else {
         console.log("📍 2. CREATE MODE detected. Preparing payload...");
-        if (!data.password) throw new Error('Password is required for new accounts.');
+        if (!cleanData.password) throw new Error('Password is required for new accounts.');
         
         const profileData = {
-          name: data.name,
-          role: data.role,
-          initials: data.initials.toUpperCase(),
-          pin: data.pin,
+          name: cleanData.name,
+          role: cleanData.role,
+          initials: cleanData.initials,
+          pin: cleanData.pin,
           signature_data: currentSignature
         };
 
         console.log("📍 3. Firing Edge Function. Waiting for Supabase response...");
         const { data: response, error } = await supabase.functions.invoke('create-staff-account', {
           body: {
-            email: data.email,
-            password: data.password,
+            email: cleanData.email,
+            password: cleanData.password,
             profileData: profileData
           }
         });
@@ -96,7 +105,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSave, 
         if (response?.error) throw new Error(response.error);
 
         // FORCE LOCAL CACHE UPDATE: Pull the newly created user and insert into Dexie
-        const { data: newUser } = await supabase.from('users').select('*').eq('email', data.email).single();
+        const { data: newUser } = await supabase.from('users').select('*').eq('email', cleanData.email).single();
         if (newUser) {
           await db.users.put(newUser);
         }
