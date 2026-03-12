@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plane, Plus, Lock, History } from 'lucide-react';
+import { Plus, Lock, History } from 'lucide-react';
 import { usePermissions } from '../../hooks/usePermissions';
 
 export default function FlightRecords() {
@@ -18,16 +18,14 @@ export default function FlightRecords() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6">
-      <div className="flex justify-between items-center py-4 border-b border-slate-200">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <Plane className="text-slate-600" size={28} /> Flight Records
-          </h1>
+          <h1 className="text-3xl font-bold text-slate-900">Flight Records</h1>
           <p className="text-slate-500 text-sm font-medium mt-1">Log of all training and display flights for collection animals.</p>
         </div>
         <button 
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2"
+          className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
           <Plus size={18}/> Record Flight
         </button>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Search, Mail, Phone, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Mail, Phone, ChevronDown, ChevronUp } from 'lucide-react';
 
 const guides = [
   {
@@ -81,11 +81,9 @@ const HelpSupport: React.FC = () => {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8 animate-in slide-in-from-right-4 duration-300">
-      <div className="border-b-2 border-slate-200 pb-6">
-        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
-          <BookOpen size={28} className="text-blue-600" /> Help & Support
-        </h3>
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <div className="border-b border-slate-200 pb-6">
+        <h1 className="text-3xl font-bold text-slate-900">Help & Support</h1>
         <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Knowledge Base & Training Guides</p>
       </div>
 

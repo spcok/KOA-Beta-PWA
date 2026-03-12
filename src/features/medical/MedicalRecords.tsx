@@ -97,15 +97,13 @@ const MedicalRecords: React.FC = () => {
   );
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-          Clinical Records
-        </h1>
+        <h1 className="text-3xl font-bold text-slate-900">Clinical Records</h1>
         { (activeTab === 'notes' && permissions.add_clinical_notes) || (activeTab === 'mar' && permissions.prescribe_medications) || (activeTab === 'quarantine' && permissions.manage_quarantine) ? (
           <button 
             onClick={handleAdd}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2"
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
           >
             <Plus size={16} /> Add {activeTab === 'notes' ? 'Note' : activeTab === 'mar' ? 'Medication' : 'Record'}
           </button>
@@ -134,7 +132,7 @@ const MedicalRecords: React.FC = () => {
         animals={animals}
       />
       
-      <div className="flex space-x-2 border-b border-slate-200">
+      <div className="flex gap-2 border-b border-slate-200 pb-4 overflow-x-auto">
         {[
           { id: 'notes', label: 'Clinical Notes', icon: ClipboardList },
           { id: 'mar', label: 'MAR Charts', icon: Pill },
@@ -143,7 +141,7 @@ const MedicalRecords: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as 'notes' | 'mar' | 'quarantine')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-slate-800 text-white rounded-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 ${activeTab === tab.id ? 'px-4 py-2.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-bold transition-colors' : 'px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl text-sm font-medium transition-colors'}`}
           >
             <tab.icon size={18} /> {tab.label}
           </button>
@@ -296,7 +294,7 @@ const MedicalRecords: React.FC = () => {
       )}
 
       {(activeTab === 'mar' || activeTab === 'quarantine') && (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="w-full overflow-x-auto overflow-y-hidden">
             {activeTab === 'mar' && (
               <table className="w-full text-left text-sm whitespace-nowrap">

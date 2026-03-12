@@ -26,35 +26,33 @@ export default function Movements() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6">
-      <div className="flex justify-between items-center py-4 border-b border-slate-200">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <Truck className="text-slate-600" size={28} /> Logistics & Movements
-          </h1>
+          <h1 className="text-3xl font-bold text-slate-900">Logistics & Movements</h1>
           <p className="text-slate-500 text-sm font-medium mt-1">Record of internal transfers and external acquisitions/dispositions.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)} 
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2"
+          className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
           <Plus size={18}/> Record {activeTab === 'internal' ? 'Movement' : 'Transfer'}
         </button>
       </div>
 
-      <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto self-start inline-flex">
+      <div className="flex gap-2 border-b border-slate-200 pb-4 overflow-x-auto">
         <button
           onClick={() => setActiveTab('internal')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-            activeTab === 'internal' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === 'internal' ? 'bg-blue-50 text-blue-700 rounded-xl font-bold' : 'text-slate-600 hover:bg-slate-100 rounded-xl'
           }`}
         >
           Internal Movements
         </button>
         <button
           onClick={() => setActiveTab('external')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-            activeTab === 'external' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === 'external' ? 'bg-blue-50 text-blue-700 rounded-xl font-bold' : 'text-slate-600 hover:bg-slate-100 rounded-xl'
           }`}
         >
           External Transfers

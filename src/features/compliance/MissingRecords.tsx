@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ShieldAlert, Info, ChevronRight } from 'lucide-react';
+import { Info, ChevronRight } from 'lucide-react';
 import { useMissingRecordsData } from './useMissingRecordsData';
 
 const MissingRecords: React.FC = () => {
@@ -96,13 +96,10 @@ const MissingRecords: React.FC = () => {
   );
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-right-4 duration-300 pb-24 p-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-2 border-slate-200 pb-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
-            <ShieldAlert className="text-emerald-600" />
-            ZLA Compliance
-          </h3>
+          <h1 className="text-3xl font-bold text-slate-900">ZLA Compliance</h1>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
             Zoo Licensing Act (ZLA) Compliance Command Centre
           </p>
@@ -116,15 +113,15 @@ const MissingRecords: React.FC = () => {
         </select>
       </div>
 
-      <div className="flex border-b border-slate-200">
+      <div className="flex gap-2 border-b border-slate-200 pb-4 overflow-x-auto">
         {(['Husbandry', 'Details', 'Health'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-6 py-3 text-xs font-black uppercase tracking-widest transition-colors ${
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
               activeTab === tab
-                ? 'text-emerald-600 border-b-2 border-emerald-600 mb-[-2px]'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-blue-50 text-blue-700 rounded-xl font-bold'
+                : 'text-slate-600 hover:bg-slate-100 rounded-xl'
             }`}
           >
             {tab}

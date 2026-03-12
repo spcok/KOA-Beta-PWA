@@ -73,21 +73,19 @@ const DailyLog: React.FC = () => {
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-slate-900">
-          Daily Operations - {new Date(viewDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </h1>
+        <h1 className="text-3xl font-bold text-slate-900">Daily Operations</h1>
         {isSyncing && <span className="text-sm text-slate-500 animate-pulse">Syncing Weather...</span>}
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-4 hide-scrollbar">
+      <div className="flex gap-2 border-b border-slate-200 pb-4 overflow-x-auto">
         {categories.map(category => (
           <button
             key={category}
             onClick={() => setActiveCategory(category)}
-            className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
               activeCategory === category 
-                ? 'bg-blue-50 text-blue-700' 
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'bg-blue-50 text-blue-700 rounded-xl font-bold' 
+                : 'text-slate-600 hover:bg-slate-100 rounded-xl'
             }`}
           >
             {category}
