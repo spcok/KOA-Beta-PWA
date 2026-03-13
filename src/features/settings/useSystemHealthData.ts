@@ -11,7 +11,65 @@ export function useSystemHealthData() {
   const [isWipingData, setIsWipingData] = useState(false);
   const [wipeProgress, setWipeProgress] = useState(0);
 
+  const [pwaHealth, setPwaHealth] = useState({
+    isSecure: window.isSecureContext,
+    swActive: false,
+    manifestValid: false,
+    isInstalled: false,
+    storageValid: false
+  });
+
   useEffect(() => {
+    const checkPwaHealth = async () => {
+      let swActive = false;
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        swActive = registrations.length > 0;
+      }
+      let manifestValid = false;
+      try {
+        const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
+        if (manifestLink && manifestLink.href) {
+          const res = await fetch(manifestLink.href, { cache: 'no-store' });
+          if (res.ok) {
+            const manifest = await res.json();
+            manifestValid = !!(manifest.icons && manifest.icons.length > 0);
+          }
+        }
+      } catch (e) {
+        console.error('Manifest check failed', e);
+      }
+
+      let storageValid = false;
+      if ('indexedDB' in window) {
+        try {
+          const request = indexedDB.open('KentOwlAcademyDB');
+          storageValid = await new Promise((resolve) => {
+            request.onsuccess = () => {
+              request.result.close();
+              resolve(true);
+            };
+            request.onerror = () => resolve(false);
+          });
+        } catch (e) {
+          console.error('IndexedDB check failed', e);
+        }
+      }
+
+      // @ts-expect-error - deferredPwaPrompt is attached to window globally
+      const isInstalled = !!window.deferredPwaPrompt || window.matchMedia('(display-mode: standalone)').matches;
+
+      setPwaHealth(prev => ({ ...prev, swActive, manifestValid, storageValid, isInstalled }));
+    };
+
+    checkPwaHealth();
+    
+    // Listen for beforeinstallprompt to update state dynamically
+    const handleBeforeInstallPrompt = () => {
+      setPwaHealth(prev => ({ ...prev, isInstalled: true }));
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     
@@ -19,6 +77,7 @@ export function useSystemHealthData() {
     window.addEventListener('offline', handleOffline);
     
     return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
@@ -99,7 +158,7 @@ export function useSystemHealthData() {
   };
 
   return { 
-    isOnline, isHydrating, tableCounts: tableCounts || { animals: 0, users: 0, daily_logs: 0, tasks: 0, medical_logs: 0 },
+    isOnline, isHydrating, pwaHealth, tableCounts: tableCounts || { animals: 0, users: 0, daily_logs: 0, tasks: 0, medical_logs: 0 },
     executeForceRebuild, executeClearQueue, isClearingQueue,
     executeWipeData, isWipingData, wipeProgress
   };

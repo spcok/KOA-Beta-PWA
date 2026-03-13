@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Activity, Database, AlertTriangle, Loader2, Wifi, WifiOff, CloudCog, Trash2, ServerCrash, X } from 'lucide-react';
+import { Activity, Database, AlertTriangle, Loader2, Wifi, WifiOff, CloudCog, Smartphone, ShieldCheck, CheckCircle2, XCircle, Trash2, ServerCrash, X } from 'lucide-react';
 import { useSystemHealthData } from '../useSystemHealthData';
 
 const SystemHealth: React.FC = () => {
   const { 
-    isOnline, isHydrating, 
+    isOnline, isHydrating, pwaHealth, 
     executeForceRebuild, executeClearQueue, isClearingQueue,
     executeWipeData, isWipingData, wipeProgress
   } = useSystemHealthData();
@@ -36,7 +36,7 @@ const SystemHealth: React.FC = () => {
         <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Observability Dashboard</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Connection Status */}
         <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-200 shadow-sm space-y-6">
           <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
@@ -53,6 +53,64 @@ const SystemHealth: React.FC = () => {
               </div>
             </div>
             <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
+          </div>
+        </div>
+
+        {/* Mobile & App Health */}
+        <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-200 shadow-sm space-y-6">
+          <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+            <Smartphone size={16} className="text-emerald-500" /> Mobile & App Health
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div className={`flex flex-col p-3 rounded-xl border ${pwaHealth.isSecure ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <ShieldCheck size={18} className={pwaHealth.isSecure ? 'text-emerald-600' : 'text-rose-600'} />
+                {pwaHealth.isSecure ? <CheckCircle2 size={16} className="text-emerald-600" /> : <XCircle size={16} className="text-rose-600" />}
+              </div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HTTPS</p>
+              <p className={`text-xs font-bold ${pwaHealth.isSecure ? 'text-emerald-700' : 'text-rose-700'}`}>{pwaHealth.isSecure ? 'Secure Context: PASS' : 'Secure Context: FAIL'}</p>
+            </div>
+            
+            <div className={`flex flex-col p-3 rounded-xl border ${pwaHealth.swActive ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <Activity size={18} className={pwaHealth.swActive ? 'text-emerald-600' : 'text-rose-600'} />
+                {pwaHealth.swActive ? <CheckCircle2 size={16} className="text-emerald-600" /> : <XCircle size={16} className="text-rose-600" />}
+              </div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Service Worker</p>
+              <p className={`text-xs font-bold ${pwaHealth.swActive ? 'text-emerald-700' : 'text-rose-700'}`}>{pwaHealth.swActive ? 'Active: PASS' : 'Active: FAIL'}</p>
+            </div>
+
+            <div className={`flex flex-col p-3 rounded-xl border ${pwaHealth.manifestValid ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <CloudCog size={18} className={pwaHealth.manifestValid ? 'text-emerald-600' : 'text-rose-600'} />
+                {pwaHealth.manifestValid ? <CheckCircle2 size={16} className="text-emerald-600" /> : <XCircle size={16} className="text-rose-600" />}
+              </div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Manifest</p>
+              <p className={`text-xs font-bold ${pwaHealth.manifestValid ? 'text-emerald-700' : 'text-rose-700'}`}>{pwaHealth.manifestValid ? 'Valid: PASS' : 'Valid: FAIL'}</p>
+            </div>
+
+            <div className={`flex flex-col p-3 rounded-xl border ${pwaHealth.storageValid ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <Database size={18} className={pwaHealth.storageValid ? 'text-emerald-600' : 'text-rose-600'} />
+                {pwaHealth.storageValid ? <CheckCircle2 size={16} className="text-emerald-600" /> : <XCircle size={16} className="text-rose-600" />}
+              </div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Storage</p>
+              <p className={`text-xs font-bold ${pwaHealth.storageValid ? 'text-emerald-700' : 'text-rose-700'}`}>{pwaHealth.storageValid ? 'Ready: PASS' : 'Ready: FAIL'}</p>
+            </div>
+            
+            <div className={`col-span-2 flex flex-col p-3 rounded-xl border ${pwaHealth.isInstalled ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <Smartphone size={18} className={pwaHealth.isInstalled ? 'text-emerald-600' : 'text-rose-600'} />
+                {pwaHealth.isInstalled ? <CheckCircle2 size={16} className="text-emerald-600" /> : <XCircle size={16} className="text-rose-600" />}
+              </div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Installable</p>
+              <p className={`text-xs font-bold ${pwaHealth.isInstalled ? 'text-emerald-700' : 'text-rose-700'}`}>{pwaHealth.isInstalled ? 'Install Prompt Fired: PASS' : 'Install Prompt Fired: FAIL'}</p>
+              {!pwaHealth.isInstalled && (
+                <p className="text-[10px] mt-2 text-rose-600 font-medium">
+                  Android requires perfect manifest icon resolution and a secure context to show the "Install App" button.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>

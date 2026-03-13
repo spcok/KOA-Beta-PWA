@@ -29,6 +29,7 @@ import ReportsDashboard from './features/reports/ReportsDashboard';
 import { processSyncQueue, prune14DayCache, startRealtimeSubscription } from './lib/syncEngine';
 import { hydrateComplianceData } from './services/syncService';
 import { processMediaUploadQueue } from './lib/storageEngine';
+import PwaManager from './components/ui/PwaManager';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
@@ -96,6 +97,7 @@ export default function App() {
     <ErrorBoundary>
       <AppProvider>
         <LockScreen />
+        <PwaManager />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Layout />}>
