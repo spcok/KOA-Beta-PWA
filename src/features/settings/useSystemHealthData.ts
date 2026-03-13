@@ -21,7 +21,11 @@ export function useSystemHealthData() {
 
   useEffect(() => {
     const checkPwaHealth = async () => {
-      const swActive = !!navigator.serviceWorker?.controller;
+      let swActive = false;
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        swActive = registrations.length > 0;
+      }
       let manifestValid = false;
       try {
         const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
@@ -60,6 +64,12 @@ export function useSystemHealthData() {
 
     checkPwaHealth();
     
+    // Listen for beforeinstallprompt to update state dynamically
+    const handleBeforeInstallPrompt = () => {
+      setPwaHealth(prev => ({ ...prev, isInstalled: true }));
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     
@@ -67,6 +77,7 @@ export function useSystemHealthData() {
     window.addEventListener('offline', handleOffline);
     
     return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };

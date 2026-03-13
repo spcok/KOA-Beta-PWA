@@ -56,7 +56,6 @@
     "tailwindcss": "^4.2.1",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.57.0",
-    "vite-plugin-pwa": "^1.2.0"
+    "typescript-eslint": "^8.57.0"
   }
 }

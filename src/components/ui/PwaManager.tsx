@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Download, RefreshCw } from 'lucide-react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -18,35 +17,71 @@ const PwaManager: React.FC = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
   });
-
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    onRegistered(r) {
-      console.log('SW Registered: ' + r);
-    },
-    onRegisterError(error) {
-      console.log('SW registration error', error);
-    },
-  });
+  const [needRefresh, setNeedRefresh] = useState(false);
+  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
 
   useEffect(() => {
+    // Check if window.deferredPwaPrompt is already set
+    // @ts-expect-error - custom property
+    if (window.deferredPwaPrompt) {
+      // @ts-expect-error - custom property
+      setDeferredPrompt(window.deferredPwaPrompt);
+    }
+
     // Handle the beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
+      // @ts-expect-error - custom property
+      window.deferredPwaPrompt = e;
     };
 
     // Handle the appinstalled event
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
+      // @ts-expect-error - custom property
+      window.deferredPwaPrompt = null;
       console.log('PWA was installed');
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
+
+    // Native Service Worker update logic
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        if (!registration) return;
+
+        // Check if there's already a waiting worker
+        if (registration.waiting) {
+          setWaitingWorker(registration.waiting);
+          setNeedRefresh(true);
+        }
+
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // A new worker is installed and ready to take over
+                setWaitingWorker(newWorker);
+                setNeedRefresh(true);
+              }
+            });
+          }
+        });
+      });
+
+      // Listen for the controlling worker to change (after skipWaiting)
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -62,6 +97,14 @@ const PwaManager: React.FC = () => {
     
     if (outcome === 'accepted') {
       setDeferredPrompt(null);
+      // @ts-expect-error - custom property
+      window.deferredPwaPrompt = null;
+    }
+  };
+
+  const updateServiceWorker = () => {
+    if (waitingWorker) {
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
     }
   };
 
@@ -75,7 +118,7 @@ const PwaManager: React.FC = () => {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => updateServiceWorker(true)}
+              onClick={updateServiceWorker}
               className="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-50 transition-colors"
             >
               Update Now
