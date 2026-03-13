@@ -50,6 +50,10 @@ const SignGenerator: React.FC<SignGeneratorProps> = ({ animal, orgProfile, onClo
   const [isEditingText, setIsEditingText] = useState(false);
 
   const fetchContent = () => {
+      if (!navigator.onLine) {
+          console.warn("Offline: AI Signage Generation disabled.");
+          return;
+      }
       const species = animal.species;
       console.log(`📝 [SignGenerator] Triggered generation for: ${species}`);
       startTransition(async () => {

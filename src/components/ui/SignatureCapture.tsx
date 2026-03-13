@@ -2,12 +2,13 @@ import React, { useRef, useState, useEffect } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 
 interface SignatureCaptureProps {
-  onSave: (base64: string) => void;
+  recordId: string;
+  onSave: (base64: string, hash: string) => void;
   onCancel: () => void;
   initialSignature?: string;
 }
 
-export const SignatureCapture: React.FC<SignatureCaptureProps> = ({ onSave, onCancel, initialSignature }) => {
+export const SignatureCapture: React.FC<SignatureCaptureProps> = ({ recordId, onSave, onCancel, initialSignature }) => {
   const signatureRef = useRef<SignatureCanvas>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -35,9 +36,30 @@ export const SignatureCapture: React.FC<SignatureCaptureProps> = ({ onSave, onCa
     }
   }, [initialSignature, dimensions.width]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (signatureRef.current && !signatureRef.current.isEmpty()) {
-      onSave(signatureRef.current.toDataURL('image/png'));
+      if (!window.crypto || !window.crypto.subtle) {
+        console.warn('🛠️ [Medical QA] window.crypto.subtle is unavailable.');
+        alert("Secure connection required for legally binding signatures.");
+        return;
+      }
+
+      try {
+        const base64 = signatureRef.current.toDataURL('image/png');
+        const timestamp = Date.now().toString();
+        const payload = recordId + timestamp + base64;
+        
+        const encoder = new TextEncoder();
+        const data = encoder.encode(payload);
+        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        onSave(base64, hashHex);
+      } catch (err) {
+        console.error("Signature hashing failed:", err);
+        alert("Failed to process signature. Please try again.");
+      }
     } else if (signatureRef.current?.isEmpty()) {
       alert("Please provide a signature before saving.");
     }

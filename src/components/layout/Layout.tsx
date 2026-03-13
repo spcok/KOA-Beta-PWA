@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, ClipboardList, ListTodo, Map, CloudSun, CalendarDays,
   ArrowLeftRight, ShieldAlert, Stethoscope, Heart, Wrench,
@@ -60,18 +60,52 @@ const SectionHeader = ({ title, isSidebarCollapsed }: { title: string, isSidebar
 
 const Layout: React.FC<LayoutProps> = () => {
   const { currentUser, logout } = useAuthStore();
+  const permissions = usePermissions();
   const { 
     view_daily_logs, view_tasks, view_medical, view_movements, 
     view_daily_rounds, view_maintenance, view_incidents, 
     view_first_aid, view_safety_drills, submit_timesheets, 
     request_holidays, view_missing_records, generate_reports, 
     view_settings 
-  } = usePermissions();
+  } = permissions;
   const { activeShift, clockIn, clockOut, orgProfile } = useAppData();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>('medium');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const path = location.pathname;
+    let isAllowed = true;
+
+    if (path.startsWith('/medical') && !view_medical) isAllowed = false;
+    else if (path.startsWith('/daily-log') && !view_daily_logs) isAllowed = false;
+    else if (path.startsWith('/tasks') && !view_tasks) isAllowed = false;
+    else if (path.startsWith('/daily-rounds') && !view_daily_rounds) isAllowed = false;
+    else if (path.startsWith('/movements') && !view_movements) isAllowed = false;
+    else if (path.startsWith('/maintenance') && !view_maintenance) isAllowed = false;
+    else if (path.startsWith('/incidents') && !view_incidents) isAllowed = false;
+    else if (path.startsWith('/first-aid') && !view_first_aid) isAllowed = false;
+    else if (path.startsWith('/safety-drills') && !view_safety_drills) isAllowed = false;
+    else if (path.startsWith('/timesheets') && !submit_timesheets) isAllowed = false;
+    else if (path.startsWith('/holidays') && !request_holidays) isAllowed = false;
+    else if (path.startsWith('/compliance') && !view_missing_records) isAllowed = false;
+    else if (path.startsWith('/reports') && !generate_reports) isAllowed = false;
+    else if (path.startsWith('/settings') && !view_settings) isAllowed = false;
+
+    if (!isAllowed) {
+      console.warn('🛠️ [Security QA] Unauthorized route access blocked.');
+      alert('Unauthorized Access');
+      navigate('/', { replace: true });
+    }
+  }, [
+    location.pathname, navigate, view_medical, view_daily_logs, view_tasks, 
+    view_daily_rounds, view_movements, view_maintenance, view_incidents, 
+    view_first_aid, view_safety_drills, submit_timesheets, request_holidays, 
+    view_missing_records, generate_reports, view_settings
+  ]);
 
   const increaseTextSize = () => {
     const sizes: ('small' | 'medium' | 'large' | 'xlarge')[] = ['small', 'medium', 'large', 'xlarge'];

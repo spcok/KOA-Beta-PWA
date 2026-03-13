@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { X, Upload, Loader2 } from 'lucide-react';
 import { Animal, ClinicalNote } from '../../types';
 import { queueFileUpload } from '../../lib/storageEngine';
+import { SignatureCapture } from '../../components/ui/SignatureCapture';
 
 const schema = z.object({
   animal_id: z.string().min(1, 'Animal is required'),
@@ -33,6 +34,11 @@ interface Props {
 export const AddClinicalNoteModal: React.FC<Props> = ({ isOpen, onClose, onSave, animals, initialData }) => {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [signatureData, setSignatureData] = useState<string | undefined>();
+  const [integritySeal, setIntegritySeal] = useState<string | undefined>();
+  const [isCapturingSignature, setIsCapturingSignature] = useState(false);
+  const recordId = initialData?.id || crypto.randomUUID();
+
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -54,12 +60,16 @@ export const AddClinicalNoteModal: React.FC<Props> = ({ isOpen, onClose, onSave,
       setValue('treatment_plan', initialData.treatment_plan || '');
       setValue('recheck_date', initialData.recheck_date || '');
       setValue('staff_initials', initialData.staff_initials);
+      setSignatureData(undefined);
+      setIntegritySeal(initialData.integrity_seal);
     } else if (isOpen && !initialData) {
       reset({
         date: new Date().toISOString().split('T')[0],
         note_type: 'Routine',
         weight_unit: 'g',
       });
+      setSignatureData(undefined);
+      setIntegritySeal(undefined);
     }
   }, [isOpen, initialData, setValue, reset]);
 
@@ -68,9 +78,20 @@ export const AddClinicalNoteModal: React.FC<Props> = ({ isOpen, onClose, onSave,
   const onSubmit = async (data: FormData) => {
     setUploading(true);
     let attachment_url: string | undefined = initialData?.attachment_url;
+    let thumbnail_url: string | undefined = initialData?.thumbnail_url;
     try {
       if (file) {
-        attachment_url = await queueFileUpload(file, 'medical');
+        try {
+          const uploadResult = await queueFileUpload(file, 'medical', recordId, 'medical_logs', 'attachment_url');
+          attachment_url = uploadResult.attachment_url;
+          thumbnail_url = uploadResult.thumbnail_url;
+        } catch (err) {
+          console.error('🛠️ [Medical QA] File processing error:', err);
+          alert(err instanceof Error ? err.message : 'Image too large for offline storage or processing failed.');
+          setFile(null);
+          setUploading(false);
+          return;
+        }
       }
       
       let weight_grams = undefined;
@@ -81,14 +102,24 @@ export const AddClinicalNoteModal: React.FC<Props> = ({ isOpen, onClose, onSave,
         else if (data.weight_unit === 'lbs') weight_grams = data.weight * 453.592;
       }
 
+      const notePayload = { 
+        ...data, 
+        weight_grams, 
+        attachment_url,
+        thumbnail_url,
+        integrity_seal: integritySeal
+      };
+
       if (initialData) {
-        await onSave({ ...initialData, ...data, weight_grams, attachment_url });
+        await onSave({ ...initialData, ...notePayload });
       } else {
-        await onSave({ ...data, weight_grams, attachment_url });
+        await onSave({ ...notePayload, id: recordId });
       }
       
       reset();
       setFile(null);
+      setSignatureData(undefined);
+      setIntegritySeal(undefined);
       onClose();
     } catch (error) {
       console.error('Failed to save note:', error);
@@ -195,6 +226,43 @@ export const AddClinicalNoteModal: React.FC<Props> = ({ isOpen, onClose, onSave,
               </label>
               <span className="text-sm text-slate-500">{file ? file.name : initialData?.attachment_url ? 'Existing attachment' : 'No file selected'}</span>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Signature</label>
+            {isCapturingSignature ? (
+              <SignatureCapture 
+                recordId={recordId}
+                onSave={(base64, hash) => { 
+                  setSignatureData(base64); 
+                  setIntegritySeal(hash);
+                  setIsCapturingSignature(false); 
+                }} 
+                onCancel={() => setIsCapturingSignature(false)} 
+                initialSignature={signatureData} 
+              />
+            ) : (
+              <div className="flex items-center gap-4">
+                {signatureData ? (
+                  <img src={signatureData} alt="Signature" className="h-16 w-auto border border-slate-200 rounded-lg" />
+                ) : (
+                  <span className="text-sm text-slate-500">No signature provided</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsCapturingSignature(true)}
+                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium"
+                >
+                  {signatureData ? 'Edit Signature' : 'Add Signature'}
+                </button>
+              </div>
+            )}
+            {integritySeal && (
+              <p className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
+                <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full"></span>
+                Integrity Verified
+              </p>
+            )}
           </div>
 
           <button type="submit" disabled={isSubmitting || uploading} className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium flex items-center justify-center gap-2 disabled:bg-slate-400">

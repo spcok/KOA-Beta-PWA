@@ -35,7 +35,11 @@ const LockScreen: React.FC = () => {
       }
     } catch (err: unknown) {
       console.error("Biometric error:", err);
-      setError('Biometric unlock failed or was canceled. Please use PIN.');
+      if (err instanceof DOMException || err instanceof Error) {
+        setError('Biometric cancelled. Please enter PIN.');
+      } else {
+        setError('Biometric unlock failed. Please use PIN.');
+      }
     }
   };
 
@@ -120,9 +124,9 @@ const LockScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={handleBiometricUnlock}
-                className="w-full py-4 bg-indigo-50 text-indigo-700 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-100 transition-all flex items-center justify-center gap-2 border border-indigo-100"
+                className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-200 mt-2"
               >
-                <Fingerprint size={16} /> Use Biometrics
+                <Fingerprint size={20} /> Biometric Unlock
               </button>
             )}
           </div>

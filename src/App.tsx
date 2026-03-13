@@ -28,7 +28,9 @@ import SiteMaintenance from './features/safety/tabs/SiteMaintenance';
 import ReportsDashboard from './features/reports/ReportsDashboard';
 import { processSyncQueue, prune14DayCache, startRealtimeSubscription } from './lib/syncEngine';
 import { hydrateComplianceData } from './services/syncService';
+import { processMediaUploadQueue } from './lib/storageEngine';
 import PwaManager from './components/ui/PwaManager';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
   const { initialize, isLoading, session } = useAuthStore();
@@ -56,6 +58,7 @@ export default function App() {
       if (navigator.onLine) {
         processSyncQueue();
         hydrateComplianceData();
+        processMediaUploadQueue();
       }
 
       return () => {
@@ -69,6 +72,7 @@ export default function App() {
     const handleOnline = () => {
       processSyncQueue();
       hydrateComplianceData();
+      processMediaUploadQueue();
     };
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
@@ -90,45 +94,47 @@ export default function App() {
   }
 
   return (
-    <AppProvider>
-      <LockScreen />
-      <PwaManager />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            {/* COMPLETED MILESTONE 1 ROUTES */}
-            <Route index element={<DashboardContainer />} />
-            <Route path="weather" element={<div className="p-2 md:p-4"><WeatherView /></div>} />
-            <Route path="daily-log" element={<DailyLog />} />
-            <Route path="tasks" element={<Tasks />} />
-            <Route path="feeding-schedule" element={<FeedingSchedule />} />
-            <Route path="daily-rounds" element={<DailyRounds />} />
+    <ErrorBoundary>
+      <AppProvider>
+        <LockScreen />
+        <PwaManager />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              {/* COMPLETED MILESTONE 1 ROUTES */}
+              <Route index element={<DashboardContainer />} />
+              <Route path="weather" element={<div className="p-2 md:p-4"><WeatherView /></div>} />
+              <Route path="daily-log" element={<DailyLog />} />
+              <Route path="tasks" element={<Tasks />} />
+              <Route path="feeding-schedule" element={<FeedingSchedule />} />
+              <Route path="daily-rounds" element={<DailyRounds />} />
 
-            {/* PHASE 4: MEDICAL & QUARANTINE */}
-            <Route path="medical" element={<MedicalRecords />} />
-            <Route path="first-aid" element={<FirstAidLog />} />
+              {/* PHASE 4: MEDICAL & QUARANTINE */}
+              <Route path="medical" element={<MedicalRecords />} />
+              <Route path="first-aid" element={<FirstAidLog />} />
 
-            {/* PHASE 5: LOGISTICS & SAFETY */}
-            <Route path="movements" element={<Movements />} />
-            <Route path="flight-records" element={<FlightRecords />} />
-            <Route path="maintenance" element={<SiteMaintenance />} />
-            <Route path="incidents" element={<Incidents />} />
-            <Route path="safety-drills" element={<SafetyDrills />} />
+              {/* PHASE 5: LOGISTICS & SAFETY */}
+              <Route path="movements" element={<Movements />} />
+              <Route path="flight-records" element={<FlightRecords />} />
+              <Route path="maintenance" element={<SiteMaintenance />} />
+              <Route path="incidents" element={<Incidents />} />
+              <Route path="safety-drills" element={<SafetyDrills />} />
 
-            {/* PHASE 6: STAFF & COMPLIANCE */}
-            <Route path="timesheets" element={<Timesheets />} />
-            <Route path="holidays" element={<Holidays />} />
-            <Route path="rota" element={<StaffRota />} />
-            <Route path="compliance" element={<MissingRecords />} />
-            <Route path="reports" element={<ReportsDashboard />} />
-            <Route path="missing-records" element={<MissingRecords />} />
+              {/* PHASE 6: STAFF & COMPLIANCE */}
+              <Route path="timesheets" element={<Timesheets />} />
+              <Route path="holidays" element={<Holidays />} />
+              <Route path="rota" element={<StaffRota />} />
+              <Route path="compliance" element={<MissingRecords />} />
+              <Route path="reports" element={<ReportsDashboard />} />
+              <Route path="missing-records" element={<MissingRecords />} />
 
-            {/* PHASE 7: SETTINGS */}
-            <Route path="settings" element={<SettingsLayout />} />
-            <Route path="help" element={<HelpSupport />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AppProvider>
+              {/* PHASE 7: SETTINGS */}
+              <Route path="settings" element={<SettingsLayout />} />
+              <Route path="help" element={<HelpSupport />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

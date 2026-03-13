@@ -2,27 +2,45 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useAuthStore } from '../store/authStore';
 
 export const useInactivityTimer = () => {
-  const { setUiLocked, session } = useAuthStore();
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const { setUiLocked, session, isUiLocked } = useAuthStore();
+  const lastActivityRef = useRef<number>(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const resetTimer = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      if (session) {
-        setUiLocked(true);
-      }
-    }, 300000); // 5 minutes
-  }, [session, setUiLocked]);
+  const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes
+
+  const updateActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+  }, []);
 
   useEffect(() => {
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    if (!session || isUiLocked) return;
+
+    // Reset activity when session starts or unlocks
+    lastActivityRef.current = Date.now();
+
+    const checkInactivity = () => {
+      if (Date.now() - lastActivityRef.current >= INACTIVITY_LIMIT) {
+        setUiLocked(true);
+      }
+    };
+
+    intervalRef.current = setInterval(checkInactivity, 10000); // Check every 10 seconds
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, updateActivity, { passive: true }));
     
-    events.forEach(event => window.addEventListener(event, resetTimer));
-    resetTimer();
+    // Also check when tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkInactivity();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      events.forEach(event => window.removeEventListener(event, resetTimer));
-      if (timerRef.current) clearTimeout(timerRef.current);
+      events.forEach(event => window.removeEventListener(event, updateActivity));
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [session, resetTimer]);
+  }, [session, isUiLocked, setUiLocked, updateActivity, INACTIVITY_LIMIT]);
 };

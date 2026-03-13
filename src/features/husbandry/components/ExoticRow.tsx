@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Animal, LogType, LogEntry } from '../../../types';
 
 interface ExoticRowProps {
@@ -7,7 +7,7 @@ interface ExoticRowProps {
   onCellClick: (animal: Animal, type: LogType) => void;
 }
 
-export const ExoticRow: React.FC<ExoticRowProps> = ({ animal, getTodayLog, onCellClick }) => {
+export const ExoticRow: React.FC<ExoticRowProps> = memo(({ animal, getTodayLog, onCellClick }) => {
   return (
     <tr className="border-b border-slate-100 hover:bg-slate-50">
       <td className="p-4 flex items-center gap-3">
@@ -56,4 +56,4 @@ export const ExoticRow: React.FC<ExoticRowProps> = ({ animal, getTodayLog, onCel
       </td>
     </tr>
   );
-};
+});

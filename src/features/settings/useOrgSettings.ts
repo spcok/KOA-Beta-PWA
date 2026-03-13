@@ -18,7 +18,7 @@ const DEFAULT_SETTINGS: OrgProfileSettings = {
 
 export function useOrgSettings() {
   const settingsData = useLiveQuery<OrgProfileSettings | undefined>(async () => {
-    const settings = await db.settings.get('profile');
+    const settings = await db.organisations.get('profile');
     return settings || DEFAULT_SETTINGS;
   }, []);
   
@@ -29,7 +29,7 @@ export function useOrgSettings() {
         const { data, error } = await supabase.from('organisations').select('*').limit(1).maybeSingle();
         if (error) throw error;
         if (data) {
-          await db.settings.put({ ...data, id: 'profile' });
+          await db.organisations.put({ ...data, id: 'profile' });
         }
       } catch (err) {
         console.error("❌ [OrgSettings] Failed to fetch remote settings:", err);
@@ -47,7 +47,7 @@ export function useOrgSettings() {
       const settingsToSave = { ...newSettings, id: 'profile' };
       
       // Update local Dexie cache
-      await db.settings.put(settingsToSave);
+      await db.organisations.put(settingsToSave);
 
       if (navigator.onLine) {
         // Fetch the organization ID from Supabase
@@ -84,6 +84,7 @@ export function useOrgSettings() {
             .eq('id', orgId);
 
           if (updateError) {
+            console.error("Supabase Save Error:", updateError);
             if (updateError.code === '42501' || updateError.message?.includes('403')) {
               console.error("❌ [OrgSettings] 403 Forbidden on UPDATE: Check RLS policies.");
             } else if (updateError.code === '23505' || updateError.message?.includes('409')) {
@@ -97,6 +98,7 @@ export function useOrgSettings() {
             .insert(payload);
             
           if (insertError) {
+            console.error("Supabase Save Error:", insertError);
             if (insertError.code === '42501' || insertError.message?.includes('403')) {
               console.error("❌ [OrgSettings] 403 Forbidden on INSERT: Check RLS policies.");
             } else if (insertError.code === '23505' || insertError.message?.includes('409')) {

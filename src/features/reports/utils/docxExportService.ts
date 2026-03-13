@@ -392,15 +392,24 @@ export const generateExternalTransfersDocx = async (
 };
 
 export const generateSiteMaintenanceDocx = async (
-  data: string[][],
+  data: MaintenanceLog[],
   config: ReportConfig,
   orientation: 'portrait' | 'landscape'
 ): Promise<Blob> => {
   const headerTable = await createDocumentHeader(config);
 
-  const tableRows = data.map(row => {
+  const tableRows = data.map(log => {
+    const l = log as unknown as Record<string, string>;
+    const integrityBadge = log.integrity_seal ? [new TextRun({ text: " ✓", color: "059669", size: 16, bold: true })] : [];
     return new TableRow({
-      children: row.map(cell => new TableCell({ children: [new Paragraph(cell)] })),
+      children: [
+        new TableCell({ children: [new Paragraph(new Date(log.date_logged).toLocaleDateString())] }),
+        new TableCell({ children: [new Paragraph(log.task_type || '--')] }),
+        new TableCell({ children: [new Paragraph(log.description || '--')] }),
+        new TableCell({ children: [new Paragraph(l.priority || '--')] }),
+        new TableCell({ children: [new Paragraph(log.status || '--')] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun(l.assigned_to || l.user_initials || '--'), ...integrityBadge] })] }),
+      ],
     });
   });
 
@@ -554,6 +563,8 @@ export const generateDailyLogDocx = async (
         }
       }
 
+      const integrityBadge = (weightLog?.integrity_seal || feedLog?.integrity_seal) ? [new TextRun({ text: " ✓", color: "059669", size: 16, bold: true })] : [];
+
       return new TableRow({
         children: [
           new TableCell({ children: [new Paragraph(animal.name)] }),
@@ -563,7 +574,7 @@ export const generateDailyLogDocx = async (
           new TableCell({ children: [new Paragraph(notesData.cast || '--')] }),
           new TableCell({ children: [new Paragraph(feedLog?.value || '--')] }),
           new TableCell({ children: [new Paragraph(notesData.feedTime || '--')] }),
-          new TableCell({ children: [new Paragraph(feedLog?.user_initials || '--')] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun(feedLog?.user_initials || '--'), ...integrityBadge] })] }),
         ],
       });
     });
@@ -832,6 +843,7 @@ export const generateInspectionPackage = async (
   // 1. Medical Logs Table
   const medicalRows = medicalLogs.map(log => {
     const animal = animals.find(a => a.id === log.animal_id);
+    const integrityBadge = log.integrity_seal ? [new TextRun({ text: " ✓ Integrity Verified", color: "059669", size: 16, bold: true })] : [];
     return new TableRow({
       children: [
         new TableCell({ children: [new Paragraph(log.date)] }),
@@ -839,7 +851,7 @@ export const generateInspectionPackage = async (
         new TableCell({ children: [new Paragraph(log.note_type)] }),
         new TableCell({ children: [new Paragraph(log.diagnosis || '--')] }),
         new TableCell({ children: [new Paragraph(log.note_text || '--')] }),
-        new TableCell({ children: [new Paragraph(log.staff_initials || '--')] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun(log.staff_initials || '--'), ...integrityBadge] })] }),
       ]
     });
   });
@@ -871,6 +883,7 @@ export const generateInspectionPackage = async (
   // 2. MAR Charts Table
   const marRows = marCharts.map(mar => {
     const animal = animals.find(a => a.id === mar.animal_id);
+    const integrityBadge = mar.integrity_seal ? [new TextRun({ text: " ✓ Integrity Verified", color: "059669", size: 16, bold: true })] : [];
     return new TableRow({
       children: [
         new TableCell({ children: [new Paragraph(mar.start_date)] }),
@@ -878,7 +891,7 @@ export const generateInspectionPackage = async (
         new TableCell({ children: [new Paragraph(mar.medication)] }),
         new TableCell({ children: [new Paragraph(mar.dosage)] }),
         new TableCell({ children: [new Paragraph(mar.frequency)] }),
-        new TableCell({ children: [new Paragraph(mar.status)] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun(mar.status), ...integrityBadge] })] }),
       ]
     });
   });
@@ -909,13 +922,14 @@ export const generateInspectionPackage = async (
 
   // 3. Maintenance Logs Table
   const maintenanceRows = maintenanceLogs.map(log => {
+    const integrityBadge = log.integrity_seal ? [new TextRun({ text: " ✓ Integrity Verified", color: "059669", size: 16, bold: true })] : [];
     return new TableRow({
       children: [
         new TableCell({ children: [new Paragraph(log.date_logged)] }),
         new TableCell({ children: [new Paragraph(log.enclosure_id || 'General')] }),
         new TableCell({ children: [new Paragraph(log.task_type)] }),
         new TableCell({ children: [new Paragraph(log.description)] }),
-        new TableCell({ children: [new Paragraph(log.status)] }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun(log.status), ...integrityBadge] })] }),
       ]
     });
   });

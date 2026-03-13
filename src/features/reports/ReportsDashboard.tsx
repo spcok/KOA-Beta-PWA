@@ -17,7 +17,7 @@ import { renderAsync } from 'docx-preview';
 import { db } from '../../lib/db';
 import { useHybridQuery } from '../../lib/dataEngine';
 import { Animal, UserRole, Shift } from '../../types';
-import { generateDailyLogDocx, generateInternalMovementsDocx, generateExternalTransfersDocx, generateSiteMaintenanceDocx, generateAnimalCensusDocx, generateSection9Docx, generateDeathCertificateDocx, generateStaffRotaDocx } from './utils/docxExportService';
+import { generateDailyLogDocx, generateInternalMovementsDocx, generateExternalTransfersDocx, generateSiteMaintenanceDocx, generateAnimalCensusDocx, generateSection9Docx, generateDeathCertificateDocx, generateStaffRotaDocx, generateInspectionPackage } from './utils/docxExportService';
 import { useAuthStore } from '../../store/authStore';
 
 interface ReportDefinition {
@@ -121,6 +121,14 @@ const REPORTS: ReportDefinition[] = [
     icon: CalendarDays,
     exportFn: async () => { return true; },
     columns: ['Date', 'Staff Member', 'Role', 'Shift Type', 'Times', 'Assigned Area']
+  },
+  {
+    id: 'inspection_package',
+    title: 'Inspection Package',
+    description: 'Comprehensive package including medical logs, MAR charts, and maintenance logs.',
+    icon: FileText,
+    exportFn: async () => { return true; },
+    columns: ['Section', 'Details']
   }
 ];
 
@@ -293,20 +301,8 @@ export default function ReportsDashboard() {
           .toArray();
         const sortedData = [...rawData].sort((a, b) => new Date(a.date_logged).getTime() - new Date(b.date_logged).getTime());
         
-        const tableData = sortedData.map(log => {
-          const l = log as unknown as Record<string, string>;
-          return [
-            new Date(log.date_logged).toLocaleDateString(),
-            log.task_type || '--',
-            log.description || '--',
-            l.priority || '--',
-            log.status || '--',
-            l.assigned_to || l.user_initials || '--'
-          ];
-        });
-
         const blob = await generateSiteMaintenanceDocx(
-          tableData,
+          sortedData,
           {
             reportName: activeReport.title,
             startDate,
@@ -493,6 +489,41 @@ export default function ReportsDashboard() {
             generatedBy: currentUser?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'STAFF'
           },
           orientation
+        );
+        setPreviewBlob(blob);
+
+        if (previewContainerRef.current) {
+          await renderAsync(blob, previewContainerRef.current, undefined, {
+            className: 'docx-preview-page',
+            inWrapper: true,
+          });
+        }
+        return;
+      } else if (activeReportId === 'inspection_package') {
+        const medicalLogs = await db.medical_logs
+          .where('date')
+          .between(startDate, endDate, true, true)
+          .toArray();
+        const marCharts = await db.mar_charts
+          .where('start_date')
+          .between(startDate, endDate, true, true)
+          .toArray();
+        const maintenanceLogs = await db.maintenance_logs
+          .where('date_logged')
+          .between(startDate, endDate, true, true)
+          .toArray();
+
+        const blob = await generateInspectionPackage(
+          medicalLogs,
+          marCharts,
+          maintenanceLogs,
+          animals || [],
+          {
+            reportName: dynamicTitle,
+            startDate,
+            endDate,
+            generatedBy: currentUser?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'STAFF'
+          }
         );
         setPreviewBlob(blob);
 

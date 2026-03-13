@@ -123,13 +123,14 @@ export function useHybridQuery<T>(
 
   // 2. Background Supabase fetch
   useEffect(() => {
+    let isMounted = true;
     async function fetchData() {
       try {
         const { data: remoteData, error } = await onlineQuery;
         
         if (error) throw error;
 
-        if (remoteData) {
+        if (remoteData && isMounted) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const table = db[tableName] as import('dexie').Table<any, any>;
           const pk = table.schema.primKey.keyPath;
@@ -162,13 +163,24 @@ export function useHybridQuery<T>(
           }
         }
       } catch (err) {
-        console.error(`HybridQuery Error [${tableName}]:`, err);
+        console.error(`🛠️ [Engine QA] HybridQuery Error [${tableName}]:`, err);
       }
     }
+
+    const handleOnline = () => {
+      fetchData();
+    };
 
     if (navigator.onLine) {
       fetchData();
     }
+
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('online', handleOnline);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableName, ...deps]);
 
@@ -192,18 +204,78 @@ export async function mutateOnlineFirst<T extends { id?: string | number }>(
   try {
     // Try online
     if (pendingCount === 0 && navigator.onLine && operation === 'upsert') {
-      await supabase.from(tableName).upsert(payload).throwOnError();
+      // Fetch existing record to merge arrays if necessary
+      const { data: existingRecord } = await supabase.from(tableName as string).select('*').eq('id', payload.id).single();
+      
+      const finalPayload = { ...payload };
+      if (existingRecord) {
+        // Merge arrays to prevent overwriting concurrent updates (Last Write Wins Concurrency)
+        for (const key in payload) {
+          if (Array.isArray(payload[key]) && Array.isArray(existingRecord[key])) {
+            const combined = [...existingRecord[key], ...payload[key]];
+            // Deduplicate primitive arrays (like string[])
+            if (combined.every(item => typeof item === 'string' || typeof item === 'number')) {
+              // Special logic for MAR charts administered_dates
+              if (tableName === 'mar_charts' && key === 'administered_dates') {
+                const payloadDates = payload[key] as string[];
+                const existingDates = existingRecord[key] as string[];
+                
+                // Find newly added dates in payload that aren't in existing
+                const newInPayload = payloadDates.filter(d => !existingDates.includes(d));
+                // Find newly added dates in existing that aren't in payload
+                const newInExisting = existingDates.filter(d => !payloadDates.includes(d));
+                
+                let hasConcurrentWarning = false;
+                
+                // If both added new dates, check if any are within 1 hour of each other
+                if (newInPayload.length > 0 && newInExisting.length > 0) {
+                  for (const d1 of newInPayload) {
+                    for (const d2 of newInExisting) {
+                      const t1 = new Date(d1).getTime();
+                      const t2 = new Date(d2).getTime();
+                      if (Math.abs(t1 - t2) < 3600000) {
+                        hasConcurrentWarning = true;
+                      }
+                    }
+                  }
+                }
+                
+                const uniqueDates = Array.from(new Set([...existingDates, ...payloadDates]));
+                
+                // Also check if the merged array has duplicates within 1 hour that weren't there before?
+                // Actually, the above check is sufficient for concurrent offline additions.
+                
+                (finalPayload as Record<string, unknown>)[key] = uniqueDates;
+                
+                if (hasConcurrentWarning && !(existingRecord['instructions'] || '').includes('⚠️ Concurrent Dose Warning')) {
+                  console.log('🛠️ [Medical QA] Concurrent Dose Warning flagged for MAR chart:', payload.id);
+                  (finalPayload as Record<string, unknown>)['instructions'] = 
+                    (existingRecord['instructions'] || '') + '\n\n⚠️ Concurrent Dose Warning: Multiple administrations logged for the same dose/time.';
+                }
+              } else {
+                (finalPayload as Record<string, unknown>)[key] = Array.from(new Set(combined));
+              }
+            } else {
+              // For object arrays, a simple deduplication by JSON stringification (fallback)
+              (finalPayload as Record<string, unknown>)[key] = Array.from(new Set(combined.map(item => JSON.stringify(item))))
+                                       .map(item => JSON.parse(item));
+            }
+          }
+        }
+      }
+
+      await supabase.from(tableName as string).upsert(finalPayload).throwOnError();
       // Update local cache
-      await table.put(payload);
+      await table.put(finalPayload);
     } else if (pendingCount === 0 && navigator.onLine && operation === 'delete') {
-      await supabase.from(tableName).delete().eq('id', (payload as { id: string }).id).throwOnError();
+      await supabase.from(tableName as string).delete().eq('id', (payload as { id: string }).id).throwOnError();
       // Update local cache
       await table.delete((payload as { id: string }).id);
     } else {
       throw new Error('Offline or pending queue');
     }
   } catch (error) {
-    console.warn('Offline mode: queuing mutation', error);
+    console.warn('🛠️ [Engine QA] Offline mode: queuing mutation', error);
     // Queue for later
     const existing = await db.sync_queue.filter(item => item.table_name === tableName && item.record_id === payload.id).first();
     if (existing) {

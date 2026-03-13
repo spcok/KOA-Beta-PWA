@@ -13,6 +13,11 @@ export function useIntelligenceData() {
   };
 
   const runIUCNScan = async (onProgress: (progress: number) => void) => {
+    if (!navigator.onLine) {
+      console.warn("Offline: IUCN Scan disabled.");
+      alert("IUCN Scan requires an active internet connection.");
+      return;
+    }
     const animalsToScan = animals.filter(a => !a.red_list_status || !a.latin_name);
     const total = animalsToScan.length;
     

@@ -18,7 +18,7 @@ export function useTimesheetData() {
       id: uuidv4(),
       staff_name,
       date: new Date().toISOString().split('T')[0],
-      clock_in: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      clock_in: new Date().toISOString(),
       status: TimesheetStatus.ACTIVE
     };
     await mutateOnlineFirst('timesheets', newTimesheet as unknown as Record<string, unknown>, 'upsert');
@@ -30,7 +30,7 @@ export function useTimesheetData() {
     if (timesheet) {
       const updatedTimesheet = {
         ...timesheet,
-        clock_out: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        clock_out: new Date().toISOString(),
         status: TimesheetStatus.COMPLETED
       };
       await mutateOnlineFirst('timesheets', updatedTimesheet as unknown as Record<string, unknown>, 'upsert');

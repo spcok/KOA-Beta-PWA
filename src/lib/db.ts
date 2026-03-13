@@ -11,6 +11,18 @@ export interface UploadQueueItem {
   createdAt: string;
 }
 
+export interface MediaUploadQueueItem {
+  id?: number;
+  fileData: Blob | ArrayBuffer;
+  fileName: string;
+  folder: string;
+  recordId: string;
+  tableName: string;
+  columnName: string;
+  status: 'pending' | 'uploading' | 'failed';
+  createdAt: string;
+}
+
 export class AppDatabase extends Dexie {
   animals!: Table<Animal, string>;
   archived_animals!: Table<Animal, string>;
@@ -26,7 +38,7 @@ export class AppDatabase extends Dexie {
   holidays!: Table<Holiday, string>;
   users!: Table<User, string>;
   role_permissions!: Table<RolePermissionConfig, string>;
-  settings!: Table<OrgProfileSettings, string>;
+  organisations!: Table<OrgProfileSettings, string>;
   contacts!: Table<Contact, string>;
   zla_documents!: Table<ZLADocument, string>;
   safety_drills!: Table<SafetyDrill, string>;
@@ -38,10 +50,11 @@ export class AppDatabase extends Dexie {
   shifts!: Table<Shift, string>;
   sync_queue!: Table<SyncQueueItem, number>;
   upload_queue!: Table<UploadQueueItem, number>;
+  media_upload_queue!: Table<MediaUploadQueueItem, number>;
 
   constructor() {
     super('KentOwlAcademyDB');
-    this.version(26).stores({
+    this.version(29).stores({
       animals: 'id, name, species, category, location',
       archived_animals: 'id, name, species, category, location',
       daily_logs: 'id, animal_id, log_type, log_date, created_at',
@@ -55,7 +68,7 @@ export class AppDatabase extends Dexie {
       holidays: 'id, staff_name, status',
       users: 'id, email, name, role',
       role_permissions: 'role, view_animals, add_animals, edit_animals, archive_animals, view_daily_logs, create_daily_logs, edit_daily_logs, view_tasks, complete_tasks, manage_tasks, view_daily_rounds, log_daily_rounds, view_medical, add_clinical_notes, prescribe_medications, administer_medications, manage_quarantine, view_movements, log_internal_movements, manage_external_transfers, view_incidents, report_incidents, manage_incidents, view_maintenance, report_maintenance, resolve_maintenance, view_safety_drills, view_first_aid, submit_timesheets, manage_all_timesheets, request_holidays, approve_holidays, view_missing_records, manage_zla_documents, generate_reports, view_settings, manage_users, manage_roles',
-      settings: 'id',
+      organisations: 'id',
       contacts: 'id, name, role',
       zla_documents: 'id, name, category',
       safety_drills: 'id, date, title',
@@ -66,9 +79,18 @@ export class AppDatabase extends Dexie {
       operational_lists: 'id, type, category, value',
       shifts: 'id, user_id, user_name, date, user_role, assigned_area, pattern_id, notes',
       sync_queue: '++id, table_name, operation, created_at',
-      upload_queue: '++id, status, created_at'
+      upload_queue: '++id, status, created_at',
+      media_upload_queue: '++id, status, createdAt'
     });
   }
 }
 
 export const db = new AppDatabase();
+
+db.open().catch((err) => {
+  console.error('🛠️ [Regression Check] Dexie Schema Mismatch detected.', err);
+  if (err.name === 'SchemaError' || err.name === 'VersionError' || err.name === 'BulkError') {
+    console.warn('Database schema error. Attempting to recover...');
+    // In a real catastrophic scenario, we might db.delete() and reload, but for now we just log it.
+  }
+});

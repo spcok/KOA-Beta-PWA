@@ -1,5 +1,5 @@
 import { useTransition, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
@@ -120,11 +120,15 @@ export function useAnimalForm({ initialData, onClose }: UseAnimalFormProps) {
     },
   });
 
-  const species = form.watch('species');
-  const redListStatus = form.watch('red_list_status');
+  const species = useWatch({ control: form.control, name: 'species' });
+  const redListStatus = useWatch({ control: form.control, name: 'red_list_status' });
 
   useEffect(() => {
     if (species && (redListStatus === ConservationStatus.NE || !redListStatus)) {
+      if (!navigator.onLine) {
+        console.warn("Offline: Automatic AI Autofill disabled.");
+        return;
+      }
       console.log("Automatic AI Autofill Triggered. Species:", species);
       startAiTransition(async () => {
         try {

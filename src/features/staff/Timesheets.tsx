@@ -56,13 +56,13 @@ export default function Timesheets() {
               <div className="flex flex-col items-center">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Clock In</span>
                 <span className="bg-slate-50 px-3 py-1.5 rounded-lg border-2 border-slate-100 font-mono text-xs font-black text-slate-600">
-                  {String(timesheet.clock_in)}
+                  {String(timesheet.clock_in).includes('T') ? new Date(timesheet.clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : String(timesheet.clock_in)}
                 </span>
               </div>
               <div className="flex flex-col items-center">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Clock Out</span>
                 <span className={`px-3 py-1.5 rounded-lg border-2 font-mono text-xs font-black ${timesheet.status === TimesheetStatus.ACTIVE ? 'bg-amber-50 border-amber-100 text-amber-600 italic' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
-                  {timesheet.clock_out ? String(timesheet.clock_out) : '--:--'}
+                  {timesheet.clock_out ? (String(timesheet.clock_out).includes('T') ? new Date(timesheet.clock_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : String(timesheet.clock_out)) : '--:--'}
                 </span>
               </div>
             </div>

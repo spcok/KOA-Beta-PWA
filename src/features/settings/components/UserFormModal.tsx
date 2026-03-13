@@ -214,7 +214,15 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, initialD
             <div className="max-w-md">
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Digital Signature</label>
               {isCapturingSignature ? (
-                <SignatureCapture onSave={(base64) => { setCurrentSignature(base64); setIsCapturingSignature(false); }} onCancel={() => setIsCapturingSignature(false)} initialSignature={currentSignature} />
+                <SignatureCapture 
+                  recordId={initialData?.id || 'new-user'}
+                  onSave={(base64) => { 
+                    setCurrentSignature(base64); 
+                    setIsCapturingSignature(false); 
+                  }} 
+                  onCancel={() => setIsCapturingSignature(false)} 
+                  initialSignature={currentSignature} 
+                />
               ) : (
                 <div className="space-y-3">
                   {currentSignature && <div className="p-4 border-2 border-slate-100 rounded-2xl bg-white"><img src={currentSignature} alt="Signature" className="h-16 mx-auto" /></div>}

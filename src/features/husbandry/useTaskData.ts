@@ -42,6 +42,9 @@ export const useTaskData = () => {
   const filteredTasks = useMemo(() => {
     if (!tasks) return [];
     return tasks.filter(task => {
+      // Soft-delete check
+      if ((task as Task & { is_deleted?: boolean }).is_deleted) return false;
+
       if (filter === 'completed' && !task.completed) return false;
       if (filter === 'pending' && task.completed) return false;
       if (filter === 'assigned' && (task.assigned_to !== currentUser.id || task.completed)) return false;
@@ -79,7 +82,11 @@ export const useTaskData = () => {
   };
 
   const deleteTask = async (id: string) => {
-    await mutateOnlineFirst('tasks', { id }, 'delete');
+    const task = await db.tasks.get(id);
+    if (task) {
+      const updatedTask = { ...task, is_deleted: true };
+      await mutateOnlineFirst('tasks', updatedTask, 'upsert');
+    }
   };
 
   const toggleTaskCompletion = async (task: Task) => {

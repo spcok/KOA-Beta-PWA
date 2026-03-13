@@ -26,6 +26,11 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
   const [isFetchingAI, setIsFetchingAI] = useState(false);
 
   const handleAutoFill = async () => {
+    if (!navigator.onLine) {
+      console.warn("Offline: AI Auto-Fill disabled.");
+      alert("AI Auto-Fill requires an active internet connection.");
+      return;
+    }
     const currentSpecies = getValues('species'); 
     console.log("Manual Auto-Fill Triggered. Species:", currentSpecies);
     

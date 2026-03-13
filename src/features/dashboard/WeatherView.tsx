@@ -74,6 +74,10 @@ const WeatherView: React.FC = () => {
   }, [settings?.address]);
 
   const handleGenerateAiAnalysis = () => {
+      if (!navigator.onLine) {
+          console.warn("Offline: AI Flight Advisor disabled.");
+          return;
+      }
       if (!data) return;
       const liveData24h = data.hourly.slice(0, 24);
       console.log("🌦️ [AI Advisor] Sending LIVE 24h data to Edge Function...");

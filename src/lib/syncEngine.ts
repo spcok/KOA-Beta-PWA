@@ -70,94 +70,113 @@ export async function forceHydrateFromCloud() {
   }
 }
 
+let isSyncingQueue = false;
+
 export async function processSyncQueue() {
-  const queue = await db.sync_queue.toArray();
-  
-  // Verify session before syncing
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    console.warn('Sync aborted: User is not authenticated. RLS will reject the payload.');
+  if (isSyncingQueue) {
+    console.warn('🛠️ [Anti-Regression] processSyncQueue is already running. Skipping to prevent runaway loop.');
     return;
   }
-  
-  // Group and order sync operations
-  const operationsByTable: Record<string, { operation: 'upsert' | 'delete', payload: Record<string, unknown>, id: number }[]> = {};
-  queue.forEach(item => {
-    if (!operationsByTable[item.table_name]) {
-      operationsByTable[item.table_name] = [];
+  isSyncingQueue = true;
+
+  try {
+    const queue = await db.sync_queue.filter(item => item.status !== 'failed').toArray();
+    
+    // Verify session before syncing
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.warn('🛠️ [Engine QA] Sync aborted: User is not authenticated. RLS will reject the payload.');
+      return;
     }
-    operationsByTable[item.table_name].push({ operation: item.operation, payload: item.payload as Record<string, unknown>, id: item.id! });
-  });
-
-  // Define a safe sync order for upserts (Parents first)
-  const upsertOrder = [
-    'users',
-    'animals', 
-    'archived_animals',
-    'shifts',
-    'holidays',
-    'timesheets',
-    'medical_logs', 
-    'mar_charts', 
-    'quarantine_records',
-    'internal_movements', 
-    'external_transfers',
-    'tasks',
-    'daily_logs',
-    'role_permissions'
-  ];
-
-  // Define a safe sync order for deletes (Children first)
-  const deleteOrder = [...upsertOrder].reverse();
-
-  const processedItemIds = new Set<number>();
-
-  // 1. Process Deletes (Children first)
-  for (const table of deleteOrder) {
-    if (operationsByTable[table]) {
-      for (const item of operationsByTable[table].filter(op => op.operation === 'delete')) {
-        try {
-          await supabase.from(table).delete().eq('id', item.payload.id as string).throwOnError();
-          await db.sync_queue.delete(item.id);
-          processedItemIds.add(item.id);
-        } catch (error) {
-          console.error(`Failed to sync delete item ${item.id} for table ${table}:`, error);
-        }
+    
+    // Group and order sync operations
+    const operationsByTable: Record<string, { operation: 'upsert' | 'delete', payload: Record<string, unknown>, id: number }[]> = {};
+    queue.forEach(item => {
+      if (!operationsByTable[item.table_name]) {
+        operationsByTable[item.table_name] = [];
       }
-    }
-  }
+      operationsByTable[item.table_name].push({ operation: item.operation, payload: item.payload as Record<string, unknown>, id: item.id! });
+    });
 
-  // 2. Process Upserts (Parents first)
-  for (const table of upsertOrder) {
-    if (operationsByTable[table]) {
-      for (const item of operationsByTable[table].filter(op => op.operation === 'upsert')) {
-        try {
-          await supabase.from(table).upsert(item.payload, { onConflict: 'id' }).throwOnError();
-          await db.sync_queue.delete(item.id);
-          processedItemIds.add(item.id);
-        } catch (error) {
-          console.error(`Failed to sync upsert item ${item.id} for table ${table}:`, error);
-        }
-      }
-    }
-  }
+    // Define a safe sync order for upserts (Parents first)
+    const upsertOrder = [
+      'users',
+      'animals', 
+      'archived_animals',
+      'shifts',
+      'holidays',
+      'timesheets',
+      'medical_logs', 
+      'mar_charts', 
+      'quarantine_records',
+      'internal_movements', 
+      'external_transfers',
+      'tasks',
+      'daily_logs',
+      'role_permissions'
+    ];
 
-  // 3. Process any remaining items not in the defined syncOrder (fallback)
-  for (const table in operationsByTable) {
-    for (const item of operationsByTable[table]) {
-      if (!processedItemIds.has(item.id)) {
-        try {
-          if (item.operation === 'upsert') {
-            await supabase.from(table).upsert(item.payload, { onConflict: 'id' }).throwOnError();
-          } else if (item.operation === 'delete') {
+    // Define a safe sync order for deletes (Children first)
+    const deleteOrder = [...upsertOrder].reverse();
+
+    const processedItemIds = new Set<number>();
+
+    // Helper to handle failures
+    const handleFailure = async (id: number, error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`🛠️ [Engine QA] Failed to sync item ${id}:`, errorMessage);
+      await db.sync_queue.update(id, { status: 'failed', error_log: errorMessage });
+    };
+
+    // 1. Process Deletes (Children first)
+    for (const table of deleteOrder) {
+      if (operationsByTable[table]) {
+        for (const item of operationsByTable[table].filter(op => op.operation === 'delete')) {
+          try {
             await supabase.from(table).delete().eq('id', item.payload.id as string).throwOnError();
+            await db.sync_queue.delete(item.id);
+            processedItemIds.add(item.id);
+          } catch (error) {
+            await handleFailure(item.id, error);
           }
-          await db.sync_queue.delete(item.id);
-        } catch (error) {
-          console.error(`Failed to sync item ${item.id} for table ${table} (fallback):`, error);
         }
       }
     }
+
+    // 2. Process Upserts (Parents first)
+    for (const table of upsertOrder) {
+      if (operationsByTable[table]) {
+        for (const item of operationsByTable[table].filter(op => op.operation === 'upsert')) {
+          try {
+            await supabase.from(table).upsert(item.payload, { onConflict: 'id' }).throwOnError();
+            await db.sync_queue.delete(item.id);
+            processedItemIds.add(item.id);
+          } catch (error) {
+            await handleFailure(item.id, error);
+          }
+        }
+      }
+    }
+
+    // 3. Process any remaining items not in the defined syncOrder (fallback)
+    for (const table in operationsByTable) {
+      for (const item of operationsByTable[table]) {
+        if (!processedItemIds.has(item.id)) {
+          try {
+            if (item.operation === 'upsert') {
+              await supabase.from(table).upsert(item.payload, { onConflict: 'id' }).throwOnError();
+            } else if (item.operation === 'delete') {
+              await supabase.from(table).delete().eq('id', item.payload.id as string).throwOnError();
+            }
+            await db.sync_queue.delete(item.id);
+          } catch (error) {
+            await handleFailure(item.id, error);
+          }
+        }
+      }
+    }
+  } finally {
+    isSyncingQueue = false;
   }
 }
 

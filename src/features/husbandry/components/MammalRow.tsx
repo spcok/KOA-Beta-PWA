@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Animal, LogType, LogEntry } from '../../../types';
 
 interface MammalRowProps {
@@ -7,7 +7,7 @@ interface MammalRowProps {
   onCellClick: (animal: Animal, type: LogType) => void;
 }
 
-export const MammalRow: React.FC<MammalRowProps> = ({ animal, getTodayLog, onCellClick }) => {
+export const MammalRow: React.FC<MammalRowProps> = memo(({ animal, getTodayLog, onCellClick }) => {
   const envLog = getTodayLog(animal.id, LogType.TEMPERATURE);
 
   return (
@@ -41,4 +41,4 @@ export const MammalRow: React.FC<MammalRowProps> = ({ animal, getTodayLog, onCel
       </td>
     </tr>
   );
-};
+});

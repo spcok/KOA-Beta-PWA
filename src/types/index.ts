@@ -188,6 +188,7 @@ export interface LogEntry {
   temperature_c?: number;
   created_at?: string;
   created_by?: string;
+  integrity_seal?: string;
 }
 
 export interface Task {
@@ -334,12 +335,14 @@ export interface ClinicalNote {
   recheck_date?: string;
   staff_initials: string;
   attachment_url?: string;
+  thumbnail_url?: string;
   diagnosis?: string;
   bcs?: number;
   weight_grams?: number;
   weight?: number;
   weight_unit?: 'g' | 'kg' | 'oz' | 'lbs' | 'lbs_oz';
   treatment_plan?: string;
+  integrity_seal?: string;
 }
 
 export interface MARChart {
@@ -355,6 +358,7 @@ export interface MARChart {
   instructions: string;
   administered_dates: string[];
   staff_initials: string;
+  integrity_seal?: string;
 }
 
 export interface QuarantineRecord {
@@ -434,6 +438,7 @@ export interface MaintenanceLog {
   status: 'Pending' | 'Completed';
   date_logged: string;
   date_completed?: string;
+  integrity_seal?: string;
 }
 
 export interface FirstAidLog {
@@ -491,6 +496,8 @@ export interface SyncQueueItem {
   operation: 'upsert' | 'delete';
   payload: Record<string, unknown>;
   created_at: string;
+  status?: 'pending' | 'failed';
+  error_log?: string;
 }
 
 export interface OperationalList {

@@ -83,85 +83,162 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
     }
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
-    const entry: Partial<LogEntry> = {
-      id: existingLog?.id || uuidv4(),
-      animal_id: animal.id,
-      log_type: logType,
-      log_date: date,
-      value: value || logType,
-      user_initials: userInitials.toUpperCase(),
-      notes: logType === LogType.FEED ? JSON.stringify({ cast, feedTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), userNotes: notes }) : notes,
-    };
+    // Form Validation Armor
+    if (!date) {
+      setError('Date is required.');
+      return;
+    }
+    if (!userInitials || userInitials.trim().length < 2) {
+      setError('Staff initials are required (min 2 characters).');
+      return;
+    }
+    if (!animal || !animal.id) {
+      setError('Animal ID is missing.');
+      return;
+    }
 
-    if (logType === LogType.WEIGHT && weight !== '') {
-      entry.weight = Number(weight);
-      entry.weight_unit = weightUnit;
-      // Keep weight_grams for backward compatibility if needed, or just use weight
-      if (weightUnit === 'g') entry.weight_grams = Number(weight);
-      else if (weightUnit === 'kg') entry.weight_grams = Number(weight) * 1000;
-      else if (weightUnit === 'oz') entry.weight_grams = Number(weight) * 28.3495;
-      else if (weightUnit === 'lbs') entry.weight_grams = Number(weight) * 453.592;
-      
-      entry.value = `${weight}${weightUnit}`;
+    if (logType === LogType.FEED && !value) {
+      setError('Food Item / Amount is required for feeding logs.');
+      return;
+    }
+
+    if (logType === LogType.WEIGHT && weight === '') {
+      setError('Weight is required.');
+      return;
     }
 
     if (logType === LogType.TEMPERATURE) {
       if (animal.category === AnimalCategory.EXOTICS) {
-        if (baskingTemp !== '' && coolTemp !== '') {
-          entry.basking_temp_c = Number(baskingTemp);
-          entry.cool_temp_c = Number(coolTemp);
-          entry.value = `${baskingTemp}°C | ${coolTemp}°C`;
-          entry.notes = JSON.stringify({ basking: Number(baskingTemp), cool: Number(coolTemp) });
+        if (baskingTemp === '' || coolTemp === '') {
+          setError('Both Basking and Cool temperatures are required for exotics.');
+          return;
         }
-      } else {
-        if (temperature !== '') entry.temperature_c = Number(temperature);
-        entry.value = `${temperature}°C`;
+      } else if (temperature === '') {
+        setError('Temperature is required.');
+        return;
       }
     }
 
-    if (logType === LogType.HEALTH) {
-      entry.health_record_type = healthRecordType;
-      entry.value = healthRecordType;
+    if (logType === LogType.HEALTH && !healthRecordType) {
+      setError('Health Record Type is required.');
+      return;
     }
 
-    if (logType === LogType.BIRTH) {
-      entry.value = `Litter Size: ${litterSize} (${litterHealth})`;
-      
-      if (!existingLog && typeof litterSize === 'number' && litterSize > 0) {
-        const pups = Array.from({ length: litterSize }).map((_, i) => {
-          return {
-            id: uuidv4(),
-            name: `Pup ${i + 1} (${animal.name})`,
-            species: animal.species,
-            category: animal.category,
-            dob: date,
-            is_dob_unknown: false,
-            sex: 'Unknown',
-            location: animal.location,
-            acquisition_date: date,
-            acquisition_type: 'BORN',
-            origin: 'Captive Bred',
-            dam_id: animal.sex === 'Female' ? animal.id : undefined,
-            sire_id: animal.sex === 'Male' ? animal.id : undefined,
-            group_name: animal.group_name || animal.name,
-            archived: false,
-            is_quarantine: false,
-            display_order: 0,
-          } as Animal;
-        });
+    if (logType === LogType.EVENT && !value) {
+      setError('Event Type is required.');
+      return;
+    }
+
+    if (logType === LogType.BIRTH && (litterSize === '' || !litterHealth)) {
+      setError('Litter Size and Health are required for birth logs.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const entry: Partial<LogEntry> = {
+        id: existingLog?.id || uuidv4(),
+        animal_id: animal.id,
+        log_type: logType,
+        log_date: date,
+        value: value || logType,
+        user_initials: userInitials.toUpperCase(),
+        notes: logType === LogType.FEED ? JSON.stringify({ cast, feedTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), userNotes: notes }) : notes,
+      };
+
+      if (logType === LogType.WEIGHT && weight !== '') {
+        entry.weight = Number(weight);
+        entry.weight_unit = weightUnit;
+        // Keep weight_grams for backward compatibility if needed, or just use weight
+        if (weightUnit === 'g') entry.weight_grams = Number(weight);
+        else if (weightUnit === 'kg') entry.weight_grams = Number(weight) * 1000;
+        else if (weightUnit === 'oz') entry.weight_grams = Number(weight) * 28.3495;
+        else if (weightUnit === 'lbs') entry.weight_grams = Number(weight) * 453.592;
         
-        for (const pup of pups) {
-          await mutateOnlineFirst('animals', pup, 'upsert');
+        entry.value = `${weight}${weightUnit}`;
+      }
+
+      if (logType === LogType.TEMPERATURE) {
+        if (animal.category === AnimalCategory.EXOTICS) {
+          if (baskingTemp !== '' && coolTemp !== '') {
+            entry.basking_temp_c = Number(baskingTemp);
+            entry.cool_temp_c = Number(coolTemp);
+            entry.value = `${baskingTemp}°C | ${coolTemp}°C`;
+            entry.notes = JSON.stringify({ basking: Number(baskingTemp), cool: Number(coolTemp) });
+          }
+        } else {
+          if (temperature !== '') entry.temperature_c = Number(temperature);
+          entry.value = `${temperature}°C`;
         }
       }
-    }
 
-    onSave(entry);
+      if (logType === LogType.HEALTH) {
+        entry.health_record_type = healthRecordType;
+        entry.value = healthRecordType;
+      }
+
+      if (logType === LogType.BIRTH) {
+        entry.value = `Litter Size: ${litterSize} (${litterHealth})`;
+        
+        if (!existingLog && typeof litterSize === 'number' && litterSize > 0) {
+          const pups = Array.from({ length: litterSize }).map((_, i) => {
+            return {
+              id: uuidv4(),
+              name: `Pup ${i + 1} (${animal.name})`,
+              species: animal.species,
+              category: animal.category,
+              dob: date,
+              is_dob_unknown: false,
+              sex: 'Unknown',
+              location: animal.location,
+              acquisition_date: date,
+              acquisition_type: 'BORN',
+              origin: 'Captive Bred',
+              dam_id: animal.sex === 'Female' ? animal.id : undefined,
+              sire_id: animal.sex === 'Male' ? animal.id : undefined,
+              group_name: animal.group_name || animal.name,
+              archived: false,
+              is_quarantine: false,
+              display_order: 0,
+            } as Animal;
+          });
+          
+          for (const pup of pups) {
+            await mutateOnlineFirst('animals', pup, 'upsert');
+          }
+        }
+      }
+
+      // Optimistic UI & Offline Reset Stability
+      // We don't await the mutateOnlineFirst here if it's just the log entry, 
+      // we pass it to onSave which handles it, or we handle it here if onSave is just a callback.
+      // Wait, looking at the original code, it just calls onSave(entry).
+      // The parent component handles the actual mutateOnlineFirst for the log entry.
+      // So we just call onSave and close.
+      onSave(entry);
+      
+      if (!navigator.onLine) {
+        console.log('🛠️ [Husbandry QA] Saved Offline');
+        // A toast could be triggered here or in the parent.
+      }
+      
+      onClose();
+    } catch (err) {
+      console.error('🛠️ [Husbandry QA] Error saving entry:', err);
+      setError('An error occurred while saving. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderFields = () => {
@@ -411,6 +488,11 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 space-y-6">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium">
+              {error}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Date</label>
@@ -475,9 +557,11 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
           <button 
             type="button"
             onClick={handleSubmit}
-            className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-600/20"
+            disabled={isSubmitting}
+            className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md shadow-emerald-600/20 disabled:opacity-50"
           >
-            <Save size={16} /> {existingLog ? 'Update' : 'Save'} Entry
+            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            {existingLog ? 'Update' : 'Save'} Entry
           </button>
         </div>
       </div>

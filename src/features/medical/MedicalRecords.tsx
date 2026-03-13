@@ -19,6 +19,8 @@ const MedicalRecords: React.FC = () => {
   const [isMarModalOpen, setIsMarModalOpen] = useState(false);
   const [isQuarantineModalOpen, setIsQuarantineModalOpen] = useState(false);
 
+  const [isCorrection, setIsCorrection] = useState(false);
+
   if (!permissions.view_medical) {
     return (
       <div className="p-8 flex flex-col items-center justify-center h-full min-h-[50vh] space-y-4">
@@ -36,6 +38,7 @@ const MedicalRecords: React.FC = () => {
   const handleAdd = () => {
     if (activeTab === 'notes') {
       setEditingNote(null);
+      setIsCorrection(false);
       setIsNoteModalOpen(true);
     }
     else if (activeTab === 'mar') setIsMarModalOpen(true);
@@ -44,6 +47,21 @@ const MedicalRecords: React.FC = () => {
 
   const handleEditNote = (note: ClinicalNote) => {
     setEditingNote(note);
+    setIsCorrection(false);
+    setIsNoteModalOpen(true);
+  };
+
+  const handleAddCorrection = (note: ClinicalNote) => {
+    console.log('🛠️ [Medical QA] Creating correction for sealed record:', note.id);
+    setEditingNote({
+      ...note,
+      id: crypto.randomUUID(),
+      note_text: `[CORRECTION to record from ${new Date(note.date).toLocaleDateString('en-GB')}]\n\n`,
+      integrity_seal: undefined,
+      staff_initials: '',
+      date: new Date().toISOString().split('T')[0],
+    });
+    setIsCorrection(true);
     setIsNoteModalOpen(true);
   };
 
@@ -112,8 +130,8 @@ const MedicalRecords: React.FC = () => {
       
       <AddClinicalNoteModal 
         isOpen={isNoteModalOpen} 
-        onClose={() => setIsNoteModalOpen(false)} 
-        onSave={editingNote ? updateClinicalNote : addClinicalNote} 
+        onClose={() => { setIsNoteModalOpen(false); setIsCorrection(false); }} 
+        onSave={editingNote && !isCorrection ? updateClinicalNote : addClinicalNote} 
         animals={animals}
         initialData={editingNote}
       />
@@ -215,13 +233,26 @@ const MedicalRecords: React.FC = () => {
                       <p className="text-sm text-slate-500 font-medium">{new Date(selectedNote.date).toLocaleDateString('en-GB')}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button 
-                        onClick={() => handleEditNote(selectedNote)}
-                        className="text-slate-400 hover:text-blue-600 transition-colors p-1" 
-                        title="Edit"
-                      >
-                        <Edit2 size={18} />
-                      </button>
+                      {selectedNote.integrity_seal ? (
+                        <div className="flex items-center gap-2">
+                          <span title="Record Sealed"><Lock size={16} className="text-emerald-600" /></span>
+                          <button 
+                            onClick={() => handleAddCorrection(selectedNote)}
+                            className="text-slate-400 hover:text-blue-600 transition-colors p-1 flex items-center gap-1 text-xs font-bold" 
+                            title="Add Correction"
+                          >
+                            <Plus size={14} /> Correction
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => handleEditNote(selectedNote)}
+                          className="text-slate-400 hover:text-blue-600 transition-colors p-1" 
+                          title="Edit"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                      )}
                       <button 
                         onClick={() => handlePrintNote(selectedNote)}
                         className="text-slate-400 hover:text-blue-600 transition-colors p-1" 
@@ -275,6 +306,40 @@ const MedicalRecords: React.FC = () => {
                     </div>
                   )}
 
+                  {(selectedNote.thumbnail_url || selectedNote.attachment_url) && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-2">Attachment</h3>
+                      <div 
+                        className="relative rounded-xl overflow-hidden border border-slate-200 group cursor-pointer"
+                        onClick={() => {
+                          if (selectedNote.attachment_url && !selectedNote.attachment_url.startsWith('local://')) {
+                            if (navigator.onLine) {
+                              window.open(selectedNote.attachment_url, '_blank');
+                            } else {
+                              alert('Internet connection required to view high-res image.');
+                            }
+                          } else if (selectedNote.attachment_url?.startsWith('local://')) {
+                            alert('High-res image is still uploading.');
+                          }
+                        }}
+                      >
+                        <img 
+                          src={selectedNote.thumbnail_url || selectedNote.attachment_url} 
+                          alt="Clinical attachment" 
+                          className="w-full h-auto object-cover max-h-64"
+                          referrerPolicy="no-referrer"
+                        />
+                        {selectedNote.attachment_url && !selectedNote.attachment_url.startsWith('local://') && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <p className="text-white text-sm font-medium px-4 py-2 bg-black/50 rounded-lg backdrop-blur-sm">
+                              Tap to download high-res (Internet Required)
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="border-t border-slate-100 pt-4 flex justify-between items-center text-sm text-slate-500">
                     <span>Recorded by: <span className="font-medium text-slate-700">{selectedNote.staff_initials}</span></span>
                     {selectedNote.recheck_date && (
@@ -321,7 +386,11 @@ const MedicalRecords: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 flex gap-2">
-                        <button className="text-slate-400 hover:text-blue-600 transition-colors"><Edit2 size={16} /></button>
+                        {m.integrity_seal ? (
+                          <span title="Record Sealed"><Lock size={16} className="text-emerald-600" /></span>
+                        ) : (
+                          <button className="text-slate-400 hover:text-blue-600 transition-colors"><Edit2 size={16} /></button>
+                        )}
                         <button onClick={() => generateMarChartDocx(m)} className="text-slate-400 hover:text-blue-600 transition-colors"><Download size={16} /></button>
                       </td>
                     </tr>

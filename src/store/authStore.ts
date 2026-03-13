@@ -41,13 +41,36 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialize: async () => {
     set({ isLoading: true });
     
-    // Get initial session
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session?.user) {
-      await syncUserRole(session.user, set);
-    } else {
-      set({ session: null, user: null, currentUser: null, isLoading: false });
+    try {
+      // Add a timeout to prevent hanging on offline boot
+      const getSessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise<{ data: { session: Session | null } }>((_, reject) => 
+        setTimeout(() => reject(new Error('Session check timeout')), 5000)
+      );
+      
+      const { data: { session } } = await Promise.race([getSessionPromise, timeoutPromise]);
+      
+      if (session?.user) {
+        await syncUserRole(session.user, set);
+      } else {
+        set({ session: null, user: null, currentUser: null, isLoading: false });
+      }
+    } catch (error) {
+      console.warn('🛠️ [Anti-Regression] Supabase session check failed or timed out. Falling back to local cache.', error);
+      // Try to load any user from Dexie as fallback
+      try {
+        const localUser = await db.users.toCollection().first();
+        if (localUser) {
+          // Create a mock session to allow offline access
+          const mockUser = { id: localUser.id, email: localUser.email } as SupabaseUser;
+          const mockSession = { user: mockUser } as Session;
+          set({ session: mockSession, user: mockUser, currentUser: localUser, isLoading: false });
+        } else {
+          set({ session: null, user: null, currentUser: null, isLoading: false });
+        }
+      } catch {
+        set({ session: null, user: null, currentUser: null, isLoading: false });
+      }
     }
 
     // Listen for changes

@@ -54,72 +54,68 @@ export async function uploadFile(file: File, folder: string): Promise<string> {
   return data.publicUrl;
 }
 
-export async function queueFileUpload(file: File, folder: string): Promise<string> {
-  // Validate file size (5MB limit)
+export async function queueFileUpload(file: File, folder: string, recordId: string, tableName: string, columnName: string): Promise<{ attachment_url: string, thumbnail_url: string }> {
   const MAX_SIZE = 5 * 1024 * 1024;
   if (file.size > MAX_SIZE) {
     throw new Error('File size exceeds the 5MB limit.');
   }
 
   let thumbnailBase64 = '';
-  let fileToUpload: File | Blob = file;
 
   if (file.type.startsWith('image/')) {
-    // Generate thumbnail
-    const thumbnailOptions = {
-      maxSizeMB: 0.05,
-      maxWidthOrHeight: 200,
-      useWebWorker: true,
-      fileType: 'image/jpeg'
-    };
-    try {
-      const thumbnailBlob = await imageCompression(file, thumbnailOptions);
-      thumbnailBase64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(thumbnailBlob);
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-      });
-    } catch (e) {
-      console.error("Failed to generate thumbnail", e);
-    }
-
-    // Compress main image
-    const options = {
-      maxSizeMB: 0.5,
-      maxWidthOrHeight: 1920,
-      useWebWorker: true
-    };
-    fileToUpload = await imageCompression(file, options);
+    thumbnailBase64 = await new Promise<string>((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        try {
+          URL.revokeObjectURL(url);
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 200;
+          const scale = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scale;
+          
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        } catch {
+          reject(new Error('Image too large for offline storage or processing failed.'));
+        }
+      };
+      img.onerror = () => reject(new Error('Failed to load image for thumbnail generation.'));
+      img.src = url;
+    });
   }
 
   const fileExt = file.name.split('.').pop();
   const fileName = `${crypto.randomUUID()}.${fileExt}`;
 
-  // Add to Dexie upload_queue
-  await db.upload_queue.add({
-    fileData: fileToUpload,
+  await db.media_upload_queue.add({
+    fileData: file,
     fileName,
     folder,
-    thumbnailBase64,
+    recordId,
+    tableName,
+    columnName,
     status: 'pending',
     createdAt: new Date().toISOString()
   });
 
-  // Return the thumbnail as a temporary URL if available, otherwise a placeholder
-  // In a real app, you might return a special internal URL scheme like "local://..."
-  // For now, returning the base64 thumbnail allows immediate UI feedback.
-  return thumbnailBase64 || `local://${fileName}`;
+  return { attachment_url: `local://${fileName}`, thumbnail_url: thumbnailBase64 };
 }
 
-export async function processUploadQueue(): Promise<void> {
+export async function processMediaUploadQueue(): Promise<void> {
   if (!navigator.onLine) return;
 
-  const pendingUploads = await db.upload_queue.where('status').equals('pending').toArray();
+  const pendingUploads = await db.media_upload_queue.where('status').equals('pending').toArray();
   
   for (const item of pendingUploads) {
     try {
-      await db.upload_queue.update(item.id!, { status: 'uploading' });
+      await db.media_upload_queue.update(item.id!, { status: 'uploading' });
       
       const filePath = `${item.folder}/${item.fileName}`;
       const { error: uploadError } = await supabase.storage
@@ -130,15 +126,29 @@ export async function processUploadQueue(): Promise<void> {
         throw uploadError;
       }
 
-      // If successful, we can delete it from the queue
-      await db.upload_queue.delete(item.id!);
-      
-      // Note: In a fully robust system, we would also need to update the database record
-      // that references 'thumbnailBase64' or 'local://...' to point to the new Supabase public URL.
-      // For this task, the prompt says "upload the upload_queue to Supabase Storage, then clears the queue."
+      const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+      const publicUrl = data.publicUrl;
+
+      // Update the actual record in Supabase with the new public URL
+      const { error: updateError } = await supabase
+        .from(item.tableName)
+        .update({ [item.columnName]: publicUrl })
+        .eq('id', item.recordId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Also update local Dexie record
+      const localTable = db.table(item.tableName);
+      if (localTable) {
+        await localTable.update(item.recordId, { [item.columnName]: publicUrl });
+      }
+
+      await db.media_upload_queue.delete(item.id!);
     } catch (error) {
-      console.error(`Failed to upload queued file ${item.fileName}:`, error);
-      await db.upload_queue.update(item.id!, { status: 'failed' });
+      console.error(`Failed to upload queued media ${item.fileName}:`, error);
+      await db.media_upload_queue.update(item.id!, { status: 'failed' });
     }
   }
 }
@@ -146,13 +156,13 @@ export async function processUploadQueue(): Promise<void> {
 // Start a background worker to process the queue periodically
 setInterval(() => {
   if (navigator.onLine) {
-    processUploadQueue().catch(console.error);
+    processMediaUploadQueue().catch(console.error);
   }
 }, 30000); // Check every 30 seconds
 
 // Also check when coming back online
 window.addEventListener('online', () => {
-  processUploadQueue().catch(console.error);
+  processMediaUploadQueue().catch(console.error);
 });
 
 export async function deleteFile(fileUrl: string): Promise<void> {
