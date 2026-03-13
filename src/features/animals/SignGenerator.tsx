@@ -50,17 +50,24 @@ const SignGenerator: React.FC<SignGeneratorProps> = ({ animal, orgProfile, onClo
   const [isEditingText, setIsEditingText] = useState(false);
 
   const fetchContent = () => {
+      const species = animal.species;
+      console.log(`📝 [SignGenerator] Triggered generation for: ${species}`);
       startTransition(async () => {
-          const [mainContent, brief] = await Promise.all([
-              generateSignageContent(animal.species),
-              generateExoticSummary(animal.species)
-          ]);
-          setContent({ 
-              ...mainContent, 
-              speciesBrief: brief,
-              // Ensure speciesStats is never undefined
-              speciesStats: mainContent.speciesStats || { ...DEFAULT_STATS }
-          });
+          try {
+              const [mainContent, brief] = await Promise.all([
+                  generateSignageContent(species),
+                  generateExoticSummary(species)
+              ]);
+              console.log("Signage Content Received:", { mainContent, brief });
+              setContent({ 
+                  ...mainContent, 
+                  speciesBrief: brief,
+                  // Ensure speciesStats is never undefined
+                  speciesStats: mainContent.speciesStats || { ...DEFAULT_STATS }
+              });
+          } catch (error) {
+              console.error("❌ [SignGenerator] Error caught:", error);
+          }
       });
   };
 

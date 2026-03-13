@@ -1,6 +1,7 @@
 import { db } from '../../lib/db';
 import { OrgProfileSettings } from '../../types';
-import { useHybridQuery, mutateOnlineFirst } from '../../lib/dataEngine';
+import { useHybridQuery } from '../../lib/dataEngine';
+import { supabase } from '../../lib/supabase';
 
 const DEFAULT_SETTINGS: OrgProfileSettings = {
   id: 'profile',
@@ -24,8 +25,72 @@ export function useOrgSettings() {
   const settings = settingsData || DEFAULT_SETTINGS;
 
   const saveSettings = async (newSettings: OrgProfileSettings) => {
-    const settingsToSave = { ...newSettings, id: 'profile' };
-    await mutateOnlineFirst('settings', settingsToSave as Record<string, unknown>, 'upsert');
+    console.log("🏢 [OrgSettings] Attempting to save profile:", newSettings);
+    try {
+      const settingsToSave = { ...newSettings, id: 'profile' };
+      
+      // Update local Dexie cache
+      await db.settings.put(settingsToSave);
+
+      if (navigator.onLine) {
+        // Fetch the organization ID from Supabase
+        const { data: orgData, error: fetchError } = await supabase
+          .from('organisations')
+          .select('id')
+          .limit(1)
+          .maybeSingle();
+
+        if (fetchError) {
+          throw fetchError;
+        }
+
+        const orgId = orgData?.id;
+
+        const payload = {
+          org_name: newSettings.org_name,
+          logo_url: newSettings.logo_url,
+          contact_email: newSettings.contact_email,
+          contact_phone: newSettings.contact_phone,
+          address: newSettings.address,
+          zla_license_number: newSettings.zla_license_number,
+          official_website: newSettings.official_website,
+          adoption_portal: newSettings.adoption_portal,
+        };
+
+        if (orgId) {
+          const { error: updateError } = await supabase
+            .from('organisations')
+            .update(payload)
+            .eq('id', orgId);
+
+          if (updateError) throw updateError;
+        } else {
+          const { error: insertError } = await supabase
+            .from('organisations')
+            .insert(payload);
+            
+          if (insertError) throw insertError;
+        }
+      } else {
+        // Queue for later sync
+        const existing = await db.sync_queue.filter(item => item.table_name === 'organisations' && item.record_id === 'profile').first();
+        if (existing) {
+          await db.sync_queue.put({ ...existing, payload: settingsToSave, operation: 'upsert' });
+        } else {
+          await db.sync_queue.add({
+            table_name: 'organisations',
+            record_id: 'profile',
+            operation: 'upsert',
+            payload: settingsToSave,
+            created_at: new Date().toISOString()
+          });
+        }
+      }
+      console.log("✅ [OrgSettings] Save successful");
+    } catch (error) {
+      console.error("❌ [OrgSettings] Save failed:", error);
+      throw error;
+    }
   };
 
   return { settings, isLoading, saveSettings };

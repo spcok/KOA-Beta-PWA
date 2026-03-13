@@ -19,6 +19,19 @@ const WeatherView: React.FC = () => {
   // AI Advisor State
   const [isPendingAi, startTransitionAi] = useTransition();
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // Network State Listener
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // 1. Fetch Data with Cleanup and Error Handling
   useEffect(() => {
@@ -62,10 +75,11 @@ const WeatherView: React.FC = () => {
 
   const handleGenerateAiAnalysis = () => {
       if (!data) return;
+      console.log("Weather AI Analysis Triggered. Data points:", selectedHourly.length);
       startTransitionAi(async () => {
           try {
-            const filteredHourly = data.hourly.filter((h: WeatherHourly) => String(h.time).startsWith(selectedDate));
-            const analysis = await analyzeFlightWeather(filteredHourly);
+            const analysis = await analyzeFlightWeather(selectedHourly);
+            console.log("Weather AI Analysis Received:", analysis);
             setAiAnalysis(analysis);
           } catch (err) {
             console.error('AI Analysis error:', err);
@@ -195,16 +209,24 @@ const WeatherView: React.FC = () => {
                       </div>
                       <button 
                         onClick={handleGenerateAiAnalysis}
-                        disabled={isPendingAi}
+                        disabled={isPendingAi || isOffline}
                         className="bg-slate-900 hover:bg-black text-white px-2 py-1 rounded-lg font-black uppercase text-[8px] tracking-widest transition-all flex items-center gap-2 disabled:opacity-50"
+                        title={isOffline ? "AI Analysis requires an internet connection" : ""}
                       >
                         {isPendingAi ? <Loader2 size={10} className="animate-spin"/> : aiAnalysis ? <RefreshCw size={10}/> : <Play size={10}/>}
-                        {aiAnalysis ? 'Update' : 'Run Audit'}
+                        {isOffline ? 'Offline' : aiAnalysis ? 'Update' : 'Run Audit'}
                       </button>
                   </div>
 
                   <div className="p-4 overflow-y-auto max-h-48 scrollbar-thin">
-                      {!aiAnalysis && !isPendingAi ? (
+                      {isOffline && !aiAnalysis && (
+                          <div className="flex flex-col items-center justify-center py-10 text-amber-600 text-center bg-amber-50 rounded-lg mb-2">
+                              <ShieldAlert size={24} className="mb-2" />
+                              <p className="text-[9px] font-black uppercase tracking-[0.2em]">Connection Required</p>
+                              <p className="text-[8px] font-medium mt-1">AI Analysis requires an internet connection.</p>
+                          </div>
+                      )}
+                      {!aiAnalysis && !isPendingAi && !isOffline ? (
                           <div className="flex flex-col items-center justify-center py-10 text-slate-300 text-center">
                               <ShieldAlert size={32} className="mb-2 opacity-20" />
                               <p className="text-[9px] font-black uppercase tracking-[0.2em]">Safety Analysis Pending</p>

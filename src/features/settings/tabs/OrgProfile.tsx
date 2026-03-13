@@ -25,6 +25,7 @@ const schema = z.object({
 const OrgProfile: React.FC = () => {
   const { settings, isLoading, saveSettings } = useOrgSettings();
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { register, handleSubmit, setValue, watch } = useForm<OrgProfileSettings>({
     resolver: zodResolver(schema),
     defaultValues: settings
@@ -74,8 +75,16 @@ const OrgProfile: React.FC = () => {
   };
 
   const onSubmit = async (data: OrgProfileSettings) => {
-    await saveSettings(data);
-    alert('Settings saved successfully!');
+    setIsSaving(true);
+    try {
+      await saveSettings(data);
+      alert('Settings saved successfully!');
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      alert('Failed to save settings. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isLoading) return <div>Loading...</div>;
@@ -133,7 +142,13 @@ const OrgProfile: React.FC = () => {
         </div>
       </div>
 
-      <button type="submit" className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 shadow-sm">Save Changes</button>
+      <button 
+        type="submit" 
+        disabled={isSaving}
+        className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isSaving ? 'Saving...' : 'Save Changes'}
+      </button>
     </form>
   );
 };

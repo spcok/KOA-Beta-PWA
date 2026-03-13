@@ -10,6 +10,11 @@ const UsersView: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  // --- NEW: Custom Delete Modal State ---
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -29,13 +34,23 @@ const UsersView: React.FC = () => {
     );
   }
 
-  const handleDelete = async (user: User) => {
-    if (window.confirm(`Are you sure you want to completely remove ${user.name} from the system?`)) {
-      try {
-        await deleteUser(user.id);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "An error occurred");
-      }
+  // Bypasses the blocked window.confirm() and opens our beautiful React modal
+  const handleDeleteClick = (user: User) => {
+    setUserToDelete(user);
+    setDeleteError(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteUser(userToDelete.id);
+      setUserToDelete(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete user. Please try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -47,6 +62,7 @@ const UsersView: React.FC = () => {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
+      
       {!isOnline && (
         <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center gap-3 text-amber-800 shadow-sm">
           <WifiOff size={20} className="flex-shrink-0" />
@@ -99,7 +115,7 @@ const UsersView: React.FC = () => {
                       Edit
                     </button>
                     <button 
-                      onClick={() => handleDelete(user)} 
+                      onClick={() => handleDeleteClick(user)} 
                       disabled={!isOnline}
                       className="text-rose-600 hover:text-rose-800 p-1.5 rounded-lg hover:bg-rose-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
@@ -120,6 +136,44 @@ const UsersView: React.FC = () => {
         </table>
       </div>
       
+      {/* CUSTOM DELETE CONFIRMATION MODAL */}
+      {userToDelete && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
+          <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-rose-100">
+              <Trash2 size={32} />
+            </div>
+            <h3 className="text-xl font-black text-slate-900 text-center uppercase tracking-tight mb-2">Delete Account</h3>
+            <p className="text-slate-500 text-center text-sm font-medium mb-6">
+              Are you sure you want to permanently remove <span className="font-bold text-slate-900">{userToDelete.name}</span>? This action destroys their login and cannot be undone.
+            </p>
+            
+            {deleteError && (
+              <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl text-center uppercase tracking-widest">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => { setUserToDelete(null); setDeleteError(null); }}
+                disabled={isDeleting}
+                className="flex-1 py-4 bg-slate-100 text-slate-700 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-rose-700 transition-colors shadow-lg shadow-rose-200 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isDeleting ? <Loader2 size={16} className="animate-spin" /> : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <UserFormModal 
         isOpen={!!editingUser} 
         onClose={() => setEditingUser(null)} 
@@ -193,8 +247,7 @@ const RoleMatrixView: React.FC = () => {
   ];
 
   const handleToggle = async (roleConfig: RolePermissionConfig, key: keyof RolePermissionConfig) => {
-    // Removed the !roleConfig.id check since the role string is the actual identifier
-    if (!isOnline || roleConfig.role === 'OWNER') return; 
+    if (!isOnline || roleConfig.role === 'OWNER') return;
     
     setUpdatingRow(`${roleConfig.role}-${key}`);
     try {

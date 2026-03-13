@@ -125,15 +125,17 @@ export function useAnimalForm({ initialData, onClose }: UseAnimalFormProps) {
 
   useEffect(() => {
     if (species && (redListStatus === ConservationStatus.NE || !redListStatus)) {
+      console.log("Automatic AI Autofill Triggered. Species:", species);
       startAiTransition(async () => {
         try {
           const data = await batchGetSpeciesData([species]);
+          console.log("Automatic AI Data Received:", data);
           if (data[species]) {
             form.setValue('latin_name', data[species].latin_name, { shouldDirty: true });
             form.setValue('red_list_status', data[species].conservation_status as ConservationStatus, { shouldDirty: true });
           }
         } catch (error) {
-          console.error('AI Autofill failed:', error);
+          console.error('Automatic AI Autofill failed:', error);
         }
       });
     }

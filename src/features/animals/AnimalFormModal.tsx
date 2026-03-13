@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { X, Check, Camera, Sparkles, Loader2, Zap, Shield, History, Info, Globe, Skull, Users, Thermometer } from 'lucide-react';
+import { X, Check, Camera, Loader2, Zap, Shield, History, Info, Globe, Skull, Users, Thermometer } from 'lucide-react';
 import { Animal, AnimalCategory, HazardRating, ConservationStatus } from '../../types';
 import { useAnimalForm } from './useAnimalForm';
+import { getAnimalIntelligence } from '../../services/geminiService';
 
 interface AnimalFormModalProps {
   isOpen: boolean;
@@ -14,14 +15,47 @@ interface AnimalFormModalProps {
 const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, initialData, locations = [] }) => {
   const {
     form,
-    isAiPending,
     handleImageUpload,
     onSubmit,
     isSubmitting,
     errors,
   } = useAnimalForm({ initialData, onClose });
 
-  const { register, watch, setValue } = form;
+  const { register, watch, setValue, getValues } = form;
+
+  const [isFetchingAI, setIsFetchingAI] = useState(false);
+
+  const handleAutoFill = async () => {
+    const currentSpecies = getValues('species'); 
+    console.log("Manual Auto-Fill Triggered. Species:", currentSpecies);
+    
+    if (!currentSpecies) {
+      console.warn("Auto-Fill aborted: No species name provided.");
+      alert("Please enter a Common Name / Species first.");
+      return;
+    }
+
+    setIsFetchingAI(true);
+    try {
+      console.log("Calling getAnimalIntelligence for:", currentSpecies);
+      const data = await getAnimalIntelligence(currentSpecies);
+      console.log("AI Data Received:", data);
+      
+      if (data.latin_name) {
+        setValue('latin_name', data.latin_name, { shouldValidate: true, shouldDirty: true });
+      }
+      
+      if (data.red_list_status) {
+        setValue('red_list_status', data.red_list_status as ConservationStatus, { shouldValidate: true, shouldDirty: true });
+      }
+      
+    } catch (error) {
+      console.error("AI Fetch Error:", error);
+      alert("Failed to fetch animal data. Please check your internet connection.");
+    } finally {
+      setIsFetchingAI(false);
+    }
+  };
 
   const category = watch('category');
   const imageUrl = watch('image_url');
@@ -151,10 +185,11 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                         <input {...register('species')} className={inputClass} placeholder="e.g. Barn Owl" />
                                         <button 
                                           type="button" 
-                                          disabled={isAiPending} 
-                                          className="px-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                          onClick={handleAutoFill}
+                                          disabled={isFetchingAI}
+                                          className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-3 rounded-2xl border border-indigo-100 font-black uppercase text-[10px] tracking-widest hover:bg-indigo-100 transition-colors disabled:opacity-50"
                                         >
-                                            {isAiPending ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                                          {isFetchingAI ? 'Fetching...' : 'Auto-Fill Details'}
                                         </button>
                                     </div>
                                     {errors.species && <p className={errorClass}>{errors.species.message}</p>}

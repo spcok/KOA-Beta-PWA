@@ -27,6 +27,7 @@ import SafetyDrills from './features/safety/tabs/SafetyDrills';
 import SiteMaintenance from './features/safety/tabs/SiteMaintenance';
 import ReportsDashboard from './features/reports/ReportsDashboard';
 import { processSyncQueue, prune14DayCache, startRealtimeSubscription } from './lib/syncEngine';
+import { hydrateComplianceData } from './services/syncService';
 import PwaManager from './components/ui/PwaManager';
 
 export default function App() {
@@ -51,9 +52,10 @@ export default function App() {
       // 2. Start Realtime
       const sub = startRealtimeSubscription();
       
-      // 3. Process queue if online
+      // 3. Process queue and hydrate if online
       if (navigator.onLine) {
         processSyncQueue();
+        hydrateComplianceData();
       }
 
       return () => {
@@ -66,6 +68,7 @@ export default function App() {
   useEffect(() => {
     const handleOnline = () => {
       processSyncQueue();
+      hydrateComplianceData();
     };
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
