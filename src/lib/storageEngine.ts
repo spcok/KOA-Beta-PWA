@@ -10,17 +10,6 @@ import { db } from './db';
 const BUCKET_NAME = 'koa-attachments';
 
 export async function uploadFile(file: File, folder: string): Promise<string> {
-  try {
-    const { data: buckets } = await supabase.storage.listBuckets();
-    console.log('--- SUPABASE STORAGE DIAGNOSTIC ---');
-    console.log('Connected to Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-    console.log('Available Buckets in this project:', buckets?.map(b => b.name));
-    console.log('Attempting to upload to:', BUCKET_NAME);
-    console.log('-----------------------------------');
-  } catch (e) {
-    console.error('Failed to fetch buckets for diagnostic:', e);
-  }
-
   // Validate file size (5MB limit)
   const MAX_SIZE = 5 * 1024 * 1024;
   if (file.size > MAX_SIZE) {
@@ -43,7 +32,6 @@ export async function uploadFile(file: File, folder: string): Promise<string> {
     .upload(filePath, fileToUpload);
 
   if (uploadError) {
-    console.log('Full uploadError object:', uploadError);
     throw uploadError;
   }
 

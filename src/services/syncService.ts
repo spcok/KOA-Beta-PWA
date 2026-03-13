@@ -9,7 +9,6 @@ import { db } from '../lib/db';
 export async function hydrateComplianceData() {
   if (!navigator.onLine) return;
 
-  console.log("🛠️ [SYNC] Hydrating compliance modules for offline failover...");
 
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
@@ -42,7 +41,6 @@ export async function hydrateComplianceData() {
         const table = db[dexieTable as keyof typeof db] as any;
         if (table && typeof table.bulkPut === 'function') {
           await table.bulkPut(data);
-          console.log(`[SYNC] Hydrated ${data.length} records for ${dexieTable}`);
         }
       }
     }));

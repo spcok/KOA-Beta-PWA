@@ -5,16 +5,8 @@ import { SignContent, ConservationStatus } from '../types';
  * DIAGNOSTIC TRACER: Master helper to invoke the Edge Function
  */
 const invokeGeminiEdge = async (prompt: string, expectJson: boolean = false, timeoutMs: number = 15000) => {
-  console.log("🚀 [invokeGeminiEdge] 1. Preparing to invoke Edge Function...");
-  console.log("🚀 [invokeGeminiEdge] 2. Supabase Client Status:", supabase ? "Defined" : "UNDEFINED!");
   
   try {
-    console.log("🚀 [invokeGeminiEdge] 3. Firing network request to 'gemini-api-proxy'...");
-    
-    // --- INJECTED RAW FETCH DIAGNOSTIC ---
-    const rawUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gemini-api-proxy`;
-    console.log("🛠️ [DIAGNOSTIC] Expected Target URL:", rawUrl);
-    console.log("🛠️ [DIAGNOSTIC] Supabase Anon Key exists?", !!import.meta.env.VITE_SUPABASE_ANON_KEY);
 
     // We capture the raw promise to see if it hangs indefinitely
     const requestPromise = supabase.functions.invoke('gemini-api-proxy', {
@@ -28,7 +20,6 @@ const invokeGeminiEdge = async (prompt: string, expectJson: boolean = false, tim
 
     const response = await Promise.race([requestPromise, timeoutPromise]) as { data: unknown; error: { message: string } | null };
     
-    console.log("🚀 [invokeGeminiEdge] 4. Network Request Finished! Raw Response:", response);
 
     const { data, error } = response;
 
@@ -44,13 +35,11 @@ const invokeGeminiEdge = async (prompt: string, expectJson: boolean = false, tim
     } else {
       rawText = String(data || '');
     }
-    console.log("🚀 [invokeGeminiEdge] 6. Extracted Text payload:", rawText);
 
     if (expectJson && typeof rawText === 'string') {
       rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
       try {
         const parsed = JSON.parse(rawText);
-        console.log("🚀 [invokeGeminiEdge] 7. Successfully parsed JSON payload:", parsed);
         return parsed;
       } catch (e: unknown) {
         console.error("❌ [invokeGeminiEdge] JSON Parse Crash. Raw text was:", rawText);
@@ -75,7 +64,6 @@ export interface AnimalIntelligenceResponse {
 
 export const getAnimalIntelligence = async (speciesName: string): Promise<AnimalIntelligenceResponse> => {
   try {
-    console.log(`🤖 [getAnimalIntelligence] Triggered for: "${speciesName}"`);
     const prompt = `You are a zoological database. Find the scientific name and IUCN Red List status for the animal: "${speciesName}". Return ONLY a raw JSON object matching exactly this schema: {"latin_name": "Scientific Name", "red_list_status": "One of: NE, DD, LC, NT, VU, EN, CR, EW, EX"}. Do not include markdown formatting or backticks.`;
     return await invokeGeminiEdge(prompt, true) as AnimalIntelligenceResponse;
   } catch (error: unknown) {
