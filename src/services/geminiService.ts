@@ -4,7 +4,7 @@ import { SignContent, ConservationStatus } from '../types';
 /**
  * DIAGNOSTIC TRACER: Master helper to invoke the Edge Function
  */
-const invokeGeminiEdge = async (prompt: string, expectJson: boolean = false) => {
+const invokeGeminiEdge = async (prompt: string, expectJson: boolean = false, timeoutMs: number = 15000) => {
   console.log("🚀 [invokeGeminiEdge] 1. Preparing to invoke Edge Function...");
   console.log("🚀 [invokeGeminiEdge] 2. Supabase Client Status:", supabase ? "Defined" : "UNDEFINED!");
   
@@ -21,9 +21,9 @@ const invokeGeminiEdge = async (prompt: string, expectJson: boolean = false) => 
       body: { prompt }
     });
 
-    // Race the request against a 15-second timeout so it can't hang forever
+    // Race the request against a timeout so it can't hang forever
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Supabase Edge Function Request TIMED OUT after 15 seconds.")), 15000)
+      setTimeout(() => reject(new Error(`Supabase Edge Function Request TIMED OUT after ${timeoutMs / 1000} seconds.`)), timeoutMs)
     );
 
     const response = await Promise.race([requestPromise, timeoutPromise]) as { data: unknown; error: { message: string } | null };
@@ -86,8 +86,8 @@ export const getAnimalIntelligence = async (speciesName: string): Promise<Animal
 
 // --- FLIGHT & WEATHER ---
 export const analyzeFlightWeather = async (hourlyData: unknown[]): Promise<string> => {
-  const prompt = `Analyze the following weather data for flight safety: ${JSON.stringify(hourlyData)}`;
-  return await invokeGeminiEdge(prompt, false) as string;
+  const prompt = `You are an Avian Flight Safety Expert. Analyze the following 24-hour 'Live' forecast for Falconry safety. Focus on immediate risks like wind gusts over 15mph, heavy rain, or extreme heat. Provide a safety recommendation for flying birds of prey TODAY. Data: ${JSON.stringify(hourlyData)}`;
+  return await invokeGeminiEdge(prompt, false, 30000) as string;
 };
 
 // --- LEGACY UTILS ---

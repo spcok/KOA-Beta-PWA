@@ -75,10 +75,11 @@ const WeatherView: React.FC = () => {
 
   const handleGenerateAiAnalysis = () => {
       if (!data) return;
-      console.log("Weather AI Analysis Triggered. Data points:", selectedHourly.length);
+      const liveData24h = data.hourly.slice(0, 24);
+      console.log("🌦️ [AI Advisor] Sending LIVE 24h data to Edge Function...");
       startTransitionAi(async () => {
           try {
-            const analysis = await analyzeFlightWeather(selectedHourly);
+            const analysis = await analyzeFlightWeather(liveData24h);
             console.log("Weather AI Analysis Received:", analysis);
             setAiAnalysis(analysis);
           } catch (err) {

@@ -9,6 +9,7 @@ import * as z from 'zod';
 import { useOrgSettings } from '../useOrgSettings';
 import { OrgProfileSettings } from '../../../types';
 import { supabase } from '../../../lib/supabase';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 const schema = z.object({
   id: z.string(),
@@ -26,6 +27,7 @@ const OrgProfile: React.FC = () => {
   const { settings, isLoading, saveSettings } = useOrgSettings();
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const { register, handleSubmit, setValue, watch } = useForm<OrgProfileSettings>({
     resolver: zodResolver(schema),
     defaultValues: settings
@@ -38,6 +40,11 @@ const OrgProfile: React.FC = () => {
       });
     }
   }, [settings, isLoading, setValue]);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const logoUrl = watch('logo_url');
 
@@ -67,7 +74,7 @@ const OrgProfile: React.FC = () => {
         setValue('logo_url', cacheBustedUrl, { shouldValidate: true, shouldDirty: true });
       } catch (error) {
         console.error('Upload failed', error);
-        alert('Upload failed. Ensure you have network connectivity.');
+        showToast('Upload failed. Ensure you have network connectivity.', 'error');
       } finally {
         setIsUploading(false);
       }
@@ -78,10 +85,10 @@ const OrgProfile: React.FC = () => {
     setIsSaving(true);
     try {
       await saveSettings(data);
-      alert('Settings saved successfully!');
+      showToast('Settings saved successfully!', 'success');
     } catch (error) {
       console.error('Failed to save settings:', error);
-      alert('Failed to save settings. Please try again.');
+      showToast('Failed to save settings. Please try again.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -90,66 +97,74 @@ const OrgProfile: React.FC = () => {
   if (isLoading) return <div>Loading...</div>;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex gap-6">
-          <div className="w-48 h-48 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50">
-            {logoUrl ? (
-              <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="text-slate-400 text-sm">Logo</span>
-            )}
+    <div className="relative">
+      {toast && (
+        <div className={`absolute top-0 right-0 p-4 rounded-lg shadow-lg flex items-center gap-2 text-white text-sm font-medium z-50 ${toast.type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+          {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          {toast.message}
+        </div>
+      )}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex gap-6">
+            <div className="w-48 h-48 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50">
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="text-slate-400 text-sm">Logo</span>
+              )}
+            </div>
+            <div className="flex-1 space-y-4">
+              <input type="file" onChange={handleLogoUpload} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              {isUploading && <p className="text-sm text-blue-500">Uploading...</p>}
+              
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Academy Name</label>
+                  <input {...register('org_name')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Zoo Licence Number</label>
+                  <input {...register('zla_license_number')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex-1 space-y-4">
-            <input type="file" onChange={handleLogoUpload} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-            {isUploading && <p className="text-sm text-blue-500">Uploading...</p>}
-            
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Academy Name</label>
-                <input {...register('org_name')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Zoo Licence Number</label>
-                <input {...register('zla_license_number')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
-              </div>
+
+          <div className="mt-6">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Headquarters Address</label>
+            <textarea {...register('address')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Professional Email</label>
+              <input {...register('contact_email')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Academy Phone</label>
+              <input {...register('contact_phone')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Official Website</label>
+              <input {...register('official_website')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Adoption Portal</label>
+              <input {...register('adoption_portal')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
             </div>
           </div>
         </div>
 
-        <div className="mt-6">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Headquarters Address</label>
-          <textarea {...register('address')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Professional Email</label>
-            <input {...register('contact_email')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Academy Phone</label>
-            <input {...register('contact_phone')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Official Website</label>
-            <input {...register('official_website')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Adoption Portal</label>
-            <input {...register('adoption_portal')} className="mt-1 block w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50" />
-          </div>
-        </div>
-      </div>
-
-      <button 
-        type="submit" 
-        disabled={isSaving}
-        className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isSaving ? 'Saving...' : 'Save Changes'}
-      </button>
-    </form>
+        <button 
+          type="submit" 
+          disabled={isSaving}
+          className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {isSaving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </form>
+    </div>
   );
 };
 

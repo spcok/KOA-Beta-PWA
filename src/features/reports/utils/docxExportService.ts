@@ -14,7 +14,7 @@ import {
   BorderStyle,
   HeightRule
 } from 'docx';
-import { Animal, LogEntry, LogType, InternalMovement, ExternalTransfer, Shift } from '../../../types';
+import { Animal, LogEntry, LogType, InternalMovement, ExternalTransfer, Shift, ClinicalNote, MARChart, MaintenanceLog } from '../../../types';
 
 interface ReportConfig {
   logoUrl?: string;
@@ -808,6 +808,165 @@ export const generateStaffRotaDocx = async (
       children: [
         new Paragraph({ text: "", spacing: { after: 400 } }),
         contentTable
+      ]
+    }]
+  });
+  
+  return await Packer.toBlob(doc);
+};
+
+export const generateInspectionPackage = async (
+  medicalLogs: ClinicalNote[],
+  marCharts: MARChart[],
+  maintenanceLogs: MaintenanceLog[],
+  animals: Animal[],
+  config: ReportConfig
+): Promise<Blob> => {
+  const headerTable = await createDocumentHeader(config);
+
+  const createSectionHeader = (title: string) => new Paragraph({
+    children: [new TextRun({ text: title, bold: true, size: 32, color: "1E293B" })],
+    spacing: { before: 400, after: 200 }
+  });
+
+  // 1. Medical Logs Table
+  const medicalRows = medicalLogs.map(log => {
+    const animal = animals.find(a => a.id === log.animal_id);
+    return new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph(log.date)] }),
+        new TableCell({ children: [new Paragraph(animal?.name || '--')] }),
+        new TableCell({ children: [new Paragraph(log.note_type)] }),
+        new TableCell({ children: [new Paragraph(log.diagnosis || '--')] }),
+        new TableCell({ children: [new Paragraph(log.note_text || '--')] }),
+        new TableCell({ children: [new Paragraph(log.staff_initials || '--')] }),
+      ]
+    });
+  });
+
+  const medicalTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+    },
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: ["Date", "Animal", "Type", "Diagnosis", "Notes", "Initials"].map(header => 
+          new TableCell({
+            shading: { fill: "F3F4F6" },
+            children: [new Paragraph({ children: [new TextRun({ text: header, bold: true })], alignment: AlignmentType.CENTER })],
+          })
+        ),
+      }),
+      ...medicalRows
+    ],
+  });
+
+  // 2. MAR Charts Table
+  const marRows = marCharts.map(mar => {
+    const animal = animals.find(a => a.id === mar.animal_id);
+    return new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph(mar.start_date)] }),
+        new TableCell({ children: [new Paragraph(animal?.name || '--')] }),
+        new TableCell({ children: [new Paragraph(mar.medication)] }),
+        new TableCell({ children: [new Paragraph(mar.dosage)] }),
+        new TableCell({ children: [new Paragraph(mar.frequency)] }),
+        new TableCell({ children: [new Paragraph(mar.status)] }),
+      ]
+    });
+  });
+
+  const marTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+    },
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: ["Start Date", "Animal", "Medication", "Dosage", "Frequency", "Status"].map(header => 
+          new TableCell({
+            shading: { fill: "F3F4F6" },
+            children: [new Paragraph({ children: [new TextRun({ text: header, bold: true })], alignment: AlignmentType.CENTER })],
+          })
+        ),
+      }),
+      ...marRows
+    ],
+  });
+
+  // 3. Maintenance Logs Table
+  const maintenanceRows = maintenanceLogs.map(log => {
+    return new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph(log.date_logged)] }),
+        new TableCell({ children: [new Paragraph(log.enclosure_id || 'General')] }),
+        new TableCell({ children: [new Paragraph(log.task_type)] }),
+        new TableCell({ children: [new Paragraph(log.description)] }),
+        new TableCell({ children: [new Paragraph(log.status)] }),
+      ]
+    });
+  });
+
+  const maintenanceTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+    },
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: ["Date", "Enclosure", "Type", "Description", "Status"].map(header => 
+          new TableCell({
+            shading: { fill: "F3F4F6" },
+            children: [new Paragraph({ children: [new TextRun({ text: header, bold: true })], alignment: AlignmentType.CENTER })],
+          })
+        ),
+      }),
+      ...maintenanceRows
+    ],
+  });
+
+  const doc = new Document({ 
+    styles: {
+      default: { document: { run: { font: "Arial", size: 24 } } }
+    },
+    sections: [{
+      properties: {
+        page: {
+          size: { orientation: PageOrientation.LANDSCAPE },
+        },
+      },
+      headers: {
+        default: new Header({ children: [headerTable] })
+      },
+      children: [
+        new Paragraph({ text: "", spacing: { after: 400 } }),
+        createSectionHeader("Clinical Notes"),
+        medicalTable,
+        new Paragraph({ text: "", spacing: { after: 400 } }),
+        createSectionHeader("MAR Charts (Medications)"),
+        marTable,
+        new Paragraph({ text: "", spacing: { after: 400 } }),
+        createSectionHeader("Maintenance Logs"),
+        maintenanceTable
       ]
     }]
   });

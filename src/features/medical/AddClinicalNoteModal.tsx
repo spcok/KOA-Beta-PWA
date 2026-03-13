@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Upload, Loader2 } from 'lucide-react';
 import { Animal, ClinicalNote } from '../../types';
-import { uploadFile } from '../../lib/storageEngine';
+import { queueFileUpload } from '../../lib/storageEngine';
 
 const schema = z.object({
   animal_id: z.string().min(1, 'Animal is required'),
@@ -70,7 +70,7 @@ export const AddClinicalNoteModal: React.FC<Props> = ({ isOpen, onClose, onSave,
     let attachment_url: string | undefined = initialData?.attachment_url;
     try {
       if (file) {
-        attachment_url = await uploadFile(file, 'medical');
+        attachment_url = await queueFileUpload(file, 'medical');
       }
       
       let weight_grams = undefined;

@@ -233,6 +233,7 @@ export interface UserProfile {
   job_position?: string;
   permissions?: Partial<UserPermissions>;
   signature_data?: string;
+  integrity_seal?: string;
 }
 
 export interface RolePermissionConfig {

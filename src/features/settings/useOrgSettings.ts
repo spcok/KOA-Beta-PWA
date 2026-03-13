@@ -1,6 +1,7 @@
+import { useEffect } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../lib/db';
 import { OrgProfileSettings } from '../../types';
-import { useHybridQuery } from '../../lib/dataEngine';
 import { supabase } from '../../lib/supabase';
 
 const DEFAULT_SETTINGS: OrgProfileSettings = {
@@ -16,11 +17,27 @@ const DEFAULT_SETTINGS: OrgProfileSettings = {
 };
 
 export function useOrgSettings() {
-  const settingsData = useHybridQuery<OrgProfileSettings>('settings', async () => {
+  const settingsData = useLiveQuery<OrgProfileSettings | undefined>(async () => {
     const settings = await db.settings.get('profile');
     return settings || DEFAULT_SETTINGS;
   }, []);
   
+  useEffect(() => {
+    async function fetchRemoteSettings() {
+      if (!navigator.onLine) return;
+      try {
+        const { data, error } = await supabase.from('organisations').select('*').limit(1).maybeSingle();
+        if (error) throw error;
+        if (data) {
+          await db.settings.put({ ...data, id: 'profile' });
+        }
+      } catch (err) {
+        console.error("❌ [OrgSettings] Failed to fetch remote settings:", err);
+      }
+    }
+    fetchRemoteSettings();
+  }, []);
+
   const isLoading = settingsData === undefined;
   const settings = settingsData || DEFAULT_SETTINGS;
 
@@ -41,6 +58,9 @@ export function useOrgSettings() {
           .maybeSingle();
 
         if (fetchError) {
+          if (fetchError.code === '42501' || fetchError.message?.includes('403')) {
+            console.error("❌ [OrgSettings] 403 Forbidden: Check RLS policies on 'organisations' table.");
+          }
           throw fetchError;
         }
 
@@ -63,13 +83,27 @@ export function useOrgSettings() {
             .update(payload)
             .eq('id', orgId);
 
-          if (updateError) throw updateError;
+          if (updateError) {
+            if (updateError.code === '42501' || updateError.message?.includes('403')) {
+              console.error("❌ [OrgSettings] 403 Forbidden on UPDATE: Check RLS policies.");
+            } else if (updateError.code === '23505' || updateError.message?.includes('409')) {
+              console.error("❌ [OrgSettings] 409 Conflict on UPDATE.");
+            }
+            throw updateError;
+          }
         } else {
           const { error: insertError } = await supabase
             .from('organisations')
             .insert(payload);
             
-          if (insertError) throw insertError;
+          if (insertError) {
+            if (insertError.code === '42501' || insertError.message?.includes('403')) {
+              console.error("❌ [OrgSettings] 403 Forbidden on INSERT: Check RLS policies.");
+            } else if (insertError.code === '23505' || insertError.message?.includes('409')) {
+              console.error("❌ [OrgSettings] 409 Conflict on INSERT.");
+            }
+            throw insertError;
+          }
         }
       } else {
         // Queue for later sync

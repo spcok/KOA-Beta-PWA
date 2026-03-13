@@ -4,6 +4,7 @@ import { X, AlertCircle } from 'lucide-react';
 import { User, UserRole } from '../../../types';
 import { SignatureCapture } from '../../../components/ui/SignatureCapture';
 import { supabase } from '../../../lib/supabase';
+import { useAuthStore } from '../../../store/authStore';
 
 interface UserFormModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ interface UserFormInputs {
 
 const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, initialData, onSave, onSuccess }) => {
   const { register, handleSubmit, reset, setValue } = useForm<UserFormInputs>();
+  const { currentUser } = useAuthStore();
   
   const [isCapturingSignature, setIsCapturingSignature] = useState(false);
   const [currentSignature, setCurrentSignature] = useState<string | undefined>();
@@ -57,6 +59,19 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, initialD
     setIsSubmitting(true);
     
     try {
+      let integritySeal = undefined;
+      if (currentSignature) {
+        const recordId = initialData?.id || 'NEW_RECORD';
+        const timestamp = new Date().toISOString();
+        const userId = currentUser?.id || 'UNKNOWN_USER';
+        const dataToHash = `${recordId}${timestamp}${userId}${currentSignature}`;
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(dataToHash);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        integritySeal = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
       const cleanData = {
         name: String(data.name || ''),
         email: String(data.email || ''),
@@ -64,12 +79,20 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, initialD
         initials: String(data.initials || '').toUpperCase(),
         pin: String(data.pin || ''),
         password: data.password ? String(data.password) : undefined,
-        signature_data: currentSignature ? String(currentSignature) : undefined
+        signature_data: currentSignature ? String(currentSignature) : undefined,
+        integrity_seal: integritySeal
       };
 
       if (initialData && onSave) {
         // --- EDIT MODE ---
-        await onSave(cleanData);
+        try {
+          await onSave(cleanData);
+        } catch (err: unknown) {
+          if (err instanceof Error && err.message?.includes('integrity_seal')) {
+            console.error('⚠️ [SCHEMA] Missing integrity_seal column.');
+          }
+          throw err;
+        }
         onSuccess();
         onClose();
       } else {
@@ -81,7 +104,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, initialD
           role: cleanData.role,
           initials: cleanData.initials,
           pin: cleanData.pin,
-          signature_data: cleanData.signature_data
+          signature_data: cleanData.signature_data,
+          integrity_seal: cleanData.integrity_seal
         };
 
         // Bypass Dexie entirely and hit Supabase Edge Function directly
@@ -89,8 +113,18 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, initialD
           body: { email: cleanData.email, password: cleanData.password, profileData: profileData }
         });
 
-        if (error) throw new Error(`Network Error: ${error.message}`);
-        if (response?.error) throw new Error(response.error);
+        if (error) {
+          if (error.message?.includes('integrity_seal')) {
+            console.error('⚠️ [SCHEMA] Missing integrity_seal column.');
+          }
+          throw new Error(`Network Error: ${error.message}`);
+        }
+        if (response?.error) {
+          if (response.error.includes('integrity_seal')) {
+            console.error('⚠️ [SCHEMA] Missing integrity_seal column.');
+          }
+          throw new Error(response.error);
+        }
 
         // Notify parent to fetch fresh data from cloud
         onSuccess();

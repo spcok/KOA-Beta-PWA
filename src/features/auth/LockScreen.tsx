@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { Lock, LogOut, ShieldAlert } from 'lucide-react';
+import { Lock, LogOut, ShieldAlert, Fingerprint } from 'lucide-react';
 
 const LockScreen: React.FC = () => {
   const { currentUser, isUiLocked, setUiLocked, logout } = useAuthStore();
@@ -9,6 +9,35 @@ const LockScreen: React.FC = () => {
 
   // If UI is not locked, don't show the screen
   if (!isUiLocked) return null;
+
+  const handleBiometricUnlock = async () => {
+    try {
+      if (!window.PublicKeyCredential) {
+        setError('Biometrics not supported on this device.');
+        return;
+      }
+
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+
+      const credential = await navigator.credentials.get({
+        publicKey: {
+          challenge: challenge,
+          rpId: window.location.hostname,
+          userVerification: "required",
+        }
+      });
+
+      if (credential) {
+        setUiLocked(false);
+        setPin('');
+        setError('');
+      }
+    } catch (err: unknown) {
+      console.error("Biometric error:", err);
+      setError('Biometric unlock failed or was canceled. Please use PIN.');
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,12 +108,24 @@ const LockScreen: React.FC = () => {
             </div>
           )}
 
-          <button 
-            type="submit" 
-            className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-xl shadow-slate-200"
-          >
-            Unlock System
-          </button>
+          <div className="flex flex-col gap-3">
+            <button 
+              type="submit" 
+              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-xl shadow-slate-200"
+            >
+              Unlock System
+            </button>
+            
+            {window.PublicKeyCredential && (
+              <button
+                type="button"
+                onClick={handleBiometricUnlock}
+                className="w-full py-4 bg-indigo-50 text-indigo-700 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-100 transition-all flex items-center justify-center gap-2 border border-indigo-100"
+              >
+                <Fingerprint size={16} /> Use Biometrics
+              </button>
+            )}
+          </div>
         </form>
 
         <div className="mt-10 pt-8 border-t border-slate-50">
