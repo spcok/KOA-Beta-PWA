@@ -16,6 +16,16 @@ window.addEventListener('unhandledrejection', function (event) {
   // event.preventDefault();
 });
 
+// Capture PWA Install Prompt
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent the mini-infobar from appearing on mobile
+  e.preventDefault();
+  // Stash the event so it can be triggered later.
+  // @ts-expect-error - custom property
+  window.deferredPwaPrompt = e;
+  console.log(`'beforeinstallprompt' event was fired and captured.`);
+});
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

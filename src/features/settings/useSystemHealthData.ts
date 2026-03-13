@@ -15,7 +15,8 @@ export function useSystemHealthData() {
     isSecure: window.isSecureContext,
     swActive: false,
     manifestValid: false,
-    isInstalled: window.matchMedia('(display-mode: standalone)').matches
+    isInstalled: false,
+    storageValid: false
   });
 
   useEffect(() => {
@@ -23,15 +24,38 @@ export function useSystemHealthData() {
       const swActive = !!navigator.serviceWorker?.controller;
       let manifestValid = false;
       try {
-        const res = await fetch('/manifest.json', { cache: 'no-store' });
-        if (res.ok) {
-          const manifest = await res.json();
-          manifestValid = !!(manifest.icons && manifest.icons.length > 0);
+        const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
+        if (manifestLink && manifestLink.href) {
+          const res = await fetch(manifestLink.href, { cache: 'no-store' });
+          if (res.ok) {
+            const manifest = await res.json();
+            manifestValid = !!(manifest.icons && manifest.icons.length > 0);
+          }
         }
       } catch (e) {
         console.error('Manifest check failed', e);
       }
-      setPwaHealth(prev => ({ ...prev, swActive, manifestValid }));
+
+      let storageValid = false;
+      if ('indexedDB' in window) {
+        try {
+          const request = indexedDB.open('KentOwlAcademyDB');
+          storageValid = await new Promise((resolve) => {
+            request.onsuccess = () => {
+              request.result.close();
+              resolve(true);
+            };
+            request.onerror = () => resolve(false);
+          });
+        } catch (e) {
+          console.error('IndexedDB check failed', e);
+        }
+      }
+
+      // @ts-expect-error - deferredPwaPrompt is attached to window globally
+      const isInstalled = !!window.deferredPwaPrompt || window.matchMedia('(display-mode: standalone)').matches;
+
+      setPwaHealth(prev => ({ ...prev, swActive, manifestValid, storageValid, isInstalled }));
     };
 
     checkPwaHealth();
