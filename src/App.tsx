@@ -128,6 +128,7 @@ export default function App() {
 
               {/* PHASE 7: SETTINGS */}
               <Route path="settings" element={<SettingsLayout />} />
+              <Route path="settings/:tab" element={<SettingsLayout />} />
               <Route path="help" element={<HelpSupport />} />
             </Route>
           </Routes>

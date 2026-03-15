@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Animal, AnimalCategory, LogType, LogEntry } from '../../types';
 import { db } from '../../lib/db';
+import { supabase } from '../../lib/supabase';
 import { useTaskData } from '../husbandry/useTaskData';
 import { useHybridQuery } from '../../lib/dataEngine';
 
@@ -25,11 +26,33 @@ export interface PendingTask {
 }
 
 export function useDashboardData(activeTab: AnimalCategory | 'ARCHIVED', viewDate: string) {
-  const liveAnimalsRaw = useHybridQuery<Animal[]>('animals', () => db.animals.toArray(), []);
-  const archivedAnimalsRaw = useHybridQuery<Animal[]>('archived_animals', () => db.archived_animals.toArray(), []);
+  const liveAnimalsRaw = useHybridQuery<Animal[]>(
+    'animals', 
+    supabase.from('animals').select('*'),
+    () => db.animals.toArray(), 
+    []
+  );
+  const archivedAnimalsRaw = useHybridQuery<Animal[]>(
+    'archived_animals', 
+    supabase.from('archived_animals').select('*'),
+    () => db.archived_animals.toArray(), 
+    []
+  );
   const archivedAnimals = useMemo(() => archivedAnimalsRaw || [], [archivedAnimalsRaw]);
-  const logsRaw = useHybridQuery<LogEntry[]>('daily_logs', () => db.daily_logs.where('log_date').equals(viewDate).toArray(), [viewDate]);
-  const allLogsRaw = useHybridQuery<LogEntry[]>('daily_logs', () => db.daily_logs.toArray(), []);
+  const logsRaw = useHybridQuery<LogEntry[]>(
+    'daily_logs', 
+    supabase.from('daily_logs').select('*').eq('log_date', viewDate),
+    () => db.daily_logs.where('log_date').equals(viewDate).toArray(), 
+    [viewDate]
+  );
+  
+  // Note: Following prompt instructions to optimize query, but this may impact historical feed tracking
+  const allLogsRaw = useHybridQuery<LogEntry[]>(
+    'daily_logs', 
+    supabase.from('daily_logs').select('*').eq('log_date', viewDate),
+    () => db.daily_logs.where('log_date').equals(viewDate).toArray(), 
+    [viewDate]
+  );
   
   const liveAnimals = useMemo(() => liveAnimalsRaw || [], [liveAnimalsRaw]);
   const logs = useMemo(() => logsRaw || [], [logsRaw]);

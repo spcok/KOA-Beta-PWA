@@ -138,10 +138,8 @@ export function useHybridQuery<T>(
           const pk = table.schema.primKey.keyPath;
 
           // Get IDs of items currently in sync queue for this table
-          const queuedIds = new Set(
-            (await db.sync_queue.where('table_name').equals(tableName as string).toArray())
-              .map(item => item.record_id)
-          );
+          const queuedItems = await db.sync_queue.where('table_name').equals(tableName as string).toArray();
+          const queuedIds = new Set(queuedItems.map(item => item.record_id));
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const isValid = (item: any) => {
@@ -149,21 +147,37 @@ export function useHybridQuery<T>(
               const id = item[pk];
               return id !== undefined && id !== null && !queuedIds.has(String(id));
             }
-            // For composite keys, we'd need more complex logic, but most tables use 'id'
             return item && !queuedIds.has(String(item.id));
           };
 
           if (Array.isArray(remoteData)) {
             const validItems = remoteData.filter(isValid);
             if (validItems.length > 0) {
-              await table.bulkPut(validItems);
+              await db.transaction('rw', table, async () => {
+                const localItems = await table.bulkGet(validItems.map(i => i[pk]));
+                const itemsToPut = validItems.filter((remoteItem, index) => {
+                  const localItem = localItems[index];
+                  if (!localItem) return true;
+                  const remoteTime = new Date(remoteItem.created_at || remoteItem.updated_at || 0).getTime();
+                  const localTime = new Date(localItem.created_at || localItem.updated_at || 0).getTime();
+                  return remoteTime >= localTime;
+                });
+                if (itemsToPut.length > 0) {
+                  await table.bulkPut(itemsToPut);
+                }
+              });
             }
             if (validItems.length === 0 && remoteData.length > 0) {
               console.warn(`[useHybridQuery] Primary key missing for table ${tableName}. Data not cached.`);
             }
           } else {
             if (isValid(remoteData)) {
-              await table.put(remoteData);
+              await db.transaction('rw', table, async () => {
+                const localItem = await table.get(remoteData[pk]);
+                if (!localItem || new Date(remoteData.created_at || remoteData.updated_at || 0).getTime() >= new Date(localItem.created_at || localItem.updated_at || 0).getTime()) {
+                  await table.put(remoteData);
+                }
+              });
             } else {
               console.warn(`[useHybridQuery] Primary key missing for table ${tableName}. Data not cached.`);
             }

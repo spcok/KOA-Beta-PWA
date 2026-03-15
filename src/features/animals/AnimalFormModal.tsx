@@ -49,11 +49,6 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
       weight_unit: weightUnit === 'lb' ? 'lbs_oz' : weightUnit
     };
     
-    // We need to pass the modified data to the base onSubmit or handle it here
-    // Since useAnimalForm's onSubmit already does the mutation, I'll just call it with the merged data
-    // Wait, useAnimalForm's onSubmit is form.handleSubmit(onSubmit).
-    // I should probably modify useAnimalForm to accept a transform function or just do the mutation here.
-    // Actually, I'll just do the mutation here to be safe and follow the "REWRITE" instruction.
     try {
       const animalData: Animal = {
         ...initialData,
@@ -66,6 +61,9 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
     } catch (error) {
       console.error('Failed to save animal:', error);
     }
+  }, (errors) => {
+    console.error("Validation Errors:", errors);
+    alert("Please check the form for missing required fields.");
   });
 
   const [isFetchingAI, setIsFetchingAI] = useState(false);

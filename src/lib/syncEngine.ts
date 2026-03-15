@@ -137,7 +137,14 @@ export async function processSyncQueue() {
     const handleFailure = async (id: number, error: unknown) => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`🛠️ [Engine QA] Failed to sync item ${id}:`, errorMessage);
-      await db.sync_queue.update(id, { status: 'failed', error_log: errorMessage });
+      
+      // If the error is structural/JSON, the payload is corrupted and cannot be sent
+      if (errorMessage.includes('circular structure') || errorMessage.includes('JSON')) {
+        console.warn(`🛠️ [Engine QA] Payload corrupted for item ${id}. Discarding to prevent paralysis.`);
+        await db.sync_queue.delete(id);
+      } else {
+        await db.sync_queue.update(id, { status: 'failed', error_log: errorMessage });
+      }
     };
 
     // 1. Process Deletes (Children first)

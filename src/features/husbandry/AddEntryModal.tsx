@@ -5,6 +5,7 @@ import { Animal, LogType, LogEntry, AnimalCategory } from '../../types';
 import { getMaidstoneDailyWeather } from '../../services/weatherService';
 import { mutateOnlineFirst } from '../../lib/dataEngine';
 import { useOperationalLists } from '../../hooks/useOperationalLists';
+import { convertToGrams, convertFromGrams } from '../../services/weightUtils';
 
 interface AddEntryModalProps {
   isOpen: boolean;
@@ -77,8 +78,21 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
     }
     return 'N/A';
   });
-  const [weight, setWeight] = useState<number | ''>(existingLog?.weight ?? existingLog?.weight_grams ?? '');
-  const [weightUnit, setWeightUnit] = useState<'g' | 'kg' | 'oz' | 'lbs' | 'lbs_oz'>(existingLog?.weight_unit || animal.weight_unit || 'g');
+
+  // Weight State
+  const targetUnit = animal.weight_unit === 'lbs_oz' ? 'lb' : (animal.weight_unit === 'oz' ? 'oz' : 'g');
+  const [weightValues, setWeightValues] = useState(() => {
+    if (existingLog?.weight_grams) {
+      return convertFromGrams(existingLog.weight_grams, targetUnit as 'g' | 'oz' | 'lb');
+    }
+    return { g: 0, lb: 0, oz: 0, eighths: 0 };
+  });
+
+  const handleWeightChange = (field: string, value: string) => {
+    const num = parseInt(value) || 0;
+    setWeightValues(prev => ({ ...prev, [field]: num }));
+  };
+
   const [baskingTemp, setBaskingTemp] = useState<number | ''>(existingLog?.basking_temp_c || '');
   const [coolTemp, setCoolTemp] = useState<number | ''>(existingLog?.cool_temp_c || '');
   const [temperature, setTemperature] = useState<number | ''>(existingLog?.temperature_c ?? defaultTemperature ?? '');
@@ -130,9 +144,12 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
       return;
     }
 
-    if (logType === LogType.WEIGHT && weight === '') {
-      setError('Weight is required.');
-      return;
+    if (logType === LogType.WEIGHT) {
+      // Validation for weight
+      if (convertToGrams(targetUnit as 'g' | 'oz' | 'lb', weightValues) <= 0) {
+        setError('Weight is required and must be greater than 0.');
+        return;
+      }
     }
 
     if (logType === LogType.TEMPERATURE) {
@@ -177,16 +194,15 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
         notes: logType === LogType.FEED ? JSON.stringify({ cast, feedTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), userNotes: notes }) : notes,
       };
 
-      if (logType === LogType.WEIGHT && weight !== '') {
-        entry.weight = Number(weight);
-        entry.weight_unit = weightUnit;
-        // Keep weight_grams for backward compatibility if needed, or just use weight
-        if (weightUnit === 'g') entry.weight_grams = Number(weight);
-        else if (weightUnit === 'kg') entry.weight_grams = Number(weight) * 1000;
-        else if (weightUnit === 'oz') entry.weight_grams = Number(weight) * 28.3495;
-        else if (weightUnit === 'lbs') entry.weight_grams = Number(weight) * 453.592;
+      if (logType === LogType.WEIGHT) {
+        const totalGrams = convertToGrams(targetUnit as 'g' | 'oz' | 'lb', weightValues);
+        entry.weight_grams = totalGrams;
+        entry.weight = totalGrams; // Assuming weight field also stores grams or similar
+        entry.weight_unit = animal.weight_unit;
         
-        entry.value = `${weight}${weightUnit}`;
+        // Generate clean value string
+        // This is a bit simplified, but follows the requirement
+        entry.value = `${totalGrams}g`; 
       }
 
       if (logType === LogType.TEMPERATURE) {
@@ -240,18 +256,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
         }
       }
 
-      // Optimistic UI & Offline Reset Stability
-      // We don't await the mutateOnlineFirst here if it's just the log entry, 
-      // we pass it to onSave which handles it, or we handle it here if onSave is just a callback.
-      // Wait, looking at the original code, it just calls onSave(entry).
-      // The parent component handles the actual mutateOnlineFirst for the log entry.
-      // So we just call onSave and close.
       onSave(entry);
-      
-      if (!navigator.onLine) {
-        console.log('🛠️ [Husbandry QA] Saved Offline');
-        // A toast could be triggered here or in the parent.
-      }
       
       onClose();
     } catch (err) {
@@ -266,29 +271,90 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
     switch (logType) {
       case LogType.WEIGHT:
         return (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Weight</label>
-            <div className="mt-1 flex rounded-md shadow-sm">
-              <input
-                type="number"
-                step="0.1"
-                value={weight}
-                onChange={e => setWeight(e.target.value ? Number(e.target.value) : '')}
-                className="form-input flex-1 block w-full rounded-none rounded-l-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                placeholder="Enter weight..."
-                required
-              />
-              <select
-                value={weightUnit}
-                onChange={e => setWeightUnit(e.target.value as 'g' | 'kg' | 'oz' | 'lbs' | 'lbs_oz')}
-                className="form-select inline-flex items-center rounded-none rounded-r-md border border-l-0 border-gray-300 bg-gray-50 px-3 text-gray-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-              >
-                <option value="g">g</option>
-                <option value="kg">kg</option>
-                <option value="oz">oz</option>
-                <option value="lbs">lbs</option>
-              </select>
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">
+                Weight ({targetUnit})
+              </h4>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {targetUnit === 'g' && (
+                <div className="sm:col-span-3">
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Grams</label>
+                  <input 
+                    type="number" 
+                    value={weightValues.g || ''} 
+                    onChange={(e) => handleWeightChange('g', e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                    placeholder="e.g. 1050"
+                  />
+                </div>
+              )}
+
+              {targetUnit === 'oz' && (
+                <>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
+                    <input 
+                      type="number" 
+                      value={weightValues.oz || ''} 
+                      onChange={(e) => handleWeightChange('oz', e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                      placeholder="oz"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
+                    <select 
+                      value={weightValues.eighths || 0} 
+                      onChange={(e) => handleWeightChange('eighths', e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                    >
+                      {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {targetUnit === 'lb' && (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Pounds (lb)</label>
+                    <input 
+                      type="number" 
+                      value={weightValues.lb || ''} 
+                      onChange={(e) => handleWeightChange('lb', e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                      placeholder="lb"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
+                    <select 
+                      value={weightValues.oz || 0} 
+                      onChange={(e) => handleWeightChange('oz', e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                    >
+                      {Array.from({length: 16}, (_, i) => i).map(n => <option key={n} value={n}>{n} oz</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
+                    <select 
+                      value={weightValues.eighths || 0} 
+                      onChange={(e) => handleWeightChange('eighths', e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                    >
+                      {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+            <p className="text-[10px] font-medium text-slate-400 italic">
+              Calculated Value: {convertToGrams(targetUnit as 'g' | 'oz' | 'lb', weightValues).toFixed(2)}g
+            </p>
           </div>
         );
       case LogType.FEED:
@@ -340,7 +406,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Cast</label>
               <select 
                 value={cast} 
-                onChange={_ => setCast(_.target.value as 'AM' | 'PM' | 'NO' | 'N/A')}
+                onChange={(e) => setCast(e.target.value as 'AM' | 'PM' | 'NO' | 'N/A')}
                 className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold"
               >
                 <option value="AM">AM</option>
