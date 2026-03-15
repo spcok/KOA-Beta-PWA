@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { X, Save, Loader2 } from 'lucide-react';
 import { Animal, LogType, LogEntry, AnimalCategory } from '../../types';
 import { getMaidstoneDailyWeather } from '../../services/weatherService';
 import { mutateOnlineFirst } from '../../lib/dataEngine';
+import { useOperationalLists } from '../../hooks/useOperationalLists';
 
 interface AddEntryModalProps {
   isOpen: boolean;
@@ -12,9 +13,6 @@ interface AddEntryModalProps {
   animal: Animal;
   initialType: LogType;
   existingLog?: LogEntry;
-  foodOptions: string[];
-  feedMethods: string[];
-  eventTypes: string[];
   initialDate: string;
   allAnimals: Animal[];
   defaultTemperature?: number;
@@ -27,15 +25,36 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
   animal,
   initialType,
   existingLog,
-  foodOptions,
-  feedMethods,
-  eventTypes,
   initialDate,
   defaultTemperature
 }) => {
+  const { foodTypes, feedMethods, eventTypes } = useOperationalLists(animal.category);
   const [logType, setLogType] = useState<LogType>(initialType);
   const [date, setDate] = useState(initialDate);
   const [value, setValue] = useState(existingLog?.value || '');
+  const [foodType, setFoodType] = useState<string>(() => {
+    if (existingLog?.log_type === LogType.FEED && existingLog.value) {
+      const parts = existingLog.value.split(' - ');
+      return parts.length > 1 ? parts[0] : 'Other';
+    }
+    return '';
+  });
+
+  useEffect(() => {
+    if (!foodType && foodTypes.length > 0) {
+      setFoodType(foodTypes[0].value);
+    }
+    if (logType === LogType.EVENT && !value && eventTypes.length > 0) {
+      setValue(eventTypes[0].value);
+    }
+  }, [foodTypes, eventTypes, logType, foodType, value]);
+  const [foodQuantity, setFoodQuantity] = useState<string>(() => {
+    if (existingLog?.log_type === LogType.FEED && existingLog.value) {
+      const parts = existingLog.value.split(' - ');
+      return parts.length > 1 ? parts[1] : existingLog.value;
+    }
+    return '';
+  });
   const [notes, setNotes] = useState(() => {
     if (existingLog?.log_type === LogType.FEED && existingLog.notes) {
       try {
@@ -106,8 +125,8 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
       return;
     }
 
-    if (logType === LogType.FEED && !value) {
-      setError('Food Item / Amount is required for feeding logs.');
+    if (logType === LogType.FEED && (!foodType || !foodQuantity)) {
+      setError('Both Food Type and Quantity are required.');
       return;
     }
 
@@ -146,12 +165,14 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
     setIsSubmitting(true);
     
     try {
+      const finalValue = logType === LogType.FEED ? `${foodType} - ${foodQuantity}` : (value || logType);
+      
       const entry: Partial<LogEntry> = {
         id: existingLog?.id || uuidv4(),
         animal_id: animal.id,
         log_type: logType,
         log_date: date,
-        value: value || logType,
+        value: finalValue,
         user_initials: userInitials.toUpperCase(),
         notes: logType === LogType.FEED ? JSON.stringify({ cast, feedTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), userNotes: notes }) : notes,
       };
@@ -273,46 +294,43 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
       case LogType.FEED:
         return (
           <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Food Item / Amount</label>
-              <input 
-                type="text" 
-                value={value} 
-                onChange={e => setValue(e.target.value)}
-                className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold"
-                placeholder="e.g. 2 mice, 50g crickets"
-                required
-              />
-            </div>
-            {foodOptions.length > 0 && (
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Quick Select Food</label>
-                <div className="flex flex-wrap gap-2">
-                  {foodOptions.map(food => (
-                    <button 
-                      key={food} 
-                      type="button" 
-                      onClick={() => setValue(prev => prev ? `${prev}, ${food}` : food)}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors"
-                    >
-                      {food}
-                    </button>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Food Type</label>
+                <select 
+                  value={foodType} 
+                  onChange={e => setFoodType(e.target.value)}
+                  className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold text-sm"
+                >
+                  {foodTypes.map(opt => (
+                    <option key={opt.id} value={opt.value}>{opt.value}</option>
                   ))}
-                </div>
+                </select>
               </div>
-            )}
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Quantity / Amount</label>
+                <input 
+                  type="text" 
+                  value={foodQuantity} 
+                  onChange={e => setFoodQuantity(e.target.value)}
+                  className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold text-sm"
+                  placeholder="e.g. 2x, 50g"
+                  required
+                />
+              </div>
+            </div>
             {feedMethods.length > 0 && (
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Method</label>
                 <div className="flex flex-wrap gap-2">
                   {feedMethods.map(method => (
                     <button 
-                      key={method} 
+                      key={method.id} 
                       type="button" 
-                      onClick={() => setNotes(prev => prev ? `${prev} | ${method}` : method)}
+                      onClick={() => setNotes(prev => prev ? `${prev} | ${method.value}` : method.value)}
                       className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors"
                     >
-                      {method}
+                      {method.value}
                     </button>
                   ))}
                 </div>
@@ -403,7 +421,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
               >
                 <option value="">Select Event...</option>
                 {eventTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
+                  <option key={type.id} value={type.value}>{type.value}</option>
                 ))}
               </select>
             </div>

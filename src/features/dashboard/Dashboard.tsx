@@ -68,7 +68,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   if (isLoading) {
-      return (
+    return (
           <div className="p-8 flex flex-col items-center justify-center h-full min-h-[50vh] space-y-4">
               <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
               <p className="text-sm font-medium text-slate-500">Loading Dashboard...</p>
@@ -231,7 +231,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </button>
           {permissions.add_animals && (
             <button onClick={() => setIsCreateAnimalModalOpen(true)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] lg:text-xs font-medium hover:bg-blue-700 shadow-sm whitespace-nowrap w-full sm:w-auto">
-              <Plus size={14} /> Add {activeTab.charAt(0) + activeTab.slice(1).toLowerCase()}
+              <Plus size={14} /> Add {activeTab ? (activeTab.charAt(0) + activeTab.slice(1).toLowerCase()) : 'Animal'}
             </button>
           )}
         </div>
@@ -265,7 +265,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {/* List Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg lg:text-2xl font-semibold text-slate-800">Your {activeTab.charAt(0) + activeTab.slice(1).toLowerCase()}</h2>
+        <h2 className="text-lg lg:text-2xl font-semibold text-slate-800">Your {activeTab ? (activeTab.charAt(0) + activeTab.slice(1).toLowerCase()) : 'Animals'}</h2>
       </div>
 
       {/* Table */}

@@ -3,6 +3,15 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+// PWA Event Trap - Capture before React mounts to eliminate race conditions
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  // @ts-expect-error - custom property
+  window.deferredPwaPrompt = e;
+  window.dispatchEvent(new CustomEvent('pwa-prompt-captured'));
+  console.log('🛠️ [PWA] Install prompt captured and stashed.');
+});
+
 // Global Error Boundaries
 window.onerror = function (message, source, lineno, colno, error) {
   console.error('🛠️ [Engine QA] Global Error Caught:', { message, source, lineno, colno, error });
@@ -16,31 +25,19 @@ window.addEventListener('unhandledrejection', function (event) {
   // event.preventDefault();
 });
 
-// Capture PWA Install Prompt
-window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevent the mini-infobar from appearing on mobile
-  e.preventDefault();
-  // Stash the event so it can be triggered later.
-  // @ts-expect-error - custom property
-  window.deferredPwaPrompt = e;
-  console.log(`'beforeinstallprompt' event was fired and captured.`);
-});
-
-// Manual Service Worker Registration
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((registration) => {
-        console.log('Native Service Worker registered with scope:', registration.scope);
-      })
-      .catch((error) => {
-        console.error('Native Service Worker registration failed:', error);
-      });
-  });
-}
+// PWA Exterminator - REMOVED for Phase 3 implementation
+// We are now implementing a native Service Worker
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
   </StrictMode>,
 );
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.error('Native SW Registration Failed:', err);
+    });
+  });
+}

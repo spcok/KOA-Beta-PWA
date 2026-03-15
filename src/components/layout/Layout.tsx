@@ -11,7 +11,8 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAppData } from '../../context/Context';
-import BetaFeedbackWidget from '../ui/BetaFeedbackWidget';
+import { useOrgSettings } from '../../features/settings/useOrgSettings';
+import GlobalBugReporter from '../ui/GlobalBugReporter';
 
 interface LayoutProps {
   fontScale?: number;
@@ -68,7 +69,8 @@ const Layout: React.FC<LayoutProps> = () => {
     request_holidays, view_missing_records, generate_reports, 
     view_settings 
   } = permissions;
-  const { activeShift, clockIn, clockOut, orgProfile } = useAppData();
+  const { activeShift, clockIn, clockOut } = useAppData();
+  const { settings: orgSettings } = useOrgSettings();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -146,8 +148,19 @@ const Layout: React.FC<LayoutProps> = () => {
   const sidebarContent = (
     <div className={`flex flex-col h-full bg-[#1c1c1e] text-slate-300 transition-all duration-300 ${isSidebarCollapsed ? 'w-20' : 'w-64'} no-print shadow-xl md:shadow-none`}>
       <div className={`h-14 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between px-4'} border-b border-slate-800`}>
-        {!isSidebarCollapsed && <span className="font-bold text-white tracking-tight">ZooGuard</span>}
-        <img src={orgProfile?.logo_url || '/koa-logo.png'} alt="Logo" className="w-8 h-8 object-contain rounded-lg bg-white/10" referrerPolicy="no-referrer" />
+        {!isSidebarCollapsed && <span className="font-bold text-white tracking-tight">KOA Manager</span>}
+        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 overflow-hidden shrink-0">
+          {orgSettings?.logo_url ? (
+            <img 
+              src={orgSettings.logo_url} 
+              alt="Logo" 
+              className="w-full h-full object-contain" 
+              referrerPolicy="no-referrer" 
+            />
+          ) : (
+            <ShieldCheck size={20} className="text-emerald-500" />
+          )}
+        </div>
       </div>
       <div className={`px-4 py-2 border-b border-slate-800/50 flex items-center gap-2 ${!isOnline ? 'bg-rose-900/20' : 'bg-emerald-900/10'}`}>
         {isOnline ? <Wifi size={14} className="text-emerald-500" /> : <WifiOff size={14} className="text-rose-500" />}
@@ -302,13 +315,19 @@ const Layout: React.FC<LayoutProps> = () => {
               <Menu size={24} />
             </button>
             <div className="flex items-center gap-2">
-              <img 
-                src={orgProfile?.logo_url || '/koa-logo.png'} 
-                alt="Logo" 
-                className="w-8 h-8 object-contain rounded-lg bg-white/10" 
-                referrerPolicy="no-referrer" 
-              />
-              <span className="text-sm font-bold text-white tracking-tight uppercase">ZooGuard</span>
+              <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 overflow-hidden shrink-0">
+                {orgSettings?.logo_url ? (
+                  <img 
+                    src={orgSettings.logo_url} 
+                    alt="Logo" 
+                    className="w-full h-full object-contain" 
+                    referrerPolicy="no-referrer" 
+                  />
+                ) : (
+                  <ShieldCheck size={20} className="text-emerald-500" />
+                )}
+              </div>
+              <span className="text-sm font-bold text-white tracking-tight uppercase">KOA Manager</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -337,9 +356,7 @@ const Layout: React.FC<LayoutProps> = () => {
           <Outlet context={{ isSidebarCollapsed }} />
         </div>
       </main>
-
-      {/* Global Beta Feedback Widget */}
-      <BetaFeedbackWidget />
+      <GlobalBugReporter />
     </div>
   );
 };

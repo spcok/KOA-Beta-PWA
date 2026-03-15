@@ -14,18 +14,29 @@ export function useSystemHealthData() {
   const [pwaHealth, setPwaHealth] = useState({
     isSecure: window.isSecureContext,
     swActive: false,
+    swUpdateWaiting: false,
     manifestValid: false,
     isInstalled: false,
-    storageValid: false
+    isStandalone: window.matchMedia('(display-mode: standalone)').matches,
+    storageValid: false,
+    isPrivateBrowsing: false,
+    storageQuota: 0
   });
 
   useEffect(() => {
     const checkPwaHealth = async () => {
       let swActive = false;
+      let swUpdateWaiting = false;
       if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
         swActive = registrations.length > 0;
+        
+        const registration = await navigator.serviceWorker.ready;
+        if (registration.waiting) {
+          swUpdateWaiting = true;
+        }
       }
+
       let manifestValid = false;
       try {
         const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
@@ -41,6 +52,18 @@ export function useSystemHealthData() {
       }
 
       let storageValid = false;
+      let isPrivateBrowsing = false;
+      let storageQuota = 0;
+
+      if ('storage' in navigator && 'estimate' in navigator.storage) {
+        const estimate = await navigator.storage.estimate();
+        storageQuota = estimate.quota || 0;
+        // If quota is less than 100MB, it's likely private browsing or very low space
+        if (storageQuota < 100 * 1024 * 1024) {
+          isPrivateBrowsing = true;
+        }
+      }
+
       if ('indexedDB' in window) {
         try {
           const request = indexedDB.open('KentOwlAcademyDB');
@@ -56,19 +79,30 @@ export function useSystemHealthData() {
         }
       }
 
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
       // @ts-expect-error - deferredPwaPrompt is attached to window globally
-      const isInstalled = !!window.deferredPwaPrompt || window.matchMedia('(display-mode: standalone)').matches;
+      const isInstalled = !!window.deferredPwaPrompt || isStandalone;
 
-      setPwaHealth(prev => ({ ...prev, swActive, manifestValid, storageValid, isInstalled }));
+      setPwaHealth(prev => ({ 
+        ...prev, 
+        swActive, 
+        swUpdateWaiting,
+        manifestValid, 
+        storageValid, 
+        isInstalled, 
+        isStandalone,
+        isPrivateBrowsing,
+        storageQuota
+      }));
     };
 
     checkPwaHealth();
     
-    // Listen for beforeinstallprompt to update state dynamically
-    const handleBeforeInstallPrompt = () => {
+    // Listen for the custom event dispatched in main.tsx
+    const handlePwaCaptured = () => {
       setPwaHealth(prev => ({ ...prev, isInstalled: true }));
     };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('pwa-prompt-captured', handlePwaCaptured);
     
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -77,7 +111,7 @@ export function useSystemHealthData() {
     window.addEventListener('offline', handleOffline);
     
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('pwa-prompt-captured', handlePwaCaptured);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };

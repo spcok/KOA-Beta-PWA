@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import AddEntryModal from './AddEntryModal';
 import { useTaskData } from './useTaskData';
-import { useAppData } from '../../context/Context';
 
 import { usePermissions } from '../../hooks/usePermissions';
 import { Lock } from 'lucide-react';
@@ -17,8 +16,6 @@ const Tasks: React.FC = () => {
     tasks, animals, users, isLoading, filter, setFilter, 
     searchTerm, setSearchTerm, addTask, toggleTaskCompletion, currentUser 
   } = useTaskData();
-
-  const { foodOptions, feedMethods } = useAppData();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedAnimalForEntry, setSelectedAnimalForEntry] = useState<Animal | null>(null);
@@ -287,10 +284,18 @@ const Tasks: React.FC = () => {
         )}
 
         {showEntryModal && selectedAnimalForEntry && (
-            <AddEntryModal isOpen={showEntryModal} onClose={() => setShowEntryModal(false)} onSave={() => {
-                toggleTaskCompletion(completingTask!);
-                setShowEntryModal(false);
-            }} animal={selectedAnimalForEntry} initialType={completingTask?.type || LogType.GENERAL} foodOptions={foodOptions} feedMethods={feedMethods[selectedAnimalForEntry.category] || []} eventTypes={[]} initialDate={new Date().toISOString().split('T')[0]} allAnimals={animals} />
+            <AddEntryModal 
+                isOpen={showEntryModal} 
+                onClose={() => setShowEntryModal(false)} 
+                onSave={() => {
+                    toggleTaskCompletion(completingTask!);
+                    setShowEntryModal(false);
+                }} 
+                animal={selectedAnimalForEntry} 
+                initialType={completingTask?.type || LogType.GENERAL} 
+                initialDate={new Date().toISOString().split('T')[0]} 
+                allAnimals={animals} 
+            />
         )}
     </div>
   );

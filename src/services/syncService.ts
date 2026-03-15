@@ -20,7 +20,8 @@ export async function hydrateComplianceData() {
     { supabase: 'quarantine_records', dexie: 'quarantine_records' },
     { supabase: 'mar_charts', dexie: 'mar_charts' },
     { supabase: 'animals', dexie: 'animals' }, // maps to animal_records
-    { supabase: 'maintenance_logs', dexie: 'maintenance_logs' } // maps to enclosure_checks
+    { supabase: 'maintenance_logs', dexie: 'maintenance_logs' }, // maps to enclosure_checks
+    { supabase: 'daily_logs', dexie: 'daily_logs' }
   ];
 
   try {

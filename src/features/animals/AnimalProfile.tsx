@@ -14,7 +14,6 @@ import { usePermissions } from '../../hooks/usePermissions';
 import AnimalFormModal from './AnimalFormModal';
 import { IUCNBadge } from './IUCNBadge';
 import { useAnimalProfileData } from './useAnimalProfileData';
-import { DEFAULT_FOOD_OPTIONS, DEFAULT_FEED_METHODS, DEFAULT_EVENT_TYPES } from '../../constants';
 import { generateBirthCertificateDocx } from '../reports/utils/docxExportService';
 import { restoreAnimal } from '../../lib/dataEngine';
 
@@ -263,7 +262,12 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                         <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm relative overflow-hidden">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="p-2 bg-slate-100 text-slate-600 rounded-lg"><Scale size={18} /></div>
-                                <span className="text-xs font-medium text-slate-500">Current Weight</span>
+                                <button 
+                                    onClick={() => { setEntryType(LogType.WEIGHT); setIsAddEntryOpen(true); }}
+                                    className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700 transition-colors"
+                                >
+                                    + Log Weight
+                                </button>
                             </div>
                             <div>
                                 <h3 className="text-2xl font-bold text-slate-900 mb-1">
@@ -281,7 +285,12 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                                     <div className="p-2 bg-slate-100 text-slate-600 rounded-lg"><Utensils size={18} /></div>
                                     <h4 className="text-sm font-semibold text-slate-900">Nutrition Status</h4>
                                 </div>
-                                <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">Active Diet</span>
+                                <button 
+                                    onClick={() => { setEntryType(LogType.FEED); setIsAddEntryOpen(true); }}
+                                    className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700 transition-colors"
+                                >
+                                    + Log Feed
+                                </button>
                             </div>
                             <div className="space-y-4">
                                 <div>
@@ -585,10 +594,9 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                 onClose={() => setIsAddEntryOpen(false)}
                 animal={animal}
                 initialType={entryType}
-                foodOptions={DEFAULT_FOOD_OPTIONS}
-                feedMethods={DEFAULT_FEED_METHODS[animal.category] || []}
-                eventTypes={DEFAULT_EVENT_TYPES}
                 allAnimals={allAnimals}
+                initialDate={new Date().toISOString().split('T')[0]}
+                onSave={() => {}}
             />
         )}
 

@@ -1,43 +1,75 @@
 import React from 'react';
-import { X } from 'lucide-react';
-import { Animal, LogType } from '../../types';
+import { Animal, LogType, LogEntry, ClinicalNote } from '../../types';
+import HusbandryEntryModal from '../husbandry/AddEntryModal';
+import { AddClinicalNoteModal } from '../medical/AddClinicalNoteModal';
+import { mutateOnlineFirst } from '../../lib/dataEngine';
 
 interface AddEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSave?: (entry: Partial<LogEntry>) => void;
   animal: Animal;
   initialType: LogType;
-  foodOptions: string[];
-  feedMethods: string[];
-  eventTypes: string[];
+  initialDate?: string;
   allAnimals: Animal[];
 }
 
-const AddEntryModal: React.FC<AddEntryModalProps> = ({ isOpen, onClose, animal, initialType }) => {
+const AddEntryModal: React.FC<AddEntryModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSave,
+  animal, 
+  initialType,
+  initialDate,
+  allAnimals
+}) => {
   if (!isOpen) return null;
 
+  const handleHusbandrySave = async (entry: Partial<LogEntry>) => {
+    try {
+      await mutateOnlineFirst('daily_logs', entry, 'upsert');
+    } catch (err) {
+      console.error("🛠️ [Animals QA] Failed to save husbandry log:", err);
+    }
+  };
+
+  const handleMedicalSave = async (note: Partial<ClinicalNote>) => {
+    try {
+      // Ensure animal_name is present for medical logs if required by the type
+      const noteWithMetadata = {
+        ...note,
+        animal_name: animal.name
+      };
+      await mutateOnlineFirst('medical_logs', noteWithMetadata, 'upsert');
+    } catch (err) {
+      console.error("🛠️ [Animals QA] Failed to save medical log:", err);
+    }
+  };
+
+  // Route to Medical Modal
+  if (initialType === LogType.HEALTH) {
+    return (
+      <AddClinicalNoteModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onSave={handleMedicalSave}
+        animals={[animal]} // Pass only current animal for context
+        initialData={null}
+      />
+    );
+  }
+
+  // Route to Husbandry Modal for everything else (including WEIGHT, GENERAL, FEED, etc.)
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl overflow-hidden shadow-lg">
-        <div className="p-6 space-y-6">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-slate-900">Log Activity: {animal.name}</h3>
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-md transition-colors">
-              <X size={20} />
-            </button>
-          </div>
-          <div className="bg-slate-50 p-8 rounded-lg border border-slate-200 flex flex-col items-center justify-center text-slate-500">
-            <p className="text-sm font-medium">Add Entry: {initialType}</p>
-            <p className="text-xs">This module is part of Phase 2B.</p>
-          </div>
-          <div className="flex justify-end gap-3">
-            <button onClick={onClose} className="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-sm font-medium transition-colors">
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <HusbandryEntryModal
+      isOpen={isOpen}
+      onClose={onClose}
+      onSave={onSave || handleHusbandrySave}
+      animal={animal}
+      initialType={initialType}
+      initialDate={initialDate || new Date().toISOString().split('T')[0]}
+      allAnimals={allAnimals}
+    />
   );
 };
 

@@ -29,7 +29,7 @@ export async function forceHydrateFromCloud() {
   const tables = [
     'animals', 'daily_logs', 'medical_logs', 'tasks', 'users', 
     'role_permissions', 'settings', 'contacts', 'zla_documents',
-    'safety_drills', 'maintenance_logs', 'first_aid_logs', 'incidents', 'daily_rounds'
+    'safety_drills', 'maintenance_logs', 'first_aid_logs', 'incidents', 'daily_rounds', 'operational_lists'
   ];
 
   try {
@@ -80,10 +80,21 @@ export async function processSyncQueue() {
   isSyncingQueue = true;
 
   try {
-    const queue = await db.sync_queue.filter(item => item.status !== 'failed').toArray();
+    const queue = await db.sync_queue.toArray();
     
+    if (queue.length === 0) return;
+
     // Verify session before syncing
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      if (sessionError.message.includes('Refresh Token Not Found')) {
+        console.warn('🛠 [Engine QA] Sync aborted: Refresh token is invalid. User must re-authenticate.');
+        await supabase.auth.signOut();
+        return;
+      }
+      throw sessionError;
+    }
+
     if (!session) {
       console.warn('🛠️ [Engine QA] Sync aborted: User is not authenticated. RLS will reject the payload.');
       return;
@@ -113,7 +124,8 @@ export async function processSyncQueue() {
       'external_transfers',
       'tasks',
       'daily_logs',
-      'role_permissions'
+      'role_permissions',
+      'operational_lists'
     ];
 
     // Define a safe sync order for deletes (Children first)
@@ -206,4 +218,10 @@ export function startRealtimeSubscription() {
 
   return channel;
 }
+
+/**
+ * pushChangesToSupabase
+ * Alias for processSyncQueue to match architectural requirements.
+ */
+export const pushChangesToSupabase = processSyncQueue;
 

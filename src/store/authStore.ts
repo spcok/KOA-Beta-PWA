@@ -44,19 +44,40 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       // Add a timeout to prevent hanging on offline boot
       const getSessionPromise = supabase.auth.getSession();
-      const timeoutPromise = new Promise<{ data: { session: Session | null } }>((_, reject) => 
+      const timeoutPromise = new Promise<{ data: { session: Session | null }, error: AuthError | null }>((_, reject) => 
         setTimeout(() => reject(new Error('Session check timeout')), 5000)
       );
       
-      const { data: { session } } = await Promise.race([getSessionPromise, timeoutPromise]);
+      const { data: { session }, error } = await Promise.race([getSessionPromise, timeoutPromise]);
+      
+      if (error) {
+        // If the refresh token is invalid, we must clear the session
+        if (error.message.includes('Refresh Token Not Found') || error.status === 400) {
+          console.warn('🛠️ [Auth QA] Invalid refresh token detected. Signing out.');
+          await supabase.auth.signOut();
+          set({ session: null, user: null, currentUser: null, isLoading: false });
+          return;
+        }
+        throw error;
+      }
       
       if (session?.user) {
         await syncUserRole(session.user, set);
       } else {
         set({ session: null, user: null, currentUser: null, isLoading: false });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('🛠️ [Anti-Regression] Supabase session check failed or timed out. Falling back to local cache.', error);
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // If it's a refresh token error, don't fall back to a mock session, just log out
+      if (errorMessage.includes('Refresh Token Not Found')) {
+        await supabase.auth.signOut();
+        set({ session: null, user: null, currentUser: null, isLoading: false });
+        return;
+      }
+
       // Try to load any user from Dexie as fallback
       try {
         const localUser = await db.users.toCollection().first();
@@ -74,7 +95,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     // Listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+        set({ session: null, user: null, currentUser: null, isLoading: false });
+        return;
+      }
+
       if (session?.user) {
         await syncUserRole(session.user, set);
       } else {
@@ -151,8 +177,16 @@ async function syncUserRole(supabaseUser: SupabaseUser, set: (state: Partial<Aut
         localUser = updatedUser;
       }
       
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError && sessionError.message.includes('Refresh Token Not Found')) {
+        await supabase.auth.signOut();
+        set({ session: null, user: null, currentUser: null, isLoading: false });
+        return;
+      }
+
       set({ 
-        session: (await supabase.auth.getSession()).data.session, 
+        session, 
         user: supabaseUser, 
         currentUser: localUser, 
         isLoading: false 

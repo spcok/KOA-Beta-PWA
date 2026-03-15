@@ -1,27 +1,72 @@
 import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { X, Check, Camera, Loader2, Zap, Shield, History, Info, Globe, Skull, Users, Thermometer } from 'lucide-react';
+import { X, Check, Camera, Loader2, Zap, Shield, History, Info, Globe, Skull, Users, Thermometer, Scale } from 'lucide-react';
 import { Animal, AnimalCategory, HazardRating, ConservationStatus } from '../../types';
 import { useAnimalForm } from './useAnimalForm';
 import { getAnimalIntelligence } from '../../services/geminiService';
+import { convertToGrams, convertFromGrams } from '../../services/weightUtils';
+import { mutateOnlineFirst } from '../../lib/dataEngine';
+import { useOperationalLists } from '../../hooks/useOperationalLists';
 
 interface AnimalFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialData?: Animal | null;
-  locations?: string[]; 
 }
 
-const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, initialData, locations = [] }) => {
+const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, initialData }) => {
   const {
     form,
     handleImageUpload,
-    onSubmit,
     isSubmitting,
     errors,
   } = useAnimalForm({ initialData, onClose });
 
   const { register, watch, setValue, getValues } = form;
+  const { locations } = useOperationalLists();
+
+  // Weight State
+  const [weightUnit, setWeightUnit] = useState<'g' | 'lb' | 'oz'>(
+    initialData?.weight_unit === 'lbs_oz' ? 'lb' : (initialData?.weight_unit as 'g' | 'oz') || 'g'
+  );
+  
+  const initialWeightValues = initialData?.flying_weight_g 
+    ? convertFromGrams(initialData.flying_weight_g, weightUnit)
+    : { g: 0, lb: 0, oz: 0, eighths: 0 };
+
+  const [weightValues, setWeightValues] = useState(initialWeightValues);
+
+  const handleWeightChange = (field: string, value: string) => {
+    const num = parseInt(value) || 0;
+    setWeightValues(prev => ({ ...prev, [field]: num }));
+  };
+
+  const onSubmit = form.handleSubmit(async (data) => {
+    const totalGrams = convertToGrams(weightUnit, weightValues);
+    const payload = {
+      ...data,
+      flying_weight_g: totalGrams,
+      weight_unit: weightUnit === 'lb' ? 'lbs_oz' : weightUnit
+    };
+    
+    // We need to pass the modified data to the base onSubmit or handle it here
+    // Since useAnimalForm's onSubmit already does the mutation, I'll just call it with the merged data
+    // Wait, useAnimalForm's onSubmit is form.handleSubmit(onSubmit).
+    // I should probably modify useAnimalForm to accept a transform function or just do the mutation here.
+    // Actually, I'll just do the mutation here to be safe and follow the "REWRITE" instruction.
+    try {
+      const animalData: Animal = {
+        ...initialData,
+        ...payload,
+        id: initialData?.id || uuidv4(),
+      } as Animal;
+
+      await mutateOnlineFirst('animals', animalData, 'upsert');
+      onClose();
+    } catch (error) {
+      console.error('Failed to save animal:', error);
+    }
+  });
 
   const [isFetchingAI, setIsFetchingAI] = useState(false);
 
@@ -160,7 +205,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                     <label className={labelClass}>Location *</label>
                                     <input {...register('location')} list="location-list" className={inputClass} placeholder="Select location..." />
                                     <datalist id="location-list">
-                                        {(locations as string[]).map(loc => <option key={String(loc)} value={loc} />)}
+                                        {locations.map(loc => <option key={loc.id} value={loc.value} />)}
                                     </datalist>
                                     {errors.location && <p className={errorClass}>{errors.location.message}</p>}
                                 </div>
@@ -324,7 +369,110 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                     </label>
                                 </div>
                             </div>
+
+                            {/* WEIGHT SECTION */}
+                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+                                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                        <Scale size={14} className="text-blue-500" /> Weight Configuration
+                                    </h4>
+                                    <select 
+                                        value={weightUnit} 
+                                        onChange={(e) => {
+                                            const newUnit = e.target.value as 'g' | 'lb' | 'oz';
+                                            setWeightUnit(newUnit);
+                                            // Recalculate values when unit changes to maintain consistency
+                                            const currentGrams = convertToGrams(weightUnit, weightValues);
+                                            setWeightValues(convertFromGrams(currentGrams, newUnit));
+                                        }}
+                                        className="text-[10px] font-bold bg-white border-2 border-slate-200 rounded-lg py-1 px-2 uppercase tracking-widest focus:ring-0 cursor-pointer"
+                                    >
+                                        <option value="g">Grams (g)</option>
+                                        <option value="lb">Pounds (lb/oz)</option>
+                                        <option value="oz">Ounces (oz)</option>
+                                    </select>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    {weightUnit === 'g' && (
+                                        <div className="sm:col-span-3">
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Grams</label>
+                                            <input 
+                                                type="number" 
+                                                value={weightValues.g || ''} 
+                                                onChange={(e) => handleWeightChange('g', e.target.value)}
+                                                className={inputClass}
+                                                placeholder="e.g. 1050"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {weightUnit === 'oz' && (
+                                        <>
+                                            <div className="sm:col-span-2">
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={weightValues.oz || ''} 
+                                                    onChange={(e) => handleWeightChange('oz', e.target.value)}
+                                                    className={inputClass}
+                                                    placeholder="oz"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
+                                                <select 
+                                                    value={weightValues.eighths || 0} 
+                                                    onChange={(e) => handleWeightChange('eighths', e.target.value)}
+                                                    className={inputClass}
+                                                >
+                                                    {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
+                                                </select>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {weightUnit === 'lb' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Pounds (lb)</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={weightValues.lb || ''} 
+                                                    onChange={(e) => handleWeightChange('lb', e.target.value)}
+                                                    className={inputClass}
+                                                    placeholder="lb"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
+                                                <select 
+                                                    value={weightValues.oz || 0} 
+                                                    onChange={(e) => handleWeightChange('oz', e.target.value)}
+                                                    className={inputClass}
+                                                >
+                                                    {Array.from({length: 16}, (_, i) => i).map(n => <option key={n} value={n}>{n} oz</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
+                                                <select 
+                                                    value={weightValues.eighths || 0} 
+                                                    onChange={(e) => handleWeightChange('eighths', e.target.value)}
+                                                    className={inputClass}
+                                                >
+                                                    {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
+                                                </select>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                                <p className="text-[10px] font-medium text-slate-400 italic">
+                                    Calculated Value: {convertToGrams(weightUnit, weightValues).toFixed(2)}g
+                                </p>
+                            </div>
                         </section>
+
 
                         {/* NEW: TARGET ENVIRONMENT SECTION */}
                         <section className="space-y-4">

@@ -2,132 +2,155 @@ const CACHE_NAME = 'koa-static-v2';
 const WEATHER_CACHE = 'weather-failover-cache';
 const COMPLIANCE_CACHE = 'compliance-data-cache';
 
-const STATIC_ASSETS = [
+const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.json',
   '/icon-192.png',
-  '/icon-512.png',
+  '/icon-512.png'
 ];
 
-const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
+const COMPLIANCE_MAX_AGE = 14 * 24 * 60 * 60 * 1000; // 14 days in ms
 
+// Install Event
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+      console.log('🛠️ [SW] Pre-caching App Shell');
+      return cache.addAll(APP_SHELL);
     })
   );
+  self.skipWaiting();
 });
 
+// Activate Event
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    (async () => {
-      // 1. Delete old caches
-      const cacheNames = await caches.keys();
-      await Promise.all(
-        cacheNames.map((cacheName) => {
-          if (![CACHE_NAME, WEATHER_CACHE, COMPLIANCE_CACHE].includes(cacheName)) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-
-      // 2. Purge cached data older than 14 days
-      const now = Date.now();
-      for (const cacheName of [WEATHER_CACHE, COMPLIANCE_CACHE]) {
-        const cache = await caches.open(cacheName);
-        const requests = await cache.keys();
-        for (const req of requests) {
-          const response = await cache.match(req);
-          if (response) {
-            const dateHeader = response.headers.get('date');
-            if (dateHeader) {
-              const fetchDate = new Date(dateHeader).getTime();
-              if (now - fetchDate > FOURTEEN_DAYS) {
-                await cache.delete(req);
-              }
+    Promise.all([
+      // 1. Cleanup old caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (![CACHE_NAME, WEATHER_CACHE, COMPLIANCE_CACHE].includes(cacheName)) {
+              console.log('🛠️ [SW] Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
             }
+          })
+        );
+      }),
+      // 2. Prune 14-day compliance data
+      pruneComplianceCaches()
+    ])
+  );
+  self.clients.claim();
+});
+
+async function pruneComplianceCaches() {
+  const cachesToPrune = [WEATHER_CACHE, COMPLIANCE_CACHE];
+  const now = Date.now();
+
+  for (const cacheName of cachesToPrune) {
+    const cache = await caches.open(cacheName);
+    const requests = await cache.keys();
+    
+    for (const request of requests) {
+      const response = await cache.match(request);
+      if (response) {
+        const dateHeader = response.headers.get('Date');
+        if (dateHeader) {
+          const fetchDate = new Date(dateHeader).getTime();
+          if (now - fetchDate > COMPLIANCE_MAX_AGE) {
+            console.log(`🛠️ [SW] Pruning expired entry from ${cacheName}:`, request.url);
+            await cache.delete(request);
           }
         }
       }
-      
-      await self.clients.claim();
-    })()
-  );
-});
-
-async function networkFirstWithTimeout(request, cacheName, timeoutMs = 5000) {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    
-    const response = await fetch(request, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    if (response && response.status === 200) {
-      const cache = await caches.open(cacheName);
-      // Store timestamp in headers if possible, or we'll just rely on basic caching
-      // For a robust 14-day expiration, we'd ideally use IndexedDB, but for native SW,
-      // we'll cache the response and clean up old entries periodically.
-      cache.put(request, response.clone());
-      return response;
     }
-    throw new Error('Network response was not ok');
-  } catch (error) {
-    const cache = await caches.open(cacheName);
-    const cachedResponse = await cache.match(request);
-    if (cachedResponse) {
-      // Basic expiration check could go here if we stored timestamps
-      return cachedResponse;
-    }
-    throw error;
   }
 }
 
+// Fetch Event
 self.addEventListener('fetch', (event) => {
+  // PATCH: Bypass non-GET requests to prevent TypeError on Supabase writes
+  if (event.request.method !== 'GET') return;
+
   const url = new URL(event.request.url);
 
-  // 1. Strict Cloud Bypass for AI, Auth, and Storage
-  if (url.href.match(/^https:\/\/.*\.supabase\.co\/(functions|auth|storage)\/v1\/.*/i)) {
-    return; // Network only
+  // Rule 1: Strict Cloud Bypass (Network Only)
+  if (url.hostname.includes('supabase.co') && (
+    url.pathname.includes('/auth/v1/') ||
+    url.pathname.includes('/storage/v1/') ||
+    url.pathname.includes('/functions/v1/')
+  )) {
+    return; // Default browser behavior (Network Only)
   }
 
-  // 2. Weather API Cache (Online-First with 14-day failover)
-  if (url.href.match(/^https:\/\/(api\.open-meteo\.com|api\.openweathermap\.org|geocoding-api\.open-meteo\.com)\/.*/i)) {
-    event.respondWith(networkFirstWithTimeout(event.request, WEATHER_CACHE));
+  // Network-First for HTML/UI Navigation
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        return caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        });
+      }).catch(() => caches.match(event.request))
+    );
     return;
   }
 
-  // 3. Supabase REST API (Online-First with 14-day failover for Compliance)
-  if (url.href.match(/^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i)) {
-    event.respondWith(networkFirstWithTimeout(event.request, COMPLIANCE_CACHE));
+  // Rule 2: Compliance & Weather (Network First with 5s Timeout)
+  const isRestApi = url.hostname.includes('supabase.co') && url.pathname.includes('/rest/v1/');
+  const isWeatherApi = url.hostname.includes('api.openweathermap.org') || url.hostname.includes('weather'); // Generic weather check
+
+  if (isRestApi || isWeatherApi) {
+    event.respondWith(networkFirstWithTimeout(event.request, isWeatherApi ? WEATHER_CACHE : COMPLIANCE_CACHE));
     return;
   }
 
-  // 4. Static Assets (Cache First, then Network)
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((response) => {
-        // Cache successful GET requests for static assets
-        if (event.request.method === 'GET' && response.status === 200 && (url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('.png') || url.pathname.endsWith('.svg'))) {
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
+  // Rule 3: Static Assets (Cache First)
+  const isStaticAsset = [
+    '.js', '.css', '.png', '.jpg', '.jpeg', '.svg', '.woff2'
+  ].some(ext => url.pathname.endsWith(ext));
+
+  if (isStaticAsset || APP_SHELL.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        return response || fetch(event.request).then((networkResponse) => {
+          return caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
           });
-        }
-        return response;
-      });
-    })
-  );
-});
-
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
+        });
+      })
+    );
   }
 });
+
+async function networkFirstWithTimeout(request, cacheName) {
+  const timeoutPromise = new Promise((resolve) => 
+    setTimeout(() => resolve(null), 5000)
+  );
+
+  try {
+    const networkResponse = await Promise.race([
+      fetch(request),
+      timeoutPromise
+    ]);
+
+    if (networkResponse && networkResponse.ok) {
+      const cache = await caches.open(cacheName);
+      cache.put(request, networkResponse.clone());
+      return networkResponse;
+    }
+  } catch (error) {
+    console.log('🛠️ [SW] Network failed, checking cache:', request.url);
+  }
+
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  // If both fail, return a generic error or null
+  return new Response('Offline and no cached data available', { status: 503 });
+}

@@ -1,178 +1,180 @@
-import React, { useState, useEffect } from 'react';
-import { Utensils, Ticket, Plus, Trash2, Activity, MapPin } from 'lucide-react';
+import React, { useState } from 'react';
+import { 
+  Utensils, 
+  Ticket, 
+  Plus, 
+  Trash2, 
+  Activity, 
+  MapPin, 
+  Check, 
+  X, 
+  Edit,
+  ChevronRight
+} from 'lucide-react';
 import { AnimalCategory, OperationalList } from '../../../types';
-import { db } from '../../../lib/db';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { v4 as uuidv4 } from 'uuid';
+import { useOperationalLists } from '../../../hooks/useOperationalLists';
 
 const OperationalLists: React.FC = () => {
-  const allLists = useLiveQuery(() => db.operational_lists.toArray()) || [];
   const [listSection, setListSection] = useState<AnimalCategory>(AnimalCategory.OWLS);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [newValue, setNewValue] = useState<{ [key: string]: string }>({});
 
-  // Initialize default data if empty
-  useEffect(() => {
-    const initData = async () => {
-      const count = await db.operational_lists.count();
-      if (count === 0) {
-        const defaults: Omit<OperationalList, 'id'>[] = [
-          // Food
-          { type: 'food', category: AnimalCategory.OWLS, value: 'Day Old Chick' },
-          { type: 'food', category: AnimalCategory.OWLS, value: 'Mouse (S)' },
-          { type: 'food', category: AnimalCategory.RAPTORS, value: 'Mouse (M)' },
-          { type: 'food', category: AnimalCategory.RAPTORS, value: 'Rat (S)' },
-          { type: 'food', category: AnimalCategory.MAMMALS, value: 'Rat (M)' },
-          { type: 'food', category: AnimalCategory.MAMMALS, value: 'Quail' },
-          { type: 'food', category: AnimalCategory.REPTILES, value: 'Rabbit' },
-          { type: 'food', category: AnimalCategory.INVERTEBRATES, value: 'Insects' },
-          { type: 'food', category: AnimalCategory.AMPHIBIANS, value: 'Insects' },
-          { type: 'food', category: AnimalCategory.EXOTICS, value: 'Special Diet' },
-          // Methods
-          { type: 'method', category: AnimalCategory.OWLS, value: 'Hand Fed' },
-          { type: 'method', category: AnimalCategory.OWLS, value: 'Bowl Fed' },
-          { type: 'method', category: AnimalCategory.RAPTORS, value: 'Tongs' },
-          { type: 'method', category: AnimalCategory.MAMMALS, value: 'Bowl Fed' },
-          { type: 'method', category: AnimalCategory.REPTILES, value: 'Tongs' },
-          { type: 'method', category: AnimalCategory.INVERTEBRATES, value: 'Scatter Fed' },
-          { type: 'method', category: AnimalCategory.AMPHIBIANS, value: 'Scatter Fed' },
-          { type: 'method', category: AnimalCategory.EXOTICS, value: 'Tongs' },
-          // Events
-          { type: 'event', category: AnimalCategory.ALL, value: 'Training' },
-          { type: 'event', category: AnimalCategory.ALL, value: 'Public Display' },
-          { type: 'event', category: AnimalCategory.ALL, value: 'Medical Treatment' },
-          // Locations
-          { type: 'location', category: AnimalCategory.ALL, value: 'Enclosure 1' },
-          { type: 'location', category: AnimalCategory.ALL, value: 'Enclosure 2' },
-          { type: 'location', category: AnimalCategory.ALL, value: 'Hospital' },
-          { type: 'location', category: AnimalCategory.ALL, value: 'Quarantine' },
-        ];
+  const { 
+    foodTypes, 
+    feedMethods, 
+    eventTypes, 
+    locations, 
+    addListItem, 
+    updateListItem, 
+    removeListItem 
+  } = useOperationalLists(listSection);
 
-        await db.operational_lists.bulkAdd(defaults.map(d => ({ ...d, id: uuidv4() })));
-      }
-    };
-    initData();
-  }, []);
-
-  const foodOptions = allLists.filter(l => l.type === 'food' && l.category === listSection);
-  const feedMethods = allLists.filter(l => l.type === 'method' && l.category === listSection);
-  const eventTypes = allLists.filter(l => l.type === 'event');
-  const locations = allLists.filter(l => l.type === 'location');
-
-  const handleAddList = async (type: 'food' | 'method' | 'location' | 'event', value: string) => {
-    if (!value.trim()) return;
-    const val = value.trim();
-    
-    // Check for duplicates
-    const exists = allLists.find(l => l.type === type && l.value.toLowerCase() === val.toLowerCase() && (type === 'location' || type === 'event' || l.category === listSection));
-    if (exists) return;
-
-    await db.operational_lists.add({
-      id: uuidv4(),
-      type,
-      category: (type === 'location' || type === 'event') ? AnimalCategory.ALL : listSection,
-      value: val
-    });
+  const handleAdd = async (type: 'food' | 'method' | 'location' | 'event', category?: AnimalCategory) => {
+    const val = newValue[type];
+    if (!val) return;
+    await addListItem(type, val, category);
+    setNewValue(prev => ({ ...prev, [type]: '' }));
   };
 
-  const handleRemoveList = async (id: string) => {
-    await db.operational_lists.delete(id);
+  const handleUpdate = async (id: string) => {
+    await updateListItem(id, editValue);
+    setEditingId(null);
+    setEditValue('');
   };
 
-  const inputClass = "w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:border-emerald-500 transition-all placeholder-slate-300 uppercase tracking-widest";
+  const startEditing = (id: string, value: string) => {
+    setEditingId(id);
+    setEditValue(value);
+  };
 
-  return (
-    <div className="max-w-4xl space-y-8 animate-in slide-in-from-right-4 duration-300 pb-24">
-      <div className="border-b-2 border-slate-200 pb-6">
-        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
-          <Utensils size={28} className="text-orange-500" /> Operational Registries
-        </h3>
-        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Manage Dropdown Options & Standard Lists</p>
+  const renderList = (items: OperationalList[], type: 'food' | 'method' | 'location' | 'event', title: string, icon: React.ReactNode, category?: AnimalCategory) => (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
+      <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-600">
+            {icon}
+          </div>
+          <h3 className="font-bold text-slate-900">{title}</h3>
+        </div>
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white px-2 py-1 rounded border border-slate-200">
+          {items.length} Items
+        </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* EVENT TYPES */}
-        <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-200 shadow-sm flex flex-col h-[500px]">
-          <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <Ticket size={16} className="text-purple-600" /> Event Classifications
-          </h4>
-          <div className="flex gap-2 mb-4">
-            <input type="text" placeholder="New Event Type..." onKeyDown={(e) => { if (e.key === 'Enter') { handleAddList('event', (e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = ''; } }} className={inputClass} id="newEventInput" />
-            <button onClick={() => { const input = document.getElementById('newEventInput') as HTMLInputElement; handleAddList('event', input.value); input.value = ''; }} className="bg-slate-900 text-white p-3 rounded-xl hover:bg-black transition-colors"><Plus size={18} /></button>
-          </div>
-          <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-            {eventTypes.map(item => (
-              <div key={item.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100 group hover:border-purple-200 transition-colors">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">{item.value}</span>
-                <button onClick={() => handleRemoveList(item.id)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>
+      <div className="p-4 border-b border-slate-100">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newValue[type] || ''}
+            onChange={(e) => setNewValue(prev => ({ ...prev, [type]: e.target.value }))}
+            placeholder={`Add new ${title.toLowerCase()}...`}
+            className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 transition-all"
+            onKeyDown={(e) => e.key === 'Enter' && handleAdd(type, category)}
+          />
+          <button
+            onClick={() => handleAdd(type, category)}
+            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={20} />
+          </button>
         </div>
+      </div>
 
-        {/* FOOD OPTIONS */}
-        <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-200 shadow-sm flex flex-col h-[500px]">
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-              <Utensils size={16} className="text-orange-500" /> Diet Inventory
-            </h4>
-            <select value={listSection} onChange={(e) => setListSection(e.target.value as AnimalCategory)} className="text-[10px] font-bold bg-slate-100 border-none rounded-lg py-1 pl-2 pr-6 uppercase tracking-widest focus:ring-0 cursor-pointer">
-              {Object.values(AnimalCategory).map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+      <div className="flex-1 overflow-y-auto max-h-[300px]">
+        {items.length === 0 ? (
+          <div className="p-8 text-center">
+            <p className="text-sm text-slate-400 italic">No items defined yet.</p>
           </div>
-          <div className="flex gap-2 mb-4">
-            <input type="text" placeholder="New Food Item..." onKeyDown={(e) => { if (e.key === 'Enter') { handleAddList('food', (e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = ''; } }} className={inputClass} id="newFoodInput" />
-            <button onClick={() => { const input = document.getElementById('newFoodInput') as HTMLInputElement; handleAddList('food', input.value); input.value = ''; }} className="bg-slate-900 text-white p-3 rounded-xl hover:bg-black transition-colors"><Plus size={18} /></button>
-          </div>
-          <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-            {foodOptions.map(item => (
-              <div key={item.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100 group hover:border-orange-200 transition-colors">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">{item.value}</span>
-                <button onClick={() => handleRemoveList(item.id)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {items.map((item) => (
+              <div key={item.id} className="p-3 flex items-center justify-between group hover:bg-slate-50 transition-colors">
+                {editingId === item.id ? (
+                  <div className="flex items-center gap-2 w-full">
+                    <input
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="flex-1 px-2 py-1 bg-white border border-blue-500 rounded text-sm focus:outline-none"
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && handleUpdate(item.id)}
+                    />
+                    <button onClick={() => handleUpdate(item.id)} className="text-green-600 hover:text-green-700"><Check size={18} /></button>
+                    <button onClick={() => setEditingId(null)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-sm text-slate-700 font-medium">{item.value}</span>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => startEditing(item.id, item.value)}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        onClick={() => removeListItem(item.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Operational Lists</h2>
+          <p className="text-sm text-slate-500">Manage dropdown options for husbandry and animal records.</p>
         </div>
-
-        {/* FEED METHODS */}
-        <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-200 shadow-sm flex flex-col h-[500px]">
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-              <Activity size={16} className="text-blue-500" /> Feed Methods
-            </h4>
-            <select value={listSection} onChange={(e) => setListSection(e.target.value as AnimalCategory)} className="text-[10px] font-bold bg-slate-100 border-none rounded-lg py-1 pl-2 pr-6 uppercase tracking-widest focus:ring-0 cursor-pointer">
-              {Object.values(AnimalCategory).map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div className="flex gap-2 mb-4">
-            <input type="text" placeholder="New Method..." onKeyDown={(e) => { if (e.key === 'Enter') { handleAddList('method', (e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = ''; } }} className={inputClass} id="newMethodInput" />
-            <button onClick={() => { const input = document.getElementById('newMethodInput') as HTMLInputElement; handleAddList('method', input.value); input.value = ''; }} className="bg-slate-900 text-white p-3 rounded-xl hover:bg-black transition-colors"><Plus size={18} /></button>
-          </div>
-          <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-            {feedMethods.map(item => (
-              <div key={item.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100 group hover:border-blue-200 transition-colors">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">{item.value}</span>
-                <button onClick={() => handleRemoveList(item.id)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>
+        
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+          {[AnimalCategory.OWLS, AnimalCategory.RAPTORS, AnimalCategory.MAMMALS, AnimalCategory.REPTILES].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setListSection(cat)}
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${
+                listSection === cat 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
+      </div>
 
-        {/* LOCATIONS */}
-        <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-200 shadow-sm flex flex-col h-[500px]">
-          <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <MapPin size={16} className="text-emerald-500" /> Site Locations
-          </h4>
-          <div className="flex gap-2 mb-4">
-            <input type="text" placeholder="New Location..." onKeyDown={(e) => { if (e.key === 'Enter') { handleAddList('location', (e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = ''; } }} className={inputClass} id="newLocationInput" />
-            <button onClick={() => { const input = document.getElementById('newLocationInput') as HTMLInputElement; handleAddList('location', input.value); input.value = ''; }} className="bg-slate-900 text-white p-3 rounded-xl hover:bg-black transition-colors"><Plus size={18} /></button>
-          </div>
-          <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-            {locations.map(item => (
-              <div key={item.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100 group hover:border-emerald-200 transition-colors">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">{item.value}</span>
-                <button onClick={() => handleRemoveList(item.id)} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {renderList(foodTypes, 'food', 'Food Types', <Utensils size={18} />, listSection)}
+        {renderList(feedMethods, 'method', 'Feed Methods', <Activity size={18} />, listSection)}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {renderList(eventTypes, 'event', 'Event Types', <Ticket size={18} />)}
+        {renderList(locations, 'location', 'Animal Locations', <MapPin size={18} />)}
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+        <div className="p-2 bg-white rounded-lg border border-amber-200 text-amber-600 h-fit">
+          <ChevronRight size={18} />
+        </div>
+        <div>
+          <h4 className="text-sm font-bold text-amber-900">Pro Tip: Data Consistency</h4>
+          <p className="text-xs text-amber-700 mt-1">
+            Food types and feed methods are scoped to the selected animal category (e.g. {listSection}). 
+            Event types and locations are global and available across all categories.
+          </p>
         </div>
       </div>
     </div>

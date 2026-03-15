@@ -77,7 +77,14 @@ const SystemHealth: React.FC = () => {
                 {pwaHealth.swActive ? <CheckCircle2 size={16} className="text-emerald-600" /> : <XCircle size={16} className="text-rose-600" />}
               </div>
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Service Worker</p>
-              <p className={`text-xs font-bold ${pwaHealth.swActive ? 'text-emerald-700' : 'text-rose-700'}`}>{pwaHealth.swActive ? 'Active: PASS' : 'Active: FAIL'}</p>
+              <p className={`text-xs font-bold ${pwaHealth.swActive ? 'text-emerald-700' : 'text-rose-700'}`}>
+                {pwaHealth.swActive ? 'Active: PASS' : 'Active: FAIL'}
+              </p>
+              {pwaHealth.swUpdateWaiting && (
+                <div className="mt-2 px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest rounded-md border border-amber-200 animate-pulse">
+                  Update Waiting
+                </div>
+              )}
             </div>
 
             <div className={`flex flex-col p-3 rounded-xl border ${pwaHealth.manifestValid ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
@@ -96,16 +103,30 @@ const SystemHealth: React.FC = () => {
               </div>
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Storage</p>
               <p className={`text-xs font-bold ${pwaHealth.storageValid ? 'text-emerald-700' : 'text-rose-700'}`}>{pwaHealth.storageValid ? 'Ready: PASS' : 'Ready: FAIL'}</p>
+              {pwaHealth.isPrivateBrowsing && (
+                <p className="text-[9px] mt-1 text-rose-600 font-bold leading-tight">
+                  <AlertTriangle size={10} className="inline mr-1" />
+                  Installation likely disabled by Private Browsing.
+                </p>
+              )}
             </div>
             
-            <div className={`col-span-2 flex flex-col p-3 rounded-xl border ${pwaHealth.isInstalled ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+            <div className={`col-span-2 flex flex-col p-3 rounded-xl border ${pwaHealth.isInstalled || pwaHealth.isStandalone ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
               <div className="flex items-center justify-between mb-2">
-                <Smartphone size={18} className={pwaHealth.isInstalled ? 'text-emerald-600' : 'text-rose-600'} />
-                {pwaHealth.isInstalled ? <CheckCircle2 size={16} className="text-emerald-600" /> : <XCircle size={16} className="text-rose-600" />}
+                <Smartphone size={18} className={pwaHealth.isInstalled || pwaHealth.isStandalone ? 'text-emerald-600' : 'text-rose-600'} />
+                {pwaHealth.isStandalone ? (
+                  <div className="px-2 py-0.5 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest rounded-full">
+                    APP INSTALLED
+                  </div>
+                ) : (
+                  pwaHealth.isInstalled ? <CheckCircle2 size={16} className="text-emerald-600" /> : <XCircle size={16} className="text-rose-600" />
+                )}
               </div>
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Installable</p>
-              <p className={`text-xs font-bold ${pwaHealth.isInstalled ? 'text-emerald-700' : 'text-rose-700'}`}>{pwaHealth.isInstalled ? 'Install Prompt Fired: PASS' : 'Install Prompt Fired: FAIL'}</p>
-              {!pwaHealth.isInstalled && (
+              <p className={`text-xs font-bold ${pwaHealth.isInstalled || pwaHealth.isStandalone ? 'text-emerald-700' : 'text-rose-700'}`}>
+                {pwaHealth.isStandalone ? 'Running in Standalone Mode' : (pwaHealth.isInstalled ? 'Install Prompt Fired: PASS' : 'Install Prompt Fired: FAIL')}
+              </p>
+              {!pwaHealth.isInstalled && !pwaHealth.isStandalone && (
                 <p className="text-[10px] mt-2 text-rose-600 font-medium">
                   Android requires perfect manifest icon resolution and a secure context to show the "Install App" button.
                 </p>

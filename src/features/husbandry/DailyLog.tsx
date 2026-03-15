@@ -139,9 +139,6 @@ const DailyLog: React.FC = () => {
           animal={selectedAnimal}
           initialType={selectedType}
           existingLog={getTodayLog(selectedAnimal.id, selectedType)}
-          foodOptions={[]}
-          feedMethods={[]}
-          eventTypes={[]}
           initialDate={viewDate}
           allAnimals={animals}
         />

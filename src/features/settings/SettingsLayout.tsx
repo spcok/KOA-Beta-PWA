@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { 
   ShieldCheck, Users, FileText, Brain, 
   Database, List, Building, HeartPulse, Bug 
@@ -17,8 +18,11 @@ import { usePermissions } from '../../hooks/usePermissions';
 type TabType = 'access' | 'directory' | 'zla' | 'intelligence' | 'migration' | 'lists' | 'org' | 'health' | 'bugs';
 
 const SettingsLayout: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('org');
+  const { tab } = useParams<{ tab: string }>();
+  const navigate = useNavigate();
   const permissions = usePermissions();
+
+  const activeTab = (tab as TabType) || 'org';
 
   const tabs: { id: TabType; label: string; icon: React.ElementType; permission?: keyof typeof permissions }[] = [
     { id: 'access', label: 'Access Control', icon: ShieldCheck, permission: 'manage_roles' },
@@ -32,7 +36,14 @@ const SettingsLayout: React.FC = () => {
     { id: 'bugs', label: 'Bug Reports', icon: Bug, permission: 'manage_incidents' },
   ];
 
-  const visibleTabs = tabs.filter(tab => !tab.permission || permissions[tab.permission]);
+  const visibleTabs = tabs.filter(t => !t.permission || permissions[t.permission]);
+
+  // Ensure the active tab is valid and permitted
+  useEffect(() => {
+    if (tab && !visibleTabs.find(t => t.id === tab)) {
+      navigate('/settings/org', { replace: true });
+    }
+  }, [tab, visibleTabs, navigate]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -54,18 +65,18 @@ const SettingsLayout: React.FC = () => {
       <h1 className="text-3xl font-bold text-slate-900">System Settings</h1>
       <div className="flex gap-6">
         <nav className="w-64 space-y-1">
-          {visibleTabs.map((tab) => (
+          {visibleTabs.map((t) => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              key={t.id}
+              onClick={() => navigate(`/settings/${t.id}`)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                activeTab === tab.id 
+                activeTab === t.id 
                   ? 'bg-blue-50 text-blue-700' 
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
-              <tab.icon size={18} />
-              {tab.label}
+              <t.icon size={18} />
+              {t.label}
             </button>
           ))}
         </nav>

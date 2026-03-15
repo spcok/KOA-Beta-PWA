@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Animal, AnimalCategory, LogType, LogEntry } from '../../types';
 import { db } from '../../lib/db';
 import { useTaskData } from '../husbandry/useTaskData';
@@ -35,8 +35,7 @@ export function useDashboardData(activeTab: AnimalCategory | 'ARCHIVED', viewDat
   const logs = useMemo(() => logsRaw || [], [logsRaw]);
   const allLogs = useMemo(() => allLogsRaw || [], [allLogsRaw]);
   
-  const [filteredAnimals, setFilteredAnimals] = useState<EnhancedAnimal[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = liveAnimalsRaw === undefined;
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState('alpha-asc');
   const [isOrderLocked, setIsOrderLocked] = useState(false);
@@ -63,19 +62,7 @@ export function useDashboardData(activeTab: AnimalCategory | 'ARCHIVED', viewDat
     };
   }, [liveAnimals, activeTab, logs]);
 
-  const [taskStats, setTaskStats] = useState({
-    pendingTasks: [] as PendingTask[],
-    pendingHealth: [] as PendingTask[]
-  });
-
-  useEffect(() => {
-    if (liveAnimals) {
-      const timer = setTimeout(() => setIsLoading(false), 0);
-      return () => clearTimeout(timer);
-    }
-  }, [liveAnimals]);
-
-  useEffect(() => {
+  const taskStats = useMemo(() => {
     const pendingTasks = (tasks || [])
       .filter(t => !t.completed && t.type !== 'HEALTH')
       .map(t => ({ id: t.id, title: t.title, due_date: t.due_date }));
@@ -84,11 +71,10 @@ export function useDashboardData(activeTab: AnimalCategory | 'ARCHIVED', viewDat
       .filter(t => !t.completed && t.type === 'HEALTH')
       .map(t => ({ id: t.id, title: t.title, due_date: t.due_date }));
 
-    const timer = setTimeout(() => setTaskStats({ pendingTasks, pendingHealth }), 0);
-    return () => clearTimeout(timer);
+    return { pendingTasks, pendingHealth };
   }, [tasks]);
 
-  useEffect(() => {
+  const filteredAnimals = useMemo(() => {
     let result = activeTab === 'ARCHIVED' ? [...archivedAnimals] : [...liveAnimals];
     
     if (activeTab && activeTab !== AnimalCategory.ALL && activeTab !== 'ARCHIVED') {
@@ -110,58 +96,70 @@ export function useDashboardData(activeTab: AnimalCategory | 'ARCHIVED', viewDat
       result.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
     }
 
-    const enhanced = result.map(animal => {
-      const animalLogs = allLogs.filter(l => l.animal_id === animal.id);
-      const todayLogs = logs.filter(l => l.animal_id === animal.id);
-      
-      const todayWeight = todayLogs.find(l => l.log_type === LogType.WEIGHT);
-      const todayFeed = todayLogs.find(l => l.log_type === LogType.FEED);
-      
-      const feedLogs = animalLogs
-        .filter(l => l.log_type === LogType.FEED)
-        .sort((a, b) => {
-          const timeA = a.created_at ? new Date(a.created_at).getTime() : new Date(a.log_date).getTime();
-          const timeB = b.created_at ? new Date(b.created_at).getTime() : new Date(b.log_date).getTime();
-          return timeB - timeA;
-        });
-      
-      const lastFed = feedLogs[0];
-      let lastFedStr = '-';
-      if (lastFed) {
-        const timePart = lastFed.created_at 
-          ? new Date(lastFed.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-          : '';
-        lastFedStr = `${lastFed.value}${timePart ? ' ' + timePart : ''}`;
+    return result.map(animal => {
+      try {
+        const animalLogs = allLogs.filter(l => l.animal_id === animal.id);
+        const todayLogs = logs.filter(l => l.animal_id === animal.id);
+        
+        const todayWeight = todayLogs.find(l => l.log_type === LogType.WEIGHT);
+        const todayFeed = todayLogs.find(l => l.log_type === LogType.FEED);
+        
+        const feedLogs = animalLogs
+          .filter(l => l.log_type === LogType.FEED)
+          .sort((a, b) => {
+            const timeA = a.created_at ? new Date(a.created_at).getTime() : (a.log_date ? new Date(a.log_date).getTime() : 0);
+            const timeB = b.created_at ? new Date(b.created_at).getTime() : (b.log_date ? new Date(b.log_date).getTime() : 0);
+            
+            if (isNaN(timeA) || isNaN(timeB)) return 0;
+            return timeB - timeA;
+          });
+        
+        const lastFed = feedLogs[0];
+        let lastFedStr = '-';
+        if (lastFed) {
+          const timePart = lastFed.created_at 
+            ? new Date(lastFed.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+            : '';
+          lastFedStr = `${lastFed.value}${timePart ? ' ' + timePart : ''}`;
+        }
+        
+        const isBird = animal.category === AnimalCategory.OWLS || animal.category === AnimalCategory.RAPTORS;
+        const displayId = isBird 
+          ? (animal.ring_number || '-') 
+          : (animal.microchip_id || '-');
+  
+        const upcomingFeeds = (tasks || [])
+          .filter(t => (t.animal_id === animal.id) && (t.type === LogType.FEED) && !t.completed)
+          .sort((a, b) => {
+            const timeA = a.due_date ? new Date(a.due_date).getTime() : 0;
+            const timeB = b.due_date ? new Date(b.due_date).getTime() : 0;
+            if (isNaN(timeA) || isNaN(timeB)) return 0;
+            return timeA - timeB;
+          });
+  
+        const nextFeed = upcomingFeeds[0];
+        const nextFeedTask = nextFeed ? { due_date: nextFeed.due_date, notes: nextFeed.notes } : undefined;
+  
+        return {
+          ...animal,
+          todayWeight,
+          todayFeed,
+          lastFedStr,
+          displayId,
+          nextFeedTask
+        };
+      } catch (err) {
+        console.error('Error enhancing animal data:', animal.id, err);
+        return {
+          ...animal,
+          lastFedStr: 'Error',
+          displayId: animal.id.slice(0, 8)
+        } as EnhancedAnimal;
       }
-      
-      const isBird = animal.category === AnimalCategory.OWLS || animal.category === AnimalCategory.RAPTORS;
-      const displayId = isBird 
-        ? (animal.ring_number || '-') 
-        : (animal.microchip_id || '-');
-
-      const upcomingFeeds = (tasks || [])
-        .filter(t => (t.animal_id === animal.id) && (t.type === LogType.FEED) && !t.completed)
-        .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
-
-      const nextFeed = upcomingFeeds[0];
-      const nextFeedTask = nextFeed ? { due_date: nextFeed.due_date, notes: nextFeed.notes } : undefined;
-
-      return {
-        ...animal,
-        todayWeight,
-        todayFeed,
-        lastFedStr,
-        displayId,
-        nextFeedTask
-      };
     });
-    
-    const timer = setTimeout(() => setFilteredAnimals(enhanced), 0);
-    return () => clearTimeout(timer);
   }, [liveAnimals, archivedAnimals, activeTab, searchTerm, sortOption, logs, allLogs, tasks]);
 
   const toggleOrderLock = (locked: boolean) => setIsOrderLocked(locked);
-  const reorderAnimals = (newOrder: EnhancedAnimal[]) => setFilteredAnimals(newOrder);
   const cycleSort = () => {
     setSortOption(prev => prev === 'alpha-asc' ? 'alpha-desc' : prev === 'alpha-desc' ? 'custom' : 'alpha-asc');
   };
@@ -174,9 +172,8 @@ export function useDashboardData(activeTab: AnimalCategory | 'ARCHIVED', viewDat
     searchTerm,
     setSearchTerm,
     sortOption,
+    cycleSort,
     isOrderLocked,
-    toggleOrderLock,
-    reorderAnimals,
-    cycleSort
+    toggleOrderLock
   };
 }
