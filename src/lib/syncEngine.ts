@@ -80,6 +80,11 @@ export async function processSyncQueue() {
   isSyncingQueue = true;
 
   try {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.warn('🛠️ [Engine QA] Sync aborted: Device is offline.');
+      return;
+    }
+
     const queue = await db.sync_queue.toArray();
     
     if (queue.length === 0) return;
@@ -151,6 +156,10 @@ export async function processSyncQueue() {
     for (const table of deleteOrder) {
       if (operationsByTable[table]) {
         for (const item of operationsByTable[table].filter(op => op.operation === 'delete')) {
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            console.warn('🛠️ [Engine QA] Sync paused: Connection lost mid-sync.');
+            return;
+          }
           try {
             await supabase.from(table).delete().eq('id', item.payload.id as string).throwOnError();
             await db.sync_queue.delete(item.id);
@@ -166,7 +175,13 @@ export async function processSyncQueue() {
     for (const table of upsertOrder) {
       if (operationsByTable[table]) {
         for (const item of operationsByTable[table].filter(op => op.operation === 'upsert')) {
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            console.warn('🛠️ [Engine QA] Sync paused: Connection lost mid-sync.');
+            return;
+          }
           try {
+            // Pre-flight serialization check
+            JSON.stringify(item.payload);
             await supabase.from(table).upsert(item.payload, { onConflict: 'id' }).throwOnError();
             await db.sync_queue.delete(item.id);
             processedItemIds.add(item.id);
@@ -181,8 +196,14 @@ export async function processSyncQueue() {
     for (const table in operationsByTable) {
       for (const item of operationsByTable[table]) {
         if (!processedItemIds.has(item.id)) {
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            console.warn('🛠️ [Engine QA] Sync paused: Connection lost mid-sync.');
+            return;
+          }
           try {
             if (item.operation === 'upsert') {
+              // Pre-flight serialization check
+              JSON.stringify(item.payload);
               await supabase.from(table).upsert(item.payload, { onConflict: 'id' }).throwOnError();
             } else if (item.operation === 'delete') {
               await supabase.from(table).delete().eq('id', item.payload.id as string).throwOnError();
@@ -231,4 +252,16 @@ export function startRealtimeSubscription() {
  * Alias for processSyncQueue to match architectural requirements.
  */
 export const pushChangesToSupabase = processSyncQueue;
+
+// Setup global event listeners for online/offline events
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    console.log('🌐 [Sync Engine] Network connection restored. Triggering queue flush.');
+    processSyncQueue().catch(console.error);
+  });
+  
+  window.addEventListener('offline', () => {
+    console.warn('🌐 [Sync Engine] Network connection lost. Operating in offline mode.');
+  });
+}
 

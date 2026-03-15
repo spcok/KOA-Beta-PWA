@@ -198,8 +198,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, initialD
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Daily PIN (4 Digits)</label>
-                <input {...register('pin', { required: true, minLength: 4 })} type="password" maxLength={4} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-900 tracking-[0.5em]" placeholder="••••" />
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Daily PIN (Up to 6 Digits)</label>
+                <input {...register('pin', { required: true, minLength: 4, maxLength: 6 })} type="password" maxLength={6} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-900 tracking-[0.5em]" placeholder="••••••" />
               </div>
               {!initialData && (
                 <div>

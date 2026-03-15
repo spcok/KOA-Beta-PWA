@@ -96,12 +96,12 @@ const LockScreen: React.FC = () => {
           <div className="relative">
             <input
               type="password"
-              maxLength={4}
+              maxLength={6}
               autoFocus
               value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
               className="w-full text-center text-5xl p-6 bg-slate-50 border-2 border-slate-100 rounded-2xl tracking-[0.5em] focus:border-slate-900 focus:bg-white outline-none transition-all font-black text-slate-900"
-              placeholder="••••"
+              placeholder="••••••"
             />
           </div>
           

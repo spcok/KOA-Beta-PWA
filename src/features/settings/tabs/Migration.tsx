@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Upload, FileJson, AlertTriangle, CheckCircle2, Loader2, Database } from 'lucide-react';
-import { useMigrationEngine } from '../useMigrationEngine';
+import { useMigrationData } from '../../../hooks/useMigrationData';
 
 const Migration: React.FC = () => {
   const { 
@@ -10,7 +10,7 @@ const Migration: React.FC = () => {
     isImporting, 
     error, 
     reset 
-  } = useMigrationEngine();
+  } = useMigrationData();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 

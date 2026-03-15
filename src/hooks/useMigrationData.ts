@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { mutateOnlineFirst } from '../../lib/dataEngine';
+import { db, AppDatabase } from '../lib/db';
+import { Table } from 'dexie';
+import { syncDataToSupabase } from '../services/syncService';
 import { 
   Animal, 
   AnimalCategory, 
@@ -11,7 +13,7 @@ import {
   ClinicalNote,
   HazardRating,
   ConservationStatus
-} from '../../types';
+} from '../types';
 
 // Define Legacy Interfaces for Type Safety
 interface LegacyLog {
@@ -57,7 +59,7 @@ interface LegacyImportData {
   }
 }
 
-export const useMigrationEngine = () => {
+export const useMigrationData = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +94,7 @@ export const useMigrationEngine = () => {
     }
   };
 
-  const runMigration = async () => {
+  const runImport = async () => {
     if (!previewData) return;
     
     setIsImporting(true);
@@ -147,7 +149,6 @@ export const useMigrationEngine = () => {
             switch (logTypeUpper) {
               case 'MOVEMENT':
               case 'TRANSFER':
-                // Map to InternalMovement
                 movementsToImport.push({
                   id: newLogId,
                   animal_id: newAnimalId,
@@ -163,7 +164,6 @@ export const useMigrationEngine = () => {
               case 'MEDICAL':
               case 'VET':
               case 'HEALTH':
-                // Map to ClinicalNote
                 medicalToImport.push({
                   id: newLogId,
                   animal_id: newAnimalId,
@@ -174,17 +174,7 @@ export const useMigrationEngine = () => {
                   staff_initials: userInitials
                 });
                 break;
-              case 'HUSBANDRY':
-              case 'DAILY':
-              case 'CLEANING':
-              case 'OBSERVATION':
-              case 'WEIGHT':
-              case 'FEED':
-              case 'FEEDING':
-              case 'TRAINING':
-              case 'ENRICHMENT':
               default:
-                // Map to LogEntry (General, Weight, etc)
                 logsToImport.push({
                   id: newLogId,
                   animal_id: newAnimalId,
@@ -202,24 +192,35 @@ export const useMigrationEngine = () => {
         }
       });
 
-      // Import using mutateOnlineFirst to ensure sync
-      for (const animal of animalsToImport) {
-        await mutateOnlineFirst('animals', animal, 'upsert');
-      }
-      for (const log of logsToImport) {
-        await mutateOnlineFirst('daily_logs', log, 'upsert');
-      }
-      for (const movement of movementsToImport) {
-        await mutateOnlineFirst('internal_movements', movement, 'upsert');
-      }
-      for (const medical of medicalToImport) {
-        await mutateOnlineFirst('medical_logs', medical, 'upsert');
+      const allData: { table: string, data: any[], chunkSize: number }[] = [
+        { table: 'animals', data: animalsToImport, chunkSize: 50 },
+        { table: 'daily_logs', data: logsToImport, chunkSize: 250 },
+        { table: 'internal_movements', data: movementsToImport, chunkSize: 250 },
+        { table: 'medical_logs', data: medicalToImport, chunkSize: 250 }
+      ];
+      
+      let totalItems = 0;
+      allData.forEach(d => totalItems += d.data.length);
+      let processedItems = 0;
+      
+      for (const item of allData) {
+        const chunks = chunkArray(item.data, item.chunkSize);
+        for (const chunk of chunks) {
+          try {
+            // Dexie first
+            await (db[item.table as keyof AppDatabase] as Table<any, string>).bulkPut(chunk as any);
+            // Supabase second
+            await syncDataToSupabase(item.table, chunk as unknown as Record<string, unknown>[]);
+          } catch (err) {
+            console.error(`[MIGRATION] Error importing chunk into ${item.table}:`, err);
+            setError(`Some items failed to sync to Supabase for ${item.table}.`);
+          }
+          processedItems += chunk.length;
+          setProgress((processedItems / totalItems) * 100);
+        }
       }
 
-      setProgress(100);
       setPreviewData(null); // Clear preview on success
-      // alert(`Successfully imported ${animalsToImport.length} animals and ${logsToImport.length + movementsToImport.length + medicalToImport.length} records.`);
-
     } catch (err) {
       console.error("Migration failed:", err);
       setError(err instanceof Error ? err.message : "Migration failed during database commit.");
@@ -230,7 +231,7 @@ export const useMigrationEngine = () => {
 
   return {
     parseFile,
-    runMigration,
+    runMigration: runImport,
     previewData,
     isImporting,
     progress,
@@ -242,6 +243,14 @@ export const useMigrationEngine = () => {
     }
   };
 };
+
+// --- Helper Mappers ---
+function chunkArray<T>(array: T[], size: number): T[][] {
+  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
+    array.slice(i * size, i * size + size)
+  );
+}
+// ... (keep existing mappers)
 
 // --- Helper Mappers ---
 

@@ -49,3 +49,14 @@ export async function hydrateComplianceData() {
     console.error("[SYNC] Fatal hydration error:", error);
   }
 }
+
+export async function syncDataToSupabase(tableName: string, data: Record<string, unknown>[]) {
+  try {
+    const { error } = await supabase.from(tableName).upsert(data);
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error(`[SYNC] Sync failed for ${tableName}:`, error);
+    return { success: false, error };
+  }
+}

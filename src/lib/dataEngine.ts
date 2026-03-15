@@ -3,10 +3,125 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, AppDatabase } from './db';
 import { supabase } from './supabase';
 import { Animal } from '../types';
-
-// ... (rest of the file)
-
 import { processSyncQueue } from './syncEngine';
+
+export function useHybridQuery<T>(
+  tableName: keyof AppDatabase,
+  queryOrDexieFn: (() => T | Promise<T>) | PromiseLike<{ data: unknown; error: unknown }>,
+  dexieFnOrDeps?: (() => T | Promise<T>) | unknown[],
+  depsOrUndefined?: unknown[]
+): T | undefined {
+  let onlineQuery: PromiseLike<{ data: unknown; error: unknown }>;
+  let offlineQuery: () => T | Promise<T>;
+  let deps: unknown[];
+
+  if (typeof queryOrDexieFn === 'function') {
+    onlineQuery = supabase.from(tableName as string).select('*');
+    offlineQuery = queryOrDexieFn as () => T | Promise<T>;
+    deps = (dexieFnOrDeps as unknown[]) || [];
+  } else {
+    onlineQuery = queryOrDexieFn as PromiseLike<{ data: unknown; error: unknown }>;
+    offlineQuery = typeof dexieFnOrDeps === 'function' ? (dexieFnOrDeps as () => T | Promise<T>) : (() => dexieFnOrDeps as T);
+    deps = depsOrUndefined || [];
+  }
+
+  // 1. Reactive Dexie state
+  const data = useLiveQuery(offlineQuery, deps);
+
+  // 2. Background Supabase fetch
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchData() {
+      try {
+        const { data: remoteData, error } = await onlineQuery;
+        
+        if (error) throw error;
+
+        if (remoteData && isMounted) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const table = db[tableName] as import('dexie').Table<any, any>;
+          const pk = table.schema.primKey.keyPath;
+
+          // Queue Protection: Get IDs of items currently in sync queue
+          const queuedItems = await db.sync_queue.where('table_name').equals(tableName as string).toArray();
+          const queuedIds = new Set(queuedItems.map(item => item.record_id));
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const isValid = (item: any) => {
+            if (typeof pk === 'string') {
+              const id = item[pk];
+              return id !== undefined && id !== null && !queuedIds.has(String(id));
+            }
+            return item && !queuedIds.has(String(item.id));
+          };
+
+          if (Array.isArray(remoteData)) {
+            const validItems = remoteData.filter(isValid);
+            if (validItems.length > 0) {
+              await db.transaction('rw', table, async () => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const localItems = await table.bulkGet(validItems.map(i => (i as any)[pk as any]));
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const itemsToPut = validItems.filter((remoteItem: any, index) => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const localItem: any = localItems[index];
+                  if (!localItem) return true;
+                  
+                  // 🚨 VULNERABILITY FIX: Prioritize updated_at over created_at to correctly gauge age
+                  const remoteTime = new Date(remoteItem.updated_at || remoteItem.created_at || 0).getTime();
+                  const localTime = new Date(localItem.updated_at || localItem.created_at || 0).getTime();
+                  
+                  return remoteTime >= localTime;
+                });
+                
+                if (itemsToPut.length > 0) {
+                  await table.bulkPut(itemsToPut);
+                }
+              });
+            }
+          } else {
+            if (isValid(remoteData)) {
+              await db.transaction('rw', table, async () => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const localItem: any = await table.get((remoteData as any)[pk as any]);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const remoteItem: any = remoteData;
+                
+                if (!localItem) {
+                  await table.put(remoteData);
+                } else {
+                  // 🚨 VULNERABILITY FIX: Prioritize updated_at over created_at to correctly gauge age
+                  const remoteTime = new Date(remoteItem.updated_at || remoteItem.created_at || 0).getTime();
+                  const localTime = new Date(localItem.updated_at || localItem.created_at || 0).getTime();
+                  
+                  if (remoteTime >= localTime) {
+                    await table.put(remoteData);
+                  }
+                }
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`🛠️ [Engine QA] HybridQuery Error [${tableName}]:`, err);
+      }
+    }
+
+    const handleOnline = () => fetchData();
+
+    if (navigator.onLine) fetchData();
+    
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('online', handleOnline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableName, ...deps]);
+
+  return data;
+}
 
 /**
  * archiveAnimal
@@ -95,120 +210,6 @@ async function queueSync(tableName: string, recordId: string, operation: 'upsert
 }
 
 /**
- * useHybridQuery
- * Online-First with Reactive Offline Cache (Stale-While-Revalidate)
- */
-export function useHybridQuery<T>(
-  tableName: keyof AppDatabase,
-  queryOrDexieFn: (() => T | Promise<T>) | PromiseLike<{ data: unknown; error: unknown }>,
-  dexieFnOrDeps?: (() => T | Promise<T>) | unknown[],
-  depsOrUndefined?: unknown[]
-): T | undefined {
-  let onlineQuery: PromiseLike<{ data: unknown; error: unknown }>;
-  let offlineQuery: () => T | Promise<T>;
-  let deps: unknown[];
-
-  if (typeof queryOrDexieFn === 'function') {
-    // Old signature: tableName, dexieQuery, deps
-    onlineQuery = supabase.from(tableName as string).select('*');
-    offlineQuery = queryOrDexieFn as () => T | Promise<T>;
-    deps = (dexieFnOrDeps as unknown[]) || [];
-  } else {
-    // New signature: tableName, onlineQuery, offlineQuery, deps
-    onlineQuery = queryOrDexieFn as PromiseLike<{ data: unknown; error: unknown }>;
-    offlineQuery = typeof dexieFnOrDeps === 'function' ? (dexieFnOrDeps as () => T | Promise<T>) : (() => dexieFnOrDeps as T);
-    deps = depsOrUndefined || [];
-  }
-
-  // 1. Reactive Dexie state
-  const data = useLiveQuery(offlineQuery, deps);
-
-  // 2. Background Supabase fetch
-  useEffect(() => {
-    let isMounted = true;
-    async function fetchData() {
-      try {
-        const { data: remoteData, error } = await onlineQuery;
-        
-        if (error) throw error;
-
-        if (remoteData && isMounted) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const table = db[tableName] as import('dexie').Table<any, any>;
-          const pk = table.schema.primKey.keyPath;
-
-          // Get IDs of items currently in sync queue for this table
-          const queuedItems = await db.sync_queue.where('table_name').equals(tableName as string).toArray();
-          const queuedIds = new Set(queuedItems.map(item => item.record_id));
-
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const isValid = (item: any) => {
-            if (typeof pk === 'string') {
-              const id = item[pk];
-              return id !== undefined && id !== null && !queuedIds.has(String(id));
-            }
-            return item && !queuedIds.has(String(item.id));
-          };
-
-          if (Array.isArray(remoteData)) {
-            const validItems = remoteData.filter(isValid);
-            if (validItems.length > 0) {
-              await db.transaction('rw', table, async () => {
-                const localItems = await table.bulkGet(validItems.map(i => i[pk]));
-                const itemsToPut = validItems.filter((remoteItem, index) => {
-                  const localItem = localItems[index];
-                  if (!localItem) return true;
-                  const remoteTime = new Date(remoteItem.created_at || remoteItem.updated_at || 0).getTime();
-                  const localTime = new Date(localItem.created_at || localItem.updated_at || 0).getTime();
-                  return remoteTime >= localTime;
-                });
-                if (itemsToPut.length > 0) {
-                  await table.bulkPut(itemsToPut);
-                }
-              });
-            }
-            if (validItems.length === 0 && remoteData.length > 0) {
-              console.warn(`[useHybridQuery] Primary key missing for table ${tableName}. Data not cached.`);
-            }
-          } else {
-            if (isValid(remoteData)) {
-              await db.transaction('rw', table, async () => {
-                const localItem = await table.get(remoteData[pk]);
-                if (!localItem || new Date(remoteData.created_at || remoteData.updated_at || 0).getTime() >= new Date(localItem.created_at || localItem.updated_at || 0).getTime()) {
-                  await table.put(remoteData);
-                }
-              });
-            } else {
-              console.warn(`[useHybridQuery] Primary key missing for table ${tableName}. Data not cached.`);
-            }
-          }
-        }
-      } catch (err) {
-        console.error(`🛠️ [Engine QA] HybridQuery Error [${tableName}]:`, err);
-      }
-    }
-
-    const handleOnline = () => {
-      fetchData();
-    };
-
-    if (navigator.onLine) {
-      fetchData();
-    }
-
-    window.addEventListener('online', handleOnline);
-
-    return () => {
-      isMounted = false;
-      window.removeEventListener('online', handleOnline);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableName, ...deps]);
-
-  return data;
-}
-
-/**
  * mutateOnlineFirst
  * SaaS mutation pattern: Optimistic UI - Update local Dexie first, then queue for Supabase.
  */
@@ -239,7 +240,11 @@ export async function mutateOnlineFirst<T extends { id?: string | number }>(
     console.error('🛠️ [Engine QA] Critical Mutation Error:', error);
     // Even if local update fails, we try to queue it if we have the ID
     if (payload.id) {
-      await queueSync(tableName as string, payload.id as string, operation, payload as Record<string, unknown>);
+      try {
+        await queueSync(tableName as string, payload.id as string, operation, payload as Record<string, unknown>);
+      } catch (queueError) {
+        console.error('🛠️ [Engine QA] Fatal: Could not write to sync_queue:', queueError);
+      }
     }
   }
 }

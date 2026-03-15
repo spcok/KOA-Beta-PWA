@@ -96,7 +96,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     // Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((event as any) === 'SIGNED_OUT' || (event as any) === 'USER_DELETED') {
         set({ session: null, user: null, currentUser: null, isLoading: false });
         return;
       }
