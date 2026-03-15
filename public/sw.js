@@ -1,13 +1,16 @@
 const CACHE_NAME = 'koa-static-v2';
 const WEATHER_CACHE = 'weather-failover-cache';
 const COMPLIANCE_CACHE = 'compliance-data-cache';
+const MEDIA_CACHE = 'media-failover-cache';
+const FALLBACK_IMAGE = '/offline-media-fallback.svg';
 
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.json',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  FALLBACK_IMAGE
 ];
 
 const COMPLIANCE_MAX_AGE = 14 * 24 * 60 * 60 * 1000; // 14 days in ms
@@ -31,7 +34,7 @@ self.addEventListener('activate', (event) => {
       caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            if (![CACHE_NAME, WEATHER_CACHE, COMPLIANCE_CACHE].includes(cacheName)) {
+            if (![CACHE_NAME, WEATHER_CACHE, COMPLIANCE_CACHE, MEDIA_CACHE].includes(cacheName)) {
               console.log('🛠️ [SW] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
@@ -46,7 +49,7 @@ self.addEventListener('activate', (event) => {
 });
 
 async function pruneComplianceCaches() {
-  const cachesToPrune = [WEATHER_CACHE, COMPLIANCE_CACHE];
+  const cachesToPrune = [WEATHER_CACHE, COMPLIANCE_CACHE, MEDIA_CACHE];
   const now = Date.now();
 
   for (const cacheName of cachesToPrune) {
@@ -79,10 +82,32 @@ self.addEventListener('fetch', (event) => {
   // Rule 1: Strict Cloud Bypass (Network Only)
   if (url.hostname.includes('supabase.co') && (
     url.pathname.includes('/auth/v1/') ||
-    url.pathname.includes('/storage/v1/') ||
     url.pathname.includes('/functions/v1/')
   )) {
     return; // Default browser behavior (Network Only)
+  }
+
+  // Rule 2: Media Caching (Cache First, then Network)
+  if (url.hostname.includes('supabase.co') && url.pathname.includes('/storage/v1/object/public/')) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse.ok) {
+            return caches.open(MEDIA_CACHE).then((cache) => {
+              cache.put(event.request, networkResponse.clone());
+              return networkResponse;
+            });
+          }
+          return networkResponse;
+        }).catch(() => {
+          // If offline and not in cache, return fallback SVG
+          return caches.match(FALLBACK_IMAGE);
+        });
+      })
+    );
+    return;
   }
 
   // Network-First for HTML/UI Navigation
@@ -98,7 +123,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Rule 2: Compliance & Weather (Network First with 5s Timeout)
+  // Rule 3: Compliance & Weather (Network First with 5s Timeout)
   const isRestApi = url.hostname.includes('supabase.co') && url.pathname.includes('/rest/v1/');
   const isWeatherApi = url.hostname.includes('api.openweathermap.org') || url.hostname.includes('weather'); // Generic weather check
 
@@ -107,7 +132,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Rule 3: Static Assets (Cache First)
+  // Rule 4: Static Assets (Cache First)
   const isStaticAsset = [
     '.js', '.css', '.png', '.jpg', '.jpeg', '.svg', '.woff2'
   ].some(ext => url.pathname.endsWith(ext));
