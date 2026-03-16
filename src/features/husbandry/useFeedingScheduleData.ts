@@ -1,18 +1,7 @@
 import { db } from '../../lib/db';
 import { supabase } from '../../lib/supabase';
 import { useHybridQuery, mutateOnlineFirst } from '../../lib/dataEngine';
-import { Animal, Task, AnimalCategory } from '../../types';
-
-export const FOOD_OPTIONS: Record<string, string[]> = {
-  [AnimalCategory.OWLS]: ['Day Old Chick', 'Mouse', 'Rat', 'Quail'],
-  [AnimalCategory.RAPTORS]: ['Day Old Chick', 'Mouse', 'Rat', 'Quail', 'Rabbit'],
-  [AnimalCategory.MAMMALS]: ['Fruit/Veg', 'Meat', 'Insects', 'Pellets', 'Fish'],
-  [AnimalCategory.REPTILES]: ['Mice', 'Rats', 'Insects', 'Salad'],
-  [AnimalCategory.EXOTICS]: ['Insects', 'Fruit', 'Nectar', 'Pellets'],
-  [AnimalCategory.INVERTEBRATES]: ['Fruit', 'Insects', 'Jelly'],
-  [AnimalCategory.AMPHIBIANS]: ['Insects', 'Worms'],
-  [AnimalCategory.ALL]: ['Standard Diet']
-};
+import { Animal, Task } from '../../types';
 
 export function useFeedingScheduleData() {
   const animalsRaw = useHybridQuery<Animal[]>(
@@ -44,7 +33,6 @@ export function useFeedingScheduleData() {
   return {
     animals: animalsRaw || [],
     tasks: tasksRaw || [],
-    foodOptions: FOOD_OPTIONS,
     isLoading,
     addTasks,
     deleteTask

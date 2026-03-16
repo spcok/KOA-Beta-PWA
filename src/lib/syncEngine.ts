@@ -379,7 +379,13 @@ async function handleSyncFailure(item: SyncQueueItem, error: unknown) {
  * Fetches records updated since the last sync to bridge gaps from offline periods.
  */
 export async function reconcileMissedEvents() {
-  const tables = ['animals', 'daily_logs', 'medical_logs', 'tasks', 'incidents', 'internal_movements', 'external_transfers', 'daily_rounds', 'operational_lists'];
+  const tables = [
+    'animals', 'archived_animals', 'daily_logs', 'medical_logs', 'tasks', 
+    'incidents', 'internal_movements', 'external_transfers', 'daily_rounds', 
+    'operational_lists', 'mar_charts', 'quarantine_records', 'shifts', 
+    'timesheets', 'holidays', 'safety_drills', 'maintenance_logs', 
+    'first_aid_logs', 'organisations', 'contacts', 'zla_documents', 'bug_reports'
+  ];
   
   // We look back 1 hour by default or use a stored timestamp
   const lastSync = localStorage.getItem('last_sync_reconcile') || new Date(Date.now() - 3600000).toISOString();

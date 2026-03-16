@@ -1,10 +1,20 @@
 import React, { useState, useMemo, useTransition } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { Animal, AnimalCategory, Task, LogType } from '../../types';
 import { CalendarClock, Plus, Calendar, Trash2, Filter, Utensils, RefreshCw, Loader2, History, ArrowRight, Copy } from 'lucide-react';
 import { useFeedingScheduleData } from './useFeedingScheduleData';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../lib/db';
 
 const FeedingSchedule: React.FC = () => {
-  const { animals, tasks, foodOptions, addTasks, deleteTask, isLoading } = useFeedingScheduleData();
+  const { animals, tasks, addTasks, deleteTask, isLoading } = useFeedingScheduleData();
+
+  const foodOptions = useLiveQuery(
+    () => db.operational_lists
+            .filter(item => item.type === 'food')
+            .toArray(),
+    []
+  );
 
   const [selectedCategory, setSelectedCategory] = useState<AnimalCategory>(AnimalCategory.EXOTICS);
   const [selectedAnimalId, setSelectedAnimalId] = useState('');
@@ -59,7 +69,7 @@ const FeedingSchedule: React.FC = () => {
           const notes = `${quantity} ${foodType}${withCalciDust ? ' + Calci-dust' : ''}`;
           
           const newTasks: Task[] = datesToSchedule.map(date => ({
-              id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              id: uuidv4(),
               animal_id: selectedAnimalId,
               title: `Feed ${animal.name}`,
               type: LogType.FEED,
@@ -159,39 +169,42 @@ const FeedingSchedule: React.FC = () => {
       return days;
   }, []);
 
-  const inputClass = "w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-black text-slate-900 uppercase tracking-widest outline-none focus:border-emerald-500 transition-all shadow-sm";
+  const inputClass = "w-full px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm";
 
-  if (isLoading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-emerald-500" size={32} /></div>;
+  if (isLoading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-indigo-600" size={32} /></div>;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-right-4 duration-300 pb-24 p-6">
+    <div className="max-w-6xl mx-auto space-y-6 animate-in slide-in-from-right-4 duration-300 pb-24 p-6">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-2 border-slate-200 pb-6">
-             <div>
-                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
-                    <CalendarClock size={28} className="text-emerald-600" /> Feeding Schedule
-                </h3>
-                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Plan and view future feeding tasks</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+             <div className="flex items-center gap-4">
+                <div className="p-3 bg-indigo-100 rounded-xl">
+                    <CalendarClock size={28} className="text-indigo-600" />
+                </div>
+                <div>
+                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Feeding Schedule</h3>
+                    <p className="text-slate-500 text-sm mt-1">Plan and view future feeding tasks</p>
+                </div>
              </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             
             {/* LEFT COLUMN: CREATION */}
             <div className="xl:col-span-1 space-y-6">
-                 <div className="bg-white rounded-[2rem] border-2 border-slate-200 shadow-sm p-6">
-                     <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2 border-b-2 border-slate-100 pb-4">
-                        <Plus size={18} className="text-emerald-600"/> Schedule Feeds
+                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                     <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+                        <Plus size={16} className="text-indigo-500"/> Schedule Feeds
                      </h4>
                      
                      <div className="space-y-5">
-                        <div className="bg-slate-100 p-1.5 rounded-xl flex border-2 border-slate-200 overflow-x-auto scrollbar-hide">
+                        <div className="bg-slate-50 p-1.5 rounded-lg flex border border-slate-200 overflow-x-auto scrollbar-hide">
                             {[AnimalCategory.OWLS, AnimalCategory.RAPTORS, AnimalCategory.MAMMALS, AnimalCategory.EXOTICS].map(cat => (
                                 <button 
                                     key={cat}
                                     onClick={() => setSelectedCategory(cat)}
-                                    className={`flex-1 min-w-[80px] py-2 px-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${selectedCategory === cat ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'}`}
+                                    className={`flex-1 min-w-[80px] py-1.5 px-2 text-xs font-medium rounded-md transition-all ${selectedCategory === cat ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
                                 >
                                     {cat.charAt(0) + cat.slice(1).toLowerCase()}
                                 </button>
@@ -199,7 +212,7 @@ const FeedingSchedule: React.FC = () => {
                         </div>
 
                         <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Animal *</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Animal *</label>
                             <select value={selectedAnimalId} onChange={e => setSelectedAnimalId(e.target.value)} className={inputClass}>
                                 <option value="">Select Animal...</option>
                                 {filteredAnimals.map(a => <option key={a.id} value={a.id}>{a.name} ({a.species})</option>)}
@@ -208,46 +221,52 @@ const FeedingSchedule: React.FC = () => {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Food Type *</label>
-                                <select value={foodType} onChange={e => setFoodType(e.target.value)} className={inputClass}>
-                                    <option value="">Select...</option>
-                                    {(foodOptions?.[selectedCategory] || []).map(f => <option key={f} value={f}>{f}</option>)}
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Food Type *</label>
+                                <select value={foodType} onChange={e => setFoodType(e.target.value)} className={inputClass} required>
+                                    <option value="" disabled>Select a food type...</option>
+                                    {foodOptions === undefined ? (
+                                        <option value="" disabled>Loading food types...</option>
+                                    ) : foodOptions.length === 0 ? (
+                                        <option value="" disabled>No foods configured in Settings</option>
+                                    ) : (
+                                        foodOptions.map(f => <option key={f.id} value={f.value}>{f.value}</option>)
+                                    )}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Quantity *</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Quantity *</label>
                                 <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className={inputClass} placeholder="1"/>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border-2 border-slate-200">
-                            <input type="checkbox" id="calci" checked={withCalciDust} onChange={e => setWithCalciDust(e.target.checked)} className="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 bg-white border-2 border-slate-300"/>
-                            <label htmlFor="calci" className="text-xs font-black text-slate-700 uppercase tracking-widest select-none cursor-pointer">Include Calci-dust</label>
+                        <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <input type="checkbox" id="calci" checked={withCalciDust} onChange={e => setWithCalciDust(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"/>
+                            <label htmlFor="calci" className="text-sm font-medium text-slate-700 select-none cursor-pointer">Include Calci-dust</label>
                         </div>
 
-                        <div className="pt-4 border-t-2 border-slate-100">
+                        <div className="pt-4 border-t border-slate-100">
                              <div className="flex flex-col gap-3 mb-4">
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Schedule Method *</label>
-                                <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border-2 border-slate-200">
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Schedule Method *</label>
+                                <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
                                     <input 
                                         type="checkbox" 
                                         id="intervalMode" 
                                         checked={scheduleMode === 'interval'} 
                                         onChange={(e) => setScheduleMode(e.target.checked ? 'interval' : 'manual')}
-                                        className="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 bg-white border-2 border-slate-300"
+                                        className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
                                     />
-                                    <label htmlFor="intervalMode" className="text-xs font-black text-slate-700 uppercase tracking-widest select-none cursor-pointer">Auto-Interval Mode</label>
+                                    <label htmlFor="intervalMode" className="text-sm font-medium text-slate-700 select-none cursor-pointer">Auto-Interval Mode</label>
                                 </div>
                              </div>
 
                              {scheduleMode === 'manual' ? (
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center px-1">
-                                         <span className="text-sm font-black text-slate-900 uppercase tracking-widest">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+                                         <span className="text-sm font-bold text-slate-700">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
                                     </div>
-                                    <div className="grid grid-cols-7 gap-1.5 bg-slate-50 p-3 rounded-xl border-2 border-slate-200">
+                                    <div className="grid grid-cols-7 gap-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
                                         {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
-                                            <div key={d} className="text-center text-[10px] text-slate-400 font-black uppercase py-1">{d}</div>
+                                            <div key={d} className="text-center text-xs text-slate-500 font-medium py-1">{d}</div>
                                         ))}
                                         {calendarDays.map(date => {
                                             const [y, m, d] = date.split('-').map(Number);
@@ -263,8 +282,8 @@ const FeedingSchedule: React.FC = () => {
                                                     key={date}
                                                     style={style}
                                                     onClick={() => toggleDate(date)}
-                                                    className={`h-10 rounded-lg text-xs font-black transition-all border-2 ${
-                                                        isSelected ? 'bg-emerald-600 text-white border-emerald-700 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50'
+                                                    className={`h-8 w-8 mx-auto rounded-full text-xs font-medium transition-all flex items-center justify-center ${
+                                                        isSelected ? 'bg-indigo-600 text-white shadow-sm' : 'bg-transparent text-slate-700 hover:bg-slate-200'
                                                     }`}
                                                 >
                                                     {dayNum}
@@ -272,29 +291,29 @@ const FeedingSchedule: React.FC = () => {
                                             )
                                         })}
                                     </div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{selectedDates.length} dates selected</p>
+                                    <p className="text-xs text-slate-500 text-right">{selectedDates.length} dates selected</p>
                                 </div>
                              ) : (
-                                <div className="space-y-4 bg-slate-50 p-4 rounded-xl border-2 border-slate-200 animate-in slide-in-from-top-2 duration-200">
+                                <div className="space-y-4 bg-slate-50 p-4 rounded-lg border border-slate-200 animate-in slide-in-from-top-2 duration-200">
                                     <div className="flex items-start gap-3">
-                                        <RefreshCw size={20} className="text-emerald-500 shrink-0"/>
-                                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-relaxed">
+                                        <RefreshCw size={16} className="text-indigo-500 shrink-0 mt-0.5"/>
+                                        <div className="text-xs text-slate-600 leading-relaxed">
                                             Generate repeating tasks starting from a date.
                                         </div>
                                     </div>
                                     
                                     <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Start Date</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Start Date</label>
                                         <input type="date" value={intervalStart} onChange={e => setIntervalStart(e.target.value)} className={inputClass}/>
                                     </div>
                                     
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Repeat Every (Days)</label>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Repeat Every (Days)</label>
                                             <input type="number" min="1" value={intervalDays} onChange={e => setIntervalDays(parseInt(e.target.value))} className={inputClass}/>
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Occurrences</label>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Occurrences</label>
                                             <input type="number" min="1" max="50" value={occurrences} onChange={e => setOccurrences(parseInt(e.target.value))} className={inputClass}/>
                                         </div>
                                     </div>
@@ -305,9 +324,9 @@ const FeedingSchedule: React.FC = () => {
                         <button 
                             onClick={handleGenerate}
                             disabled={!selectedAnimalId || !foodType || !quantity || (scheduleMode === 'manual' && selectedDates.length === 0) || isPending}
-                            className="w-full bg-slate-900 text-white py-4 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl flex items-center justify-center gap-2 mt-4"
+                            className="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm flex items-center justify-center gap-2 mt-4"
                         >
-                            {isPending ? <Loader2 size={18} className="animate-spin" /> : <CalendarClock size={18} />}
+                            {isPending ? <Loader2 size={16} className="animate-spin" /> : <CalendarClock size={16} />}
                             {isPending ? 'Scheduling...' : 'Confirm Schedule'}
                         </button>
                      </div>
@@ -316,38 +335,38 @@ const FeedingSchedule: React.FC = () => {
 
             {/* RIGHT COLUMN: VIEWING */}
             <div className="xl:col-span-2 space-y-6">
-                <div className="bg-white rounded-[2rem] border-2 border-slate-200 shadow-sm overflow-hidden h-full flex flex-col">
-                    <div className="p-6 border-b-2 border-slate-100 bg-slate-50 flex flex-col gap-5">
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-full flex flex-col">
+                    <div className="flex flex-col gap-5 border-b border-slate-100 pb-5 mb-5">
                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                              <div>
-                                <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                                    <Utensils size={18} className="text-orange-500"/> Scheduled Feeds
+                                <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                    <Utensils size={16} className="text-indigo-500"/> Scheduled Feeds
                                 </h4>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{filteredTasks.length} {viewScope} feeds found</p>
+                                <p className="text-xs text-slate-500 mt-1">{filteredTasks.length} {viewScope} feeds found</p>
                              </div>
                              
                              <div className="flex flex-wrap items-center gap-3">
                                  {/* Scope Toggle */}
-                                 <div className="bg-slate-200 p-1 rounded-xl flex border border-slate-300">
-                                     <button onClick={() => setViewScope('upcoming')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewScope === 'upcoming' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>Upcoming</button>
-                                     <button onClick={() => setViewScope('history')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1 ${viewScope === 'history' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}><History size={12}/> History</button>
+                                 <div className="bg-slate-100 p-1 rounded-lg flex border border-slate-200">
+                                     <button onClick={() => setViewScope('upcoming')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewScope === 'upcoming' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>Upcoming</button>
+                                     <button onClick={() => setViewScope('history')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1 ${viewScope === 'history' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}><History size={14}/> History</button>
                                  </div>
 
                                  {/* Layout Toggle */}
-                                 <div className="bg-slate-200 p-1 rounded-xl flex border border-slate-300 hidden sm:flex">
-                                     <button onClick={() => setViewLayout('timeline')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewLayout === 'timeline' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>Timeline</button>
-                                     <button onClick={() => setViewLayout('animal')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewLayout === 'animal' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>By Animal</button>
+                                 <div className="bg-slate-100 p-1 rounded-lg flex border border-slate-200 hidden sm:flex">
+                                     <button onClick={() => setViewLayout('timeline')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewLayout === 'timeline' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>Timeline</button>
+                                     <button onClick={() => setViewLayout('animal')} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${viewLayout === 'animal' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>By Animal</button>
                                  </div>
                              </div>
                          </div>
 
                          {/* Filter */}
-                         <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border-2 border-slate-200 w-full shadow-sm">
-                             <Filter size={16} className="text-emerald-500 ml-2" />
+                         <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200 w-full">
+                             <Filter size={16} className="text-slate-400 ml-2" />
                              <select 
                                 value={viewFilterAnimalId} 
                                 onChange={(e) => setViewFilterAnimalId(e.target.value)}
-                                className="bg-transparent text-xs font-black text-slate-700 uppercase tracking-widest border-none focus:ring-0 cursor-pointer w-full outline-none"
+                                className="bg-transparent text-sm font-medium text-slate-700 border-none focus:ring-0 cursor-pointer w-full outline-none"
                              >
                                  <option value="ALL">All Animals</option>
                                  {animals.filter(a => !a.archived).map(a => <option key={a.id} value={a.id}>{a.name} ({a.species})</option>)}
@@ -355,10 +374,10 @@ const FeedingSchedule: React.FC = () => {
                          </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-6 max-h-[800px] bg-white">
+                    <div className="flex-1 overflow-y-auto max-h-[800px] pr-2">
                         {filteredTasks.length > 0 ? (
                             viewLayout === 'timeline' ? (
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                     {filteredTasks.map(task => {
                                         const animal = animals.find(a => a.id === (task.animal_id));
                                         if (!animal) return null;
@@ -367,27 +386,26 @@ const FeedingSchedule: React.FC = () => {
                                         const isToday = (task.due_date) === new Date().toISOString().split('T')[0];
 
                                         return (
-                                            <div key={task.id} className={`flex items-center bg-white border-2 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all group ${task.completed ? 'border-slate-100 opacity-60' : 'border-slate-200 hover:border-emerald-300'}`}>
-                                                <div className={`w-16 h-16 rounded-xl flex flex-col items-center justify-center mr-5 border-2 ${isToday ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                                                    <span className="text-[10px] uppercase font-black">{dateObj.toLocaleString('default', {month: 'short'})}</span>
-                                                    <span className="text-xl font-black leading-none my-0.5">{dateObj.getDate()}</span>
-                                                    <span className="text-[10px] font-black">{dateObj.toLocaleString('default', {weekday: 'short'})}</span>
+                                            <div key={task.id} className={`flex items-center bg-white border border-slate-200 rounded-xl p-4 hover:bg-slate-50 transition-colors group ${task.completed ? 'opacity-60' : ''}`}>
+                                                <div className={`w-14 h-14 rounded-lg flex flex-col items-center justify-center mr-4 border ${isToday ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                                                    <span className="text-[10px] uppercase font-bold">{dateObj.toLocaleString('default', {month: 'short'})}</span>
+                                                    <span className="text-lg font-bold leading-none my-0.5">{dateObj.getDate()}</span>
                                                 </div>
                                                 
                                                 <div className="flex-1">
-                                                    <div className="flex items-center gap-3 mb-1">
-                                                        <h3 className="font-black text-slate-900 uppercase tracking-tight">{animal.name}</h3>
-                                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-md">{animal.category}</span>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h3 className="font-bold text-slate-900">{animal.name}</h3>
+                                                        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-md">{animal.category}</span>
                                                     </div>
-                                                    <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">{task.notes}</p>
+                                                    <p className="text-sm text-slate-600">{task.notes}</p>
                                                 </div>
 
                                                 <button 
                                                     onClick={() => deleteTask(task.id)}
-                                                    className="p-3 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                                                     title="Delete Schedule Item"
                                                 >
-                                                    <Trash2 size={18} />
+                                                    <Trash2 size={16} />
                                                 </button>
                                             </div>
                                         )
@@ -396,37 +414,37 @@ const FeedingSchedule: React.FC = () => {
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {animalGroups.map(({ animal, tasks }) => (
-                                        <div key={animal.id} className="bg-white border-2 border-slate-200 rounded-2xl p-5 hover:border-emerald-300 transition-colors shadow-sm">
+                                        <div key={animal.id} className="bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-200 transition-colors shadow-sm">
                                             <div className="flex justify-between items-start mb-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-black text-lg">
+                                                    <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg">
                                                         {animal.name.charAt(0)}
                                                     </div>
                                                     <div>
-                                                        <h3 className="font-black text-slate-900 uppercase tracking-tight">{animal.name}</h3>
-                                                        <p className="text-[11px] md:text-xs font-black text-slate-400 uppercase tracking-widest">{tasks.length} {viewScope} entries</p>
+                                                        <h3 className="font-bold text-slate-900">{animal.name}</h3>
+                                                        <p className="text-xs text-slate-500">{tasks.length} {viewScope} entries</p>
                                                     </div>
                                                 </div>
                                                 <button 
                                                     onClick={() => handleQuickExtend(animal.id)}
-                                                    className="bg-slate-100 text-slate-700 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-xl text-[11px] md:text-xs font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5"
+                                                    className="bg-slate-100 text-slate-600 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
                                                     title="Extend Schedule"
                                                 >
-                                                    <Copy size={12}/> Extend
+                                                    <Copy size={14}/> Extend
                                                 </button>
                                             </div>
                                             <div className="space-y-2">
-                                                <div className="bg-slate-50 p-3 rounded-xl border-2 border-slate-100 flex items-center justify-between">
-                                                    <span className="text-[11px] md:text-xs font-black text-slate-400 uppercase tracking-widest">Range</span>
-                                                    <div className="text-xs md:text-sm font-bold text-slate-700 flex items-center gap-2">
+                                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center justify-between">
+                                                    <span className="text-xs font-medium text-slate-500">Range</span>
+                                                    <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
                                                         {new Date(tasks[0].due_date).toLocaleDateString()} 
-                                                        <ArrowRight size={10} className="text-slate-400"/> 
+                                                        <ArrowRight size={12} className="text-slate-400"/> 
                                                         {new Date(tasks[tasks.length - 1].due_date).toLocaleDateString()}
                                                     </div>
                                                 </div>
-                                                <div className="bg-slate-50 p-3 rounded-xl border-2 border-slate-100">
-                                                    <span className="text-[11px] md:text-xs font-black text-slate-400 uppercase tracking-widest block mb-1">Diet Info</span>
-                                                    <div className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wider truncate" title={tasks[0].notes}>{tasks[0].notes || 'See details'}</div>
+                                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                    <span className="text-xs font-medium text-slate-500 block mb-1">Diet Info</span>
+                                                    <div className="text-sm font-medium text-slate-700 truncate" title={tasks[0].notes}>{tasks[0].notes || 'See details'}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -436,8 +454,8 @@ const FeedingSchedule: React.FC = () => {
                         ) : (
                             <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                                 <Calendar size={48} className="mb-4 opacity-20" />
-                                <p className="font-black text-sm uppercase tracking-widest">No {viewScope} feeds found</p>
-                                <p className="text-[10px] font-bold uppercase tracking-widest mt-2">Use the creation tool to add new feeds</p>
+                                <p className="font-medium text-slate-600">No {viewScope} feeds found</p>
+                                <p className="text-sm text-slate-500 mt-1">Use the creation tool to add new feeds</p>
                             </div>
                         )}
                     </div>
