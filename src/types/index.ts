@@ -172,9 +172,6 @@ export interface LogEntry {
   animal_id: string;
   log_type: LogType;
   log_date: string;
-  // Aliases for legacy code compatibility
-  type?: LogType;
-  date?: string;
   value: string;
   notes?: string;
   user_initials?: string;

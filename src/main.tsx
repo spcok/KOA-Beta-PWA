@@ -38,14 +38,11 @@ createRoot(document.getElementById('root')!).render(
 );
 
 if ('serviceWorker' in navigator) {
-  // Ghost Worker Exterminator
+  // Nuclear Ghost Killer
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     for (const registration of registrations) {
-      const swUrl = registration.active?.scriptURL || '';
-      if (swUrl && !swUrl.endsWith('/sw.js')) {
-        console.warn('🛠️ [PWA Exterminator] Killing rogue Service Worker at:', registration.scope);
-        registration.unregister();
-      }
+      console.warn('🗑️ [Nuclear Cleanup] Removing Service Worker:', registration.scope);
+      registration.unregister();
     }
   });
 

@@ -1,18 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { v4 as uuidv4 } from 'uuid';
 import { db } from '../../../lib/db';
+import { supabase } from '../../../lib/supabase';
 import { processSyncQueue, reconcileMissedEvents } from '../../../lib/syncEngine';
 import { PwaDiagnostics } from '../../../components/ui/PwaDiagnostics';
 import { 
   Activity, HardDrive, Database, AlertTriangle, 
   CheckCircle2, RefreshCw, Info, ShieldAlert,
-  Download, Trash2, ShieldX
+  Download, Trash2, ShieldX, Terminal
 } from 'lucide-react';
 
 const SystemHealth: React.FC = () => {
   const [storageEstimate, setStorageEstimate] = useState<{ used: number; total: number; percentage: number } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [pingLog, setPingLog] = useState<string[]>([]);
+  const [isPinging, setIsPinging] = useState(false);
 
   // Real-time Sync Queue Metrics
   const syncMetrics = useLiveQuery(async () => {
@@ -43,6 +47,72 @@ const SystemHealth: React.FC = () => {
       await processSyncQueue();      // 2. Push local offline queue
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const runPipelinePing = async () => {
+    setIsPinging(true);
+    setPingLog(['🚀 Starting 3-Way Pipeline Ping...']);
+    const testId = uuidv4();
+
+    try {
+      setPingLog(p => [...p, '⏳ Fetching valid Animal ID for foreign key constraint...']);
+      const firstAnimal = await db.animals.toCollection().first();
+
+      if (!firstAnimal) {
+        setPingLog(p => [...p, '❌ FATAL: No animals found in local database. Cannot perform constraint test.']);
+        setIsPinging(false);
+        return;
+      }
+
+      const targetAnimalId = firstAnimal.id;
+      setPingLog(p => [...p, `✅ Using Animal ID: ${targetAnimalId}`]);
+
+      // Step 1: Write to Dexie (Local DB)
+      setPingLog(p => [...p, '⏳ 1. Writing test payload to Dexie...']);
+      await db.sync_queue.add({
+        table_name: 'daily_logs',
+        record_id: testId,
+        operation: 'upsert',
+        payload: { 
+          id: testId, 
+          animal_id: targetAnimalId, // Real ID satisfies the Foreign Key constraint
+          log_type: 'GENERAL', // Satisfies the NOT NULL constraint
+          log_date: new Date().toISOString(), 
+          notes: 'PIPELINE_PING_TEST', 
+          created_at: new Date().toISOString() 
+        },
+        status: 'pending',
+        priority: 1,
+        created_at: new Date().toISOString(),
+        retry_count: 0
+      });
+      setPingLog(p => [...p, '✅ 1. Dexie write successful.']);
+
+      // Step 2: Trigger Sync Engine
+      setPingLog(p => [...p, '⏳ 2. Firing Sync Engine to push to Supabase...']);
+      await processSyncQueue();
+      setPingLog(p => [...p, '✅ 2. Sync Engine executed.']);
+
+      // Step 3: Verify in Supabase
+      setPingLog(p => [...p, '⏳ 3. Querying Supabase directly for test record...']);
+      const { data, error } = await supabase.from('daily_logs').select('id').eq('id', testId).single();
+
+      if (error || !data) {
+        setPingLog(p => [...p, '❌ 3. Supabase verification failed. Record did not arrive.']);
+      } else {
+        setPingLog(p => [...p, '✅ 3. Supabase received the record! Pipeline is HEALTHY.']);
+      }
+
+      // Step 4: Cleanup
+      setPingLog(p => [...p, '⏳ 4. Cleaning up test data...']);
+      await supabase.from('daily_logs').delete().eq('id', testId);
+      setPingLog(p => [...p, '✅ 4. Cleanup complete.']);
+
+    } catch (err) {
+      setPingLog(p => [...p, `❌ FATAL ERROR: ${err instanceof Error ? err.message : String(err)}`]);
+    } finally {
+      setIsPinging(false);
     }
   };
 
@@ -228,8 +298,40 @@ const SystemHealth: React.FC = () => {
       ) : null}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* PWA Diagnostics */}
-        <PwaDiagnostics />
+        <div className="space-y-6">
+          {/* PWA Diagnostics */}
+          <PwaDiagnostics />
+
+          {/* Pipeline Diagnostic Tool */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Pipeline Diagnostics</h3>
+              <Terminal className="w-5 h-5 text-indigo-500" />
+            </div>
+            <div className="space-y-4">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <h4 className="text-xs font-bold text-slate-700 mb-1">3-Way Pipeline Ping</h4>
+                <p className="text-[11px] text-slate-500 mb-3">Verifies end-to-end connectivity between React, Dexie, and Supabase by sending a test record.</p>
+                <button 
+                  onClick={runPipelinePing}
+                  disabled={isPinging}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  <RefreshCw size={14} className={isPinging ? 'animate-spin' : ''} />
+                  {isPinging ? 'Running Diagnostic...' : 'Run Pipeline Ping'}
+                </button>
+              </div>
+
+              {pingLog.length > 0 && (
+                <div className="bg-slate-950 p-4 rounded-lg font-mono text-[10px] text-emerald-400 overflow-y-auto max-h-48 space-y-1">
+                  {pingLog.map((log, index) => (
+                    <div key={index}>{log}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Advanced Actions / Danger Zone */}
         <div className="bg-white p-5 rounded-xl border border-rose-200 shadow-sm">

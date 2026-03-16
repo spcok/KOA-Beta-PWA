@@ -284,6 +284,11 @@ export async function processSyncQueue() {
             .map(ri => {
               const payload = { ...ri.payload as Record<string, unknown> };
               
+              // Safety Filter: Ensure id is a valid UUID string
+              if (typeof payload.id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(payload.id)) {
+                 throw new Error(`Invalid UUID detected in payload id: ${payload.id}`);
+              }
+
               // Sanitization Step: To ensure Supabase doesn't choke on empty timestamp columns during the actual .upsert(), 
               // explicitly delete the updated_at and created_at keys if they are undefined.
               if (payload.updated_at === undefined) delete payload.updated_at;
@@ -374,7 +379,7 @@ async function handleSyncFailure(item: SyncQueueItem, error: unknown) {
  * Fetches records updated since the last sync to bridge gaps from offline periods.
  */
 export async function reconcileMissedEvents() {
-  const tables = ['animals', 'daily_logs', 'medical_logs', 'tasks', 'incidents', 'internal_movements', 'external_transfers', 'operational_lists', 'daily_rounds'];
+  const tables = ['animals', 'daily_logs', 'medical_logs', 'tasks', 'incidents', 'internal_movements', 'external_transfers', 'daily_rounds', 'operational_lists'];
   
   // We look back 1 hour by default or use a stored timestamp
   const lastSync = localStorage.getItem('last_sync_reconcile') || new Date(Date.now() - 3600000).toISOString();
