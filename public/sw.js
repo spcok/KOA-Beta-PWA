@@ -1,4 +1,4 @@
-const CACHE_NAME = 'koa-static-v3';
+const CACHE_NAME = 'koa-static-v4';
 const COMPLIANCE_CACHE = 'compliance-data-cache';
 const MEDIA_CACHE = 'koa-media-cache';
 const COMPLIANCE_MAX_AGE = 14 * 24 * 60 * 60 * 1000; // 14 days in ms

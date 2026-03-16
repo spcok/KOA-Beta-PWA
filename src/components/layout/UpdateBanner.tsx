@@ -5,6 +5,9 @@ export const UpdateBanner: React.FC = () => {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
+    if (sessionStorage.getItem('koa_just_updated') === 'true') {
+      return; // Safety lock: prevents banner from looping after a manual reload
+    }
     const handleUpdate = () => {
       console.log('🛠️ [PWA] Update banner triggered by event.');
       setShow(true);
@@ -23,6 +26,7 @@ export const UpdateBanner: React.FC = () => {
         }
       }
     }
+    sessionStorage.setItem('koa_just_updated', 'true');
     // Small delay to allow SW to skip waiting before reload
     setTimeout(() => {
       window.location.reload();
