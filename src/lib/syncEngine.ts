@@ -2,6 +2,109 @@ import { db, AppDatabase } from './db';
 import { supabase } from './supabase';
 
 /**
+ * resolvePayloadMedia
+ * Scans a payload for 'local://' placeholders and uploads the corresponding 
+ * blobs from the media_upload_queue before the database sync.
+ */
+async function resolvePayloadMedia(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const resolvedPayload = { ...payload };
+  const BUCKET_NAME = 'koa-attachments';
+
+  for (const key in resolvedPayload) {
+    const value = resolvedPayload[key];
+    
+    if (typeof value === 'string' && value.startsWith('local://')) {
+      const fileName = value.replace('local://', '');
+      const mediaItem = await db.media_upload_queue.where('fileName').equals(fileName).first();
+      
+      if (mediaItem) {
+        console.log(`🛠️ [Sync Engine] Resolving staged media: ${fileName}`);
+        
+        // Mark as uploading to prevent storageEngine from picking it up
+        await db.media_upload_queue.update(mediaItem.id!, { status: 'uploading' });
+        
+        const filePath = `${mediaItem.folder}/${mediaItem.fileName}`;
+        const { error: uploadError } = await supabase.storage
+          .from(BUCKET_NAME)
+          .upload(filePath, mediaItem.fileData);
+
+        if (uploadError && !uploadError.message.includes('already exists')) {
+          throw new Error(`Media upload failed: ${uploadError.message}`);
+        }
+
+        const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+        resolvedPayload[key] = data.publicUrl;
+        
+        // Update local Dexie record so the cache is consistent with the cloud
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const table = (db as any)[mediaItem.tableName];
+        if (table) {
+          await table.update(mediaItem.recordId, { [mediaItem.columnName]: data.publicUrl });
+        }
+        
+        // Mark as uploaded in the media queue or delete it
+        await db.media_upload_queue.delete(mediaItem.id!);
+      }
+    } else if (value instanceof Blob || value instanceof File) {
+      console.log(`🛠️ [Sync Engine] Resolving raw blob in payload: ${key}`);
+      const fileExt = (value as File).name?.split('.').pop() || 'bin';
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `sync-uploads/${fileName}`; 
+      
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(filePath, value);
+
+      if (uploadError && !uploadError.message.includes('already exists')) {
+        throw new Error(`Raw blob upload failed: ${uploadError.message}`);
+      }
+
+      const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+      resolvedPayload[key] = data.publicUrl;
+    }
+  }
+  
+  return resolvedPayload;
+}
+
+/**
+ * shouldUpsert
+ * Conflict Resolution: Checks if the incoming record is chronologically newer
+ * than the one already on the server.
+ */
+async function shouldUpsert(table: string, payload: Record<string, unknown>): Promise<boolean> {
+  if (!payload.updated_at) return true; // Fallback if no timestamp
+
+  try {
+    const { data: remoteRecord, error } = await supabase
+      .from(table)
+      .select('updated_at')
+      .eq('id', payload.id as string)
+      .maybeSingle();
+
+    if (error) {
+      console.warn(`🛠️ [Collision Check] Error fetching remote record for ${table}/${payload.id}:`, error);
+      return true; // Proceed if check fails
+    }
+
+    if (!remoteRecord || !remoteRecord.updated_at) return true; // New record
+
+    const remoteTime = new Date(remoteRecord.updated_at).getTime();
+    const localTime = new Date(payload.updated_at as string).getTime();
+
+    if (localTime < remoteTime) {
+      console.warn(`🛠️ [Collision] Skipping sync for ${table}/${payload.id}. Server has a newer version (${new Date(remoteTime).toISOString()}) than the incoming payload (${new Date(localTime).toISOString()}).`);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error(`🛠️ [Collision Check] Fatal error for ${table}/${payload.id}:`, err);
+    return true;
+  }
+}
+
+/**
  * prune14DayCache
  * Automated Janitor: Deletes time-series records older than 14 days from local cache.
  */
@@ -180,9 +283,21 @@ export async function processSyncQueue() {
             return;
           }
           try {
-            // Pre-flight serialization check
-            JSON.stringify(item.payload);
-            await supabase.from(table).upsert(item.payload, { onConflict: 'id' }).throwOnError();
+            // 1. Resolve any staged media before upserting
+            const resolvedPayload = await resolvePayloadMedia(item.payload);
+            
+            // 2. Conflict Resolution: Only upsert if this payload is newer than the server's
+            const isNewer = await shouldUpsert(table, resolvedPayload);
+            if (!isNewer) {
+              await db.sync_queue.delete(item.id);
+              processedItemIds.add(item.id);
+              continue;
+            }
+
+            // 3. Pre-flight serialization check
+            JSON.stringify(resolvedPayload);
+            
+            await supabase.from(table).upsert(resolvedPayload, { onConflict: 'id' }).throwOnError();
             await db.sync_queue.delete(item.id);
             processedItemIds.add(item.id);
           } catch (error) {
@@ -202,9 +317,20 @@ export async function processSyncQueue() {
           }
           try {
             if (item.operation === 'upsert') {
-              // Pre-flight serialization check
-              JSON.stringify(item.payload);
-              await supabase.from(table).upsert(item.payload, { onConflict: 'id' }).throwOnError();
+              // 1. Resolve any staged media before upserting
+              const resolvedPayload = await resolvePayloadMedia(item.payload);
+              
+              // 2. Conflict Resolution: Only upsert if this payload is newer than the server's
+              const isNewer = await shouldUpsert(table, resolvedPayload);
+              if (!isNewer) {
+                await db.sync_queue.delete(item.id);
+                continue;
+              }
+
+              // 3. Pre-flight serialization check
+              JSON.stringify(resolvedPayload);
+              
+              await supabase.from(table).upsert(resolvedPayload, { onConflict: 'id' }).throwOnError();
             } else if (item.operation === 'delete') {
               await supabase.from(table).delete().eq('id', item.payload.id as string).throwOnError();
             }

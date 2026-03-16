@@ -42,49 +42,46 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     
     try {
-      // Add a timeout to prevent hanging on offline boot
-      const getSessionPromise = supabase.auth.getSession();
-      const timeoutPromise = new Promise<{ data: { session: Session | null }, error: AuthError | null }>((_, reject) => 
-        setTimeout(() => reject(new Error('Session check timeout')), 5000)
-      );
+      // 1. Try to get session from local storage immediately (fast)
+      const { data: { session: localSession } } = await supabase.auth.getSession();
       
-      const { data: { session }, error } = await Promise.race([getSessionPromise, timeoutPromise]);
-      
-      if (error) {
-        // If the refresh token is invalid, we must clear the session
-        if (error.message.includes('Refresh Token Not Found') || error.status === 400) {
-          console.warn('🛠️ [Auth QA] Invalid refresh token detected. Signing out.');
-          await supabase.auth.signOut();
-          set({ session: null, user: null, currentUser: null, isLoading: false });
-          return;
-        }
-        throw error;
-      }
-      
-      if (session?.user) {
-        await syncUserRole(session.user, set);
+      if (localSession?.user) {
+        // We have a local session, try to sync role but don't block if offline
+        await syncUserRole(localSession.user, set);
       } else {
-        set({ session: null, user: null, currentUser: null, isLoading: false });
+        // No local session, try a network refresh but with a short timeout
+        const getSessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<{ data: { session: Session | null }, error: AuthError | null }>((_, reject) => 
+          setTimeout(() => reject(new Error('Session check timeout')), 2000)
+        );
+        
+        const { data: { session }, error } = await Promise.race([getSessionPromise, timeoutPromise]);
+        
+        if (error) throw error;
+        
+        if (session?.user) {
+          await syncUserRole(session.user, set);
+        } else {
+          set({ session: null, user: null, currentUser: null, isLoading: false });
+        }
       }
     } catch (error: unknown) {
-      console.warn('🛠️ [Anti-Regression] Supabase session check failed or timed out. Falling back to local cache.', error);
+      console.warn('🛠️ [Auth QA] Session restoration failed or timed out. Checking local cache.', error);
       
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // If it's a refresh token error, don't fall back to a mock session, just log out
       if (errorMessage.includes('Refresh Token Not Found')) {
         await supabase.auth.signOut();
         set({ session: null, user: null, currentUser: null, isLoading: false });
         return;
       }
 
-      // Try to load any user from Dexie as fallback
+      // Fallback to Dexie if we are completely offline and Supabase failed
       try {
         const localUser = await db.users.toCollection().first();
         if (localUser) {
-          // Create a mock session to allow offline access
           const mockUser = { id: localUser.id, email: localUser.email } as SupabaseUser;
-          const mockSession = { user: mockUser } as Session;
+          const mockSession = { user: mockUser, access_token: 'offline-token' } as Session;
           set({ session: mockSession, user: mockUser, currentUser: localUser, isLoading: false });
         } else {
           set({ session: null, user: null, currentUser: null, isLoading: false });

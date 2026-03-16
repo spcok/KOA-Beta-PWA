@@ -103,6 +103,9 @@ export async function processMediaUploadQueue(): Promise<void> {
   
   for (const item of pendingUploads) {
     try {
+      // Check if this item is already being handled by syncEngine (status check)
+      if (item.status === 'uploading') continue;
+
       await db.media_upload_queue.update(item.id!, { status: 'uploading' });
       
       const filePath = `${item.folder}/${item.fileName}`;
@@ -110,7 +113,7 @@ export async function processMediaUploadQueue(): Promise<void> {
         .from(BUCKET_NAME)
         .upload(filePath, item.fileData);
 
-      if (uploadError) {
+      if (uploadError && !uploadError.message.includes('already exists')) {
         throw uploadError;
       }
 
@@ -118,12 +121,21 @@ export async function processMediaUploadQueue(): Promise<void> {
       const publicUrl = data.publicUrl;
 
       // Update the actual record in Supabase with the new public URL
+      // Note: This might fail if the record hasn't been synced yet.
+      // That's okay, the syncEngine will handle it when it runs.
       const { error: updateError } = await supabase
         .from(item.tableName)
         .update({ [item.columnName]: publicUrl })
         .eq('id', item.recordId);
 
       if (updateError) {
+        // If the record doesn't exist yet, it's likely still in the sync_queue.
+        // We'll let the syncEngine handle the stitching.
+        if (updateError.code === 'PGRST116' || updateError.message.includes('0 rows')) {
+          console.log(`🛠️ [Storage Engine] Record ${item.recordId} not found in Supabase yet. Deferring to Sync Engine.`);
+          await db.media_upload_queue.update(item.id!, { status: 'pending' });
+          continue;
+        }
         throw updateError;
       }
 

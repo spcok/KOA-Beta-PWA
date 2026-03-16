@@ -138,7 +138,8 @@ export async function archiveAnimal(animal: Animal, reason: string, type: NonNul
     archive_type: type,
     archive_reason: reason, 
     disposition_status: newDispositionStatus as NonNullable<Animal['disposition_status']>,
-    archived_at: new Date().toISOString() 
+    archived_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   };
   
   // Dexie transaction
@@ -170,9 +171,14 @@ export async function archiveAnimal(animal: Animal, reason: string, type: NonNul
  * Moves an animal back to the animals table.
  */
 export async function restoreAnimal(animal: Animal) {
+  const restoredAnimal = {
+    ...animal,
+    updated_at: new Date().toISOString()
+  };
+  
   // Dexie transaction
   await db.transaction('rw', db.animals, db.archived_animals, async () => {
-    await db.animals.add(animal);
+    await db.animals.add(restoredAnimal);
     await db.archived_animals.delete(animal.id);
   });
 
@@ -181,15 +187,15 @@ export async function restoreAnimal(animal: Animal) {
   // Supabase
   if (pendingCount === 0 && navigator.onLine) {
     try {
-      await supabase.from('animals').upsert(animal).throwOnError();
+      await supabase.from('animals').upsert(restoredAnimal).throwOnError();
       await supabase.from('archived_animals').delete().eq('id', animal.id).throwOnError();
     } catch (error) {
       console.error('Failed to restore animal in Supabase', error);
-      await queueSync('animals', animal.id, 'upsert', animal as unknown as Record<string, unknown>);
+      await queueSync('animals', animal.id, 'upsert', restoredAnimal as unknown as Record<string, unknown>);
       await queueSync('archived_animals', animal.id, 'delete', { id: animal.id });
     }
   } else {
-    await queueSync('animals', animal.id, 'upsert', animal as unknown as Record<string, unknown>);
+    await queueSync('animals', animal.id, 'upsert', restoredAnimal as unknown as Record<string, unknown>);
     await queueSync('archived_animals', animal.id, 'delete', { id: animal.id });
   }
 }
@@ -224,6 +230,8 @@ export async function mutateOnlineFirst<T extends { id?: string | number }>(
   try {
     // 1. Optimistic Update (Local Dexie)
     if (operation === 'upsert') {
+      // Inject updated_at for conflict resolution
+      (payload as Record<string, unknown>).updated_at = new Date().toISOString();
       await table.put(payload);
     } else {
       await table.delete(payload.id as string);
