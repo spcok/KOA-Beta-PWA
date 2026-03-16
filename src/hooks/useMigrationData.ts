@@ -192,7 +192,7 @@ export const useMigrationData = () => {
         }
       });
 
-      const allData: { table: string, data: any[], chunkSize: number }[] = [
+      const allData: { table: string, data: (Animal | LogEntry | InternalMovement | ClinicalNote)[], chunkSize: number }[] = [
         { table: 'animals', data: animalsToImport, chunkSize: 50 },
         { table: 'daily_logs', data: logsToImport, chunkSize: 250 },
         { table: 'internal_movements', data: movementsToImport, chunkSize: 250 },
@@ -208,7 +208,7 @@ export const useMigrationData = () => {
         for (const chunk of chunks) {
           try {
             // Dexie first
-            await (db[item.table as keyof AppDatabase] as Table<any, string>).bulkPut(chunk as any);
+            await (db[item.table as keyof AppDatabase] as Table<Record<string, unknown>, string>).bulkPut(chunk as unknown as Record<string, unknown>[]);
             // Supabase second
             await syncDataToSupabase(item.table, chunk as unknown as Record<string, unknown>[]);
           } catch (err) {

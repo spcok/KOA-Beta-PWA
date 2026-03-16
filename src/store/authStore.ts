@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
 import { db } from '../lib/db';
 import { mutateOnlineFirst } from '../lib/dataEngine';
+import { processSyncQueue } from '../lib/syncEngine';
 
 interface AuthState {
   session: Session | null;
@@ -25,10 +26,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   isUiLocked: false,
 
   login: async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error, data } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
+    if (!error && data.session && navigator.onLine) {
+      processSyncQueue().catch(err => console.error('🛠️ [Auth Store] Initial login sync failed:', err));
+    }
+
     return { error };
   },
 
@@ -41,6 +47,39 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialize: async () => {
     set({ isLoading: true });
     
+    // --- DAILY CLEAN SLATE PROTOCOL ---
+    const today = new Date().toISOString().split('T')[0];
+    const lastRefresh = localStorage.getItem('last_refresh_date');
+
+    if (navigator.onLine && lastRefresh !== today) {
+      console.log('🔄 [Daily Clean Slate] New day detected. Running maintenance...');
+      try {
+        // 1. Purge Dexie
+        await db.clearAllData();
+
+        // 2. Update Service Worker
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (const registration of registrations) {
+            await registration.update();
+          }
+        }
+
+        // 3. Sign out from Supabase
+        await supabase.auth.signOut();
+
+        // 4. Update refresh date
+        localStorage.setItem('last_refresh_date', today);
+
+        // 5. Force redirect to login for a clean start
+        window.location.href = '/login';
+        return;
+      } catch (err) {
+        console.error('❌ [Daily Clean Slate] Protocol failed:', err);
+      }
+    }
+    // ----------------------------------
+
     try {
       // 1. Try to get session from local storage immediately (fast)
       const { data: { session: localSession } } = await supabase.auth.getSession();
@@ -48,6 +87,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (localSession?.user) {
         // We have a local session, try to sync role but don't block if offline
         await syncUserRole(localSession.user, set);
+        
+        if (navigator.onLine) {
+          processSyncQueue().catch(err => console.error('🛠️ [Auth Store] Boot sync failed:', err));
+        }
       } else {
         // No local session, try a network refresh but with a short timeout
         const getSessionPromise = supabase.auth.getSession();
@@ -61,6 +104,10 @@ export const useAuthStore = create<AuthState>((set) => ({
         
         if (session?.user) {
           await syncUserRole(session.user, set);
+          
+          if (navigator.onLine) {
+            processSyncQueue().catch(err => console.error('🛠️ [Auth Store] Network boot sync failed:', err));
+          }
         } else {
           set({ session: null, user: null, currentUser: null, isLoading: false });
         }

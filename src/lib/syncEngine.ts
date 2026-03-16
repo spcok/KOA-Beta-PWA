@@ -173,14 +173,14 @@ export async function forceHydrateFromCloud() {
   }
 }
 
-let isSyncingQueue = false;
+let isProcessing = false;
 
 export async function processSyncQueue() {
-  if (isSyncingQueue) {
+  if (isProcessing) {
     console.warn('🛠️ [Anti-Regression] processSyncQueue is already running. Skipping to prevent runaway loop.');
     return;
   }
-  isSyncingQueue = true;
+  isProcessing = true;
 
   try {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -341,8 +341,10 @@ export async function processSyncQueue() {
         }
       }
     }
+  } catch (error) {
+    console.error('🛠️ [Sync Engine] Critical error in processSyncQueue:', error);
   } finally {
-    isSyncingQueue = false;
+    isProcessing = false;
   }
 }
 

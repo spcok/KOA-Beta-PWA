@@ -83,6 +83,13 @@ export class AppDatabase extends Dexie {
       media_upload_queue: '++id, status, createdAt'
     });
   }
+
+  async clearAllData() {
+    console.warn('🧹 [Daily Clean Slate] Purging all local data...');
+    const tables = this.tables;
+    await Promise.all(tables.map(table => table.clear()));
+    console.log('✅ [Daily Clean Slate] Local database purged.');
+  }
 }
 
 export const db = new AppDatabase();
