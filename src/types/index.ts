@@ -496,7 +496,10 @@ export interface SyncQueueItem {
   operation: 'upsert' | 'delete';
   payload: Record<string, unknown>;
   created_at: string;
-  status?: 'pending' | 'failed';
+  updated_at?: string;
+  status: 'pending' | 'failed' | 'quarantined';
+  priority: number;
+  retry_count: number;
   error_log?: string;
 }
 

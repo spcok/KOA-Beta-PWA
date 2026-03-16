@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../lib/db';
 import { OrgProfileSettings } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { queueSync } from '../../lib/dataEngine';
 
 const DEFAULT_SETTINGS: OrgProfileSettings = {
   id: 'profile',
@@ -109,18 +110,7 @@ export function useOrgSettings() {
         }
       } else {
         // Queue for later sync
-        const existing = await db.sync_queue.filter(item => item.table_name === 'organisations' && item.record_id === 'profile').first();
-        if (existing) {
-          await db.sync_queue.put({ ...existing, payload: settingsToSave, operation: 'upsert' });
-        } else {
-          await db.sync_queue.add({
-            table_name: 'organisations',
-            record_id: 'profile',
-            operation: 'upsert',
-            payload: settingsToSave,
-            created_at: new Date().toISOString()
-          });
-        }
+        await queueSync('organisations', 'profile', 'upsert', settingsToSave);
       }
       console.log("✅ [OrgSettings] Save successful");
     } catch (error) {

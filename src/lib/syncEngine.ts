@@ -1,5 +1,6 @@
 import { db, AppDatabase } from './db';
 import { supabase } from './supabase';
+import { SyncQueueItem } from '../types';
 
 /**
  * resolvePayloadMedia
@@ -68,39 +69,48 @@ async function resolvePayloadMedia(payload: Record<string, unknown>): Promise<Re
 }
 
 /**
- * shouldUpsert
- * Conflict Resolution: Checks if the incoming record is chronologically newer
- * than the one already on the server.
+ * bulkShouldUpsert
+ * Conflict Resolution: Checks multiple records against the server in a single batch.
  */
-async function shouldUpsert(table: string, payload: Record<string, unknown>): Promise<boolean> {
-  if (!payload.updated_at) return true; // Fallback if no timestamp
+async function bulkShouldUpsert(table: string, items: { id: string, updated_at: string }[]): Promise<Set<string>> {
+  const ids = items.map(i => i.id);
+  const validIds = new Set<string>();
 
   try {
-    const { data: remoteRecord, error } = await supabase
+    const { data: remoteRecords, error } = await supabase
       .from(table)
-      .select('updated_at')
-      .eq('id', payload.id as string)
-      .maybeSingle();
+      .select('id, updated_at')
+      .in('id', ids);
 
     if (error) {
-      console.warn(`🛠️ [Collision Check] Error fetching remote record for ${table}/${payload.id}:`, error);
-      return true; // Proceed if check fails
+      console.warn(`🛠️ [Bulk Collision Check] Error fetching remote records for ${table}:`, error);
+      // If check fails, we assume all are valid to prevent data loss
+      return new Set(ids);
     }
 
-    if (!remoteRecord || !remoteRecord.updated_at) return true; // New record
+    const remoteMap = new Map(remoteRecords?.map(r => [r.id, r.updated_at]));
 
-    const remoteTime = new Date(remoteRecord.updated_at).getTime();
-    const localTime = new Date(payload.updated_at as string).getTime();
+    for (const item of items) {
+      const remoteUpdatedAt = remoteMap.get(item.id);
+      if (!remoteUpdatedAt) {
+        validIds.add(item.id);
+        continue;
+      }
 
-    if (localTime < remoteTime) {
-      console.warn(`🛠️ [Collision] Skipping sync for ${table}/${payload.id}. Server has a newer version (${new Date(remoteTime).toISOString()}) than the incoming payload (${new Date(localTime).toISOString()}).`);
-      return false;
+      const remoteTime = new Date(remoteUpdatedAt).getTime();
+      const localTime = new Date(item.updated_at).getTime();
+
+      if (localTime >= remoteTime) {
+        validIds.add(item.id);
+      } else {
+        console.warn(`🛠️ [Collision] Skipping sync for ${table}/${item.id}. Server version is newer (${remoteUpdatedAt}) than local (${item.updated_at}).`);
+      }
     }
 
-    return true;
+    return validIds;
   } catch (err) {
-    console.error(`🛠️ [Collision Check] Fatal error for ${table}/${payload.id}:`, err);
-    return true;
+    console.error(`🛠️ [Bulk Collision Check] Fatal error for ${table}:`, err);
+    return new Set(ids);
   }
 }
 
@@ -176,175 +186,196 @@ export async function forceHydrateFromCloud() {
 let isProcessing = false;
 
 export async function processSyncQueue() {
-  if (isProcessing) {
-    console.warn('🛠️ [Anti-Regression] processSyncQueue is already running. Skipping to prevent runaway loop.');
-    return;
-  }
+  if (isProcessing) return;
   isProcessing = true;
 
   try {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.warn('🛠️ [Engine QA] Sync aborted: Device is offline.');
+      console.warn('🛠️ [Sync Engine] Aborted: Offline.');
       return;
     }
 
-    const queue = await db.sync_queue.toArray();
+    // 1. Fetch chunk (limit 50) where status !== 'quarantined'
+    // We sort by priority (1 is highest)
+    const queue = await db.sync_queue
+      .where('status')
+      .notEqual('quarantined')
+      .limit(50)
+      .toArray();
     
     if (queue.length === 0) return;
 
-    // Verify session before syncing
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) {
-      if (sessionError.message.includes('Refresh Token Not Found')) {
-        console.warn('🛠 [Engine QA] Sync aborted: Refresh token is invalid. User must re-authenticate.');
-        await supabase.auth.signOut();
-        return;
-      }
-      throw sessionError;
-    }
+    // 2. Sort strictly by priority (1 goes first)
+    queue.sort((a, b) => a.priority - b.priority);
 
+    // Verify session
+    const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      console.warn('🛠️ [Engine QA] Sync aborted: User is not authenticated. RLS will reject the payload.');
+      console.warn('🛠️ [Sync Engine] Aborted: No session.');
       return;
     }
-    
-    // Group and order sync operations
-    const operationsByTable: Record<string, { operation: 'upsert' | 'delete', payload: Record<string, unknown>, id: number }[]> = {};
+
+    // 3. Group by table to enable bulk operations
+    const tableGroups: Record<string, { upserts: SyncQueueItem[], deletes: SyncQueueItem[] }> = {};
     queue.forEach(item => {
-      if (!operationsByTable[item.table_name]) {
-        operationsByTable[item.table_name] = [];
+      if (!tableGroups[item.table_name]) {
+        tableGroups[item.table_name] = { upserts: [], deletes: [] };
       }
-      operationsByTable[item.table_name].push({ operation: item.operation, payload: item.payload as Record<string, unknown>, id: item.id! });
+      if (item.operation === 'upsert') {
+        tableGroups[item.table_name].upserts.push(item);
+      } else {
+        tableGroups[item.table_name].deletes.push(item);
+      }
     });
 
-    // Define a safe sync order for upserts (Parents first)
-    const upsertOrder = [
-      'users',
-      'animals', 
-      'archived_animals',
-      'shifts',
-      'holidays',
-      'timesheets',
-      'medical_logs', 
-      'mar_charts', 
-      'quarantine_records',
-      'internal_movements', 
-      'external_transfers',
-      'tasks',
-      'daily_logs',
-      'role_permissions',
-      'operational_lists'
-    ];
+    // 4. Process each table group
+    // We iterate through the unique tables in the order they appeared in the prioritized queue
+    const uniqueTables = [...new Set(queue.map(i => i.table_name))];
 
-    // Define a safe sync order for deletes (Children first)
-    const deleteOrder = [...upsertOrder].reverse();
+    for (const table of uniqueTables) {
+      const { upserts, deletes } = tableGroups[table];
 
-    const processedItemIds = new Set<number>();
-
-    // Helper to handle failures
-    const handleFailure = async (id: number, error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`🛠️ [Engine QA] Failed to sync item ${id}:`, errorMessage);
-      
-      // If the error is structural/JSON, the payload is corrupted and cannot be sent
-      if (errorMessage.includes('circular structure') || errorMessage.includes('JSON')) {
-        console.warn(`🛠️ [Engine QA] Payload corrupted for item ${id}. Discarding to prevent paralysis.`);
-        await db.sync_queue.delete(id);
-      } else {
-        await db.sync_queue.update(id, { status: 'failed', error_log: errorMessage });
-      }
-    };
-
-    // 1. Process Deletes (Children first)
-    for (const table of deleteOrder) {
-      if (operationsByTable[table]) {
-        for (const item of operationsByTable[table].filter(op => op.operation === 'delete')) {
-          if (typeof navigator !== 'undefined' && !navigator.onLine) {
-            console.warn('🛠️ [Engine QA] Sync paused: Connection lost mid-sync.');
-            return;
-          }
-          try {
-            await supabase.from(table).delete().eq('id', item.payload.id as string).throwOnError();
-            await db.sync_queue.delete(item.id);
-            processedItemIds.add(item.id);
-          } catch (error) {
-            await handleFailure(item.id, error);
-          }
+      // A. Process Deletes (Bulk)
+      if (deletes.length > 0) {
+        const deleteIds = deletes.map(d => (d.payload as { id: string }).id);
+        try {
+          console.log(`🛠️ [Sync Engine] Bulk deleting ${deletes.length} records from ${table}`);
+          await supabase.from(table).delete().in('id', deleteIds).throwOnError();
+          await db.sync_queue.bulkDelete(deletes.map(d => d.id!));
+        } catch (err) {
+          for (const d of deletes) await handleSyncFailure(d, err);
         }
       }
-    }
 
-    // 2. Process Upserts (Parents first)
-    for (const table of upsertOrder) {
-      if (operationsByTable[table]) {
-        for (const item of operationsByTable[table].filter(op => op.operation === 'upsert')) {
-          if (typeof navigator !== 'undefined' && !navigator.onLine) {
-            console.warn('🛠️ [Engine QA] Sync paused: Connection lost mid-sync.');
-            return;
+      // B. Process Upserts (Bulk with Conflict Resolution)
+      if (upserts.length > 0) {
+        try {
+          console.log(`🛠️ [Sync Engine] Bulk upserting ${upserts.length} records to ${table}`);
+          
+          // i. Resolve Media for each item (individual staged upload)
+          const resolvedItems: { queueItem: SyncQueueItem, payload: Record<string, unknown> }[] = [];
+          for (const item of upserts) {
+            const resolvedPayload = await resolvePayloadMedia(item.payload as Record<string, unknown>);
+            resolvedItems.push({ queueItem: item, payload: resolvedPayload });
           }
-          try {
-            // 1. Resolve any staged media before upserting
-            const resolvedPayload = await resolvePayloadMedia(item.payload);
+
+          // ii. Bulk Conflict Check
+          const checkData = resolvedItems.map(ri => ({
+            id: ri.payload.id as string,
+            updated_at: (ri.payload.updated_at || ri.queueItem.created_at) as string
+          }));
+          const validIds = await bulkShouldUpsert(table, checkData);
+
+          // iii. Filter valid payloads
+          const finalPayloads = resolvedItems
+            .filter(ri => validIds.has(ri.payload.id as string))
+            .map(ri => ri.payload);
+          
+          const staleItems = resolvedItems.filter(ri => !validIds.has(ri.payload.id as string));
+
+          // iv. Bulk Upsert
+          if (finalPayloads.length > 0) {
+            // Pre-flight serialization check for the whole batch
+            JSON.stringify(finalPayloads);
             
-            // 2. Conflict Resolution: Only upsert if this payload is newer than the server's
-            const isNewer = await shouldUpsert(table, resolvedPayload);
-            if (!isNewer) {
-              await db.sync_queue.delete(item.id);
-              processedItemIds.add(item.id);
-              continue;
-            }
-
-            // 3. Pre-flight serialization check
-            JSON.stringify(resolvedPayload);
+            await supabase.from(table).upsert(finalPayloads, { onConflict: 'id' }).throwOnError();
             
-            await supabase.from(table).upsert(resolvedPayload, { onConflict: 'id' }).throwOnError();
-            await db.sync_queue.delete(item.id);
-            processedItemIds.add(item.id);
-          } catch (error) {
-            await handleFailure(item.id, error);
+            const successIds = resolvedItems
+              .filter(ri => validIds.has(ri.payload.id as string))
+              .map(ri => ri.queueItem.id!);
+            await db.sync_queue.bulkDelete(successIds);
           }
+
+          // v. Clean up stale items (already newer on server)
+          if (staleItems.length > 0) {
+            await db.sync_queue.bulkDelete(staleItems.map(si => si.queueItem.id!));
+          }
+
+        } catch (err) {
+          for (const item of upserts) await handleSyncFailure(item, err);
         }
       }
     }
 
-    // 3. Process any remaining items not in the defined syncOrder (fallback)
-    for (const table in operationsByTable) {
-      for (const item of operationsByTable[table]) {
-        if (!processedItemIds.has(item.id)) {
-          if (typeof navigator !== 'undefined' && !navigator.onLine) {
-            console.warn('🛠️ [Engine QA] Sync paused: Connection lost mid-sync.');
-            return;
-          }
-          try {
-            if (item.operation === 'upsert') {
-              // 1. Resolve any staged media before upserting
-              const resolvedPayload = await resolvePayloadMedia(item.payload);
-              
-              // 2. Conflict Resolution: Only upsert if this payload is newer than the server's
-              const isNewer = await shouldUpsert(table, resolvedPayload);
-              if (!isNewer) {
-                await db.sync_queue.delete(item.id);
-                continue;
-              }
-
-              // 3. Pre-flight serialization check
-              JSON.stringify(resolvedPayload);
-              
-              await supabase.from(table).upsert(resolvedPayload, { onConflict: 'id' }).throwOnError();
-            } else if (item.operation === 'delete') {
-              await supabase.from(table).delete().eq('id', item.payload.id as string).throwOnError();
-            }
-            await db.sync_queue.delete(item.id);
-          } catch (error) {
-            await handleFailure(item.id, error);
-          }
-        }
-      }
+    // 5. Recursion: If we processed a full chunk, trigger again to drain the queue
+    if (queue.length === 50) {
+      console.log('🛠️ [Sync Engine] Chunk complete. Draining remaining queue...');
+      setTimeout(() => processSyncQueue(), 500);
     }
+
   } catch (error) {
     console.error('🛠️ [Sync Engine] Critical error in processSyncQueue:', error);
   } finally {
     isProcessing = false;
+  }
+}
+
+/**
+ * handleSyncFailure
+ * Capped Exponential Backoff & Dead Letter Queue (Quarantine) logic.
+ */
+async function handleSyncFailure(item: SyncQueueItem, error: unknown) {
+  const retryCount = (item.retry_count || 0) + 1;
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  
+  // Quarantine logic:
+  // - 3 failed retries
+  // - Definitive Supabase rejection (400 series, FK violations starting with 23)
+  const supabaseError = error as { code?: string; status?: number };
+  const isDefinitiveError = supabaseError?.code?.startsWith('23') || (supabaseError?.status !== undefined && supabaseError.status >= 400 && supabaseError.status < 500);
+  const shouldQuarantine = retryCount >= 3 || isDefinitiveError;
+  
+  const status = shouldQuarantine ? 'quarantined' : 'pending';
+
+  console.error(`🛠️ [Sync Engine] Failure for ${item.table_name}/${item.record_id} (Retry ${retryCount}):`, errorMessage);
+
+  await db.sync_queue.update(item.id!, {
+    retry_count: retryCount,
+    status,
+    error_log: errorMessage,
+    updated_at: new Date().toISOString()
+  });
+
+  if (status === 'pending') {
+    // Capped Exponential Backoff: 2s, 4s, 8s... capped at 60s
+    const delay = Math.min(60000, 2000 * Math.pow(2, retryCount));
+    console.warn(`🛠️ [Sync Engine] Backing off for ${delay}ms...`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+  } else {
+    console.error(`🛠️ [Sync Engine] Item ${item.id} QUARANTINED. Manual intervention required.`);
+  }
+}
+
+/**
+ * reconcileMissedEvents
+ * Fetches records updated since the last sync to bridge gaps from offline periods.
+ */
+export async function reconcileMissedEvents() {
+  const tables = ['animals', 'daily_logs', 'medical_logs', 'tasks', 'incidents', 'internal_movements', 'external_transfers'];
+  
+  // We look back 1 hour by default or use a stored timestamp
+  const lastSync = localStorage.getItem('last_sync_reconcile') || new Date(Date.now() - 3600000).toISOString();
+  
+  console.log(`🌐 [Sync Engine] Reconciling events since ${lastSync}...`);
+
+  try {
+    for (const table of tables) {
+      const { data, error } = await supabase
+        .from(table)
+        .select('*')
+        .gt('updated_at', lastSync);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const dbTable = db[table as keyof AppDatabase] as import('dexie').Table<unknown, string | number>;
+        await dbTable.bulkPut(data);
+        console.log(`✅ [Sync Engine] Reconciled ${data.length} records for ${table}`);
+      }
+    }
+    localStorage.setItem('last_sync_reconcile', new Date().toISOString());
+  } catch (err) {
+    console.error('🛠️ [Sync Engine] Reconciliation failed:', err);
   }
 }
 
@@ -384,8 +415,8 @@ export const pushChangesToSupabase = processSyncQueue;
 // Setup global event listeners for online/offline events
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
-    console.log('🌐 [Sync Engine] Network connection restored. Triggering queue flush.');
-    processSyncQueue().catch(console.error);
+    console.log('🌐 [Sync Engine] Network connection restored. Reconciling and flushing queue.');
+    reconcileMissedEvents().then(() => processSyncQueue()).catch(console.error);
   });
   
   window.addEventListener('offline', () => {

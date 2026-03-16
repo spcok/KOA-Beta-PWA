@@ -200,16 +200,38 @@ export async function restoreAnimal(animal: Animal) {
   }
 }
 
-async function queueSync(tableName: string, recordId: string, operation: 'upsert' | 'delete', payload: Record<string, unknown>) {
+export async function queueSync(tableName: string, recordId: string, operation: 'upsert' | 'delete', payload: Record<string, unknown>) {
   const existing = await db.sync_queue.filter(item => item.table_name === tableName && item.record_id === recordId).first();
+  
+  // Priority logic:
+  // 1: Critical daily logs
+  // 2: Medical, incidents, missing_animals
+  // 3: Movements & transfers
+  // 4: Everything else
+  let priority = 4;
+  if (tableName === 'daily_logs') priority = 1;
+  else if (['medical_logs', 'incidents', 'missing_animals'].includes(tableName)) priority = 2;
+  else if (['internal_movements', 'external_transfers'].includes(tableName)) priority = 3;
+
   if (existing) {
-    await db.sync_queue.put({ ...existing, payload, operation });
+    await db.sync_queue.put({ 
+      ...existing, 
+      payload, 
+      operation, 
+      priority,
+      status: 'pending', // Reset status if updated
+      retry_count: 0,    // Reset retries if updated
+      updated_at: new Date().toISOString() 
+    });
   } else {
     await db.sync_queue.add({
       table_name: tableName,
       record_id: recordId,
       operation,
       payload,
+      status: 'pending',
+      priority,
+      retry_count: 0,
       created_at: new Date().toISOString()
     });
   }
