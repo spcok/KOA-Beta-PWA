@@ -201,7 +201,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
             </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="max-w-[1920px] mx-auto px-2 md:px-4 py-4">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 
                 {/* LEFT COLUMN: IDENTITY & STATS (BENTO) */}

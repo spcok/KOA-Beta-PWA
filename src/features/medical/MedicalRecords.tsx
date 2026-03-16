@@ -115,7 +115,7 @@ const MedicalRecords: React.FC = () => {
   );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-2 md:p-4 max-w-[1920px] mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-slate-900">Clinical Records</h1>
         { (activeTab === 'notes' && permissions.add_clinical_notes) || (activeTab === 'mar' && permissions.prescribe_medications) || (activeTab === 'quarantine' && permissions.manage_quarantine) ? (

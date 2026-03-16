@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   ShieldCheck, Users, FileText, Brain, 
-  Database, List, Building, HeartPulse, Bug,
-  History
+  Database, List, Building, Bug,
+  History, Activity
 } from 'lucide-react';
 import AccessControl from './tabs/AccessControl';
 import Directory from './tabs/Directory';
@@ -34,7 +34,7 @@ const SettingsLayout: React.FC = () => {
     { id: 'migration', label: 'Migration', icon: Database, permission: 'view_settings' },
     { id: 'lists', label: 'Operational Lists', icon: List, permission: 'view_settings' },
     { id: 'org', label: 'Organisation Profile', icon: Building, permission: 'view_settings' },
-    { id: 'health', label: 'System Health', icon: HeartPulse, permission: 'view_settings' },
+    { id: 'health', label: 'System Health', icon: Activity, permission: 'view_settings' },
     { id: 'bugs', label: 'Bug Reports', icon: Bug, permission: 'manage_incidents' },
     { id: 'changelog', label: 'Changelog', icon: History, permission: 'view_settings' },
   ];
@@ -65,7 +65,7 @@ const SettingsLayout: React.FC = () => {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-2 md:p-4 max-w-[1920px] mx-auto space-y-6">
       <h1 className="text-3xl font-bold text-slate-900">System Settings</h1>
       <div className="flex gap-6">
         <nav className="w-64 space-y-1">
@@ -84,7 +84,7 @@ const SettingsLayout: React.FC = () => {
             </button>
           ))}
         </nav>
-        <main className="flex-1 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+        <main className="flex-1 bg-slate-50 p-2 md:p-4 rounded-2xl border border-slate-200">
           {renderContent()}
         </main>
       </div>

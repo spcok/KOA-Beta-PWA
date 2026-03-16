@@ -599,14 +599,14 @@ export default function ReportsDashboard() {
       {/* Main Content */}
       <div className="flex-grow flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-white border-b border-slate-200 px-8 py-6 print:hidden">
+        <div className="bg-white border-b border-slate-200 px-4 py-4 print:hidden">
           <h1 className="text-3xl font-bold text-slate-900">
             {activeReport.title}
           </h1>
           <p className="text-slate-500 mt-1">{activeReport.description}</p>
         </div>
 
-        <div className="bg-white border-b border-slate-200 px-8 py-4 print:hidden">
+        <div className="bg-white border-b border-slate-200 px-4 py-3 print:hidden">
           <div className="flex flex-wrap items-end gap-4">
             {activeReport?.id !== 'site_maintenance' && activeReport?.id !== 'death_certificate' && (
               <>
@@ -717,7 +717,7 @@ export default function ReportsDashboard() {
           </div>
         </div>
 
-        <div className="flex-grow flex flex-col p-8 overflow-hidden">
+        <div className="flex-grow flex flex-col p-4 overflow-hidden">
           {/* Preview Pane */}
           <div className="flex-grow flex flex-col overflow-hidden bg-slate-100/50 rounded-xl border border-slate-200">
             {error && <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-lg">{error}</div>}

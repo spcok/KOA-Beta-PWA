@@ -73,7 +73,7 @@ const Layout: React.FC<LayoutProps> = () => {
   } = permissions;
   const { activeShift, clockIn, clockOut } = useAppData();
   const { settings: orgSettings } = useOrgSettings();
-  const { isOnline, syncQueueCount } = useNetworkStatus();
+  const { isOnline } = useNetworkStatus();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>('medium');
@@ -297,24 +297,6 @@ const Layout: React.FC<LayoutProps> = () => {
       <main className="flex-1 flex flex-col min-w-0 relative overflow-x-hidden print:overflow-visible">
         {/* Update Banner */}
         <UpdateBanner />
-        {/* Offline Banner */}
-        {(!isOnline || syncQueueCount > 0) && (
-          <div className={`absolute top-0 left-0 right-0 z-[60] flex items-center justify-center gap-2 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
-            !isOnline ? 'bg-amber-500 text-slate-900' : 'bg-emerald-500 text-white'
-          }`}>
-            {!isOnline ? (
-              <>
-                <WifiOff size={12} />
-                Offline Mode: Changes will be saved locally. {syncQueueCount > 0 ? `${syncQueueCount} records queued` : ''}
-              </>
-            ) : (
-              <>
-                <Wifi size={12} />
-                Connection restored. Syncing data... {syncQueueCount} records remaining
-              </>
-            )}
-          </div>
-        )}
 
         {/* Mobile Top Navbar */}
         <header className="md:hidden h-16 bg-[#1c1c1e] border-b border-slate-800 flex items-center justify-between px-4 z-50 no-print shadow-lg shrink-0">
@@ -348,8 +330,16 @@ const Layout: React.FC<LayoutProps> = () => {
           </div>
         </header>
 
+        {/* Offline Banner */}
+        {!isOnline && (
+          <div className="bg-amber-500 text-slate-900 z-[60] flex items-center justify-center gap-2 py-2 px-4 text-[10px] font-black uppercase tracking-[0.2em] shrink-0 text-center">
+            <WifiOff size={12} />
+            Offline Mode: Changes will be saved locally.
+          </div>
+        )}
+
         {/* Content Area */}
-        <div className={`flex-1 overflow-y-auto bg-slate-200 print:bg-white print:overflow-visible pb-24 md:pb-0 ${(!isOnline || syncQueueCount > 0) ? 'pt-[60px]' : ''}`}>
+        <div className="flex-1 overflow-y-auto bg-slate-200 print:bg-white print:overflow-visible pb-24 md:pb-0">
           <Outlet context={{ isSidebarCollapsed }} />
         </div>
       </main>

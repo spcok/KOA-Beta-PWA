@@ -16,7 +16,7 @@ export const AnimalsList = ({ animals, onSelectAnimal }: { animals: Animal[], on
   const canViewArchived = permissions.isAdmin || permissions.isOwner;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-2 md:p-4 max-w-[1920px] mx-auto space-y-6">
       <h1 className="text-3xl font-bold text-slate-900">Animals Directory</h1>
       {canViewArchived && (
         <div className="flex gap-2 border-b border-slate-200 pb-4 overflow-x-auto">

@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { User, Palette, Building, ShieldCheck, History } from 'lucide-react';
+import { User, Palette, Building, ShieldCheck, History, Activity } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useAppData } from '../../context/Context';
 import AccessControl from './tabs/AccessControl';
 import Changelog from './tabs/Changelog';
+import SystemHealth from './tabs/SystemHealth';
 
 const Settings: React.FC = () => {
   const { currentUser } = useAuthStore();
   const { orgProfile } = useAppData();
-  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'organization' | 'access' | 'changelog'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'organization' | 'access' | 'changelog' | 'health'>('profile');
 
   // UI State for placeholders
   const [highContrast, setHighContrast] = useState(false);
@@ -27,10 +28,11 @@ const Settings: React.FC = () => {
           { id: 'organization', label: 'Organisation', icon: Building },
           { id: 'access', label: 'Access Control', icon: ShieldCheck },
           { id: 'changelog', label: 'Changelog', icon: History },
+          { id: 'health', label: 'System Health', icon: Activity },
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as 'profile' | 'preferences' | 'organization' | 'access' | 'changelog')}
+            onClick={() => setActiveTab(tab.id as 'profile' | 'preferences' | 'organization' | 'access' | 'changelog' | 'health')}
             className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors ${
               activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
@@ -110,6 +112,7 @@ const Settings: React.FC = () => {
 
         {activeTab === 'access' && <AccessControl />}
         {activeTab === 'changelog' && <Changelog />}
+        {activeTab === 'health' && <SystemHealth />}
       </div>
     </div>
   );
