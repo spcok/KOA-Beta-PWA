@@ -14,7 +14,6 @@ import { useAppData } from '../../context/Context';
 import { useOrgSettings } from '../../features/settings/useOrgSettings';
 import GlobalBugReporter from '../ui/GlobalBugReporter';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
-import { useAppUpdate } from '../../hooks/useAppUpdate';
 import { UpdateBanner } from './UpdateBanner';
 
 interface LayoutProps {
@@ -75,7 +74,6 @@ const Layout: React.FC<LayoutProps> = () => {
   const { activeShift, clockIn, clockOut } = useAppData();
   const { settings: orgSettings } = useOrgSettings();
   const { isOnline, syncQueueCount } = useNetworkStatus();
-  const { updateAvailable, refreshApp } = useAppUpdate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>('medium');
@@ -298,12 +296,10 @@ const Layout: React.FC<LayoutProps> = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 relative overflow-x-hidden print:overflow-visible">
         {/* Update Banner */}
-        {updateAvailable && (
-          <UpdateBanner onRefresh={refreshApp} syncQueueCount={syncQueueCount} />
-        )}
+        <UpdateBanner />
         {/* Offline Banner */}
         {(!isOnline || syncQueueCount > 0) && (
-          <div className={`absolute ${updateAvailable ? 'top-[60px]' : 'top-0'} left-0 right-0 z-[60] flex items-center justify-center gap-2 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
+          <div className={`absolute top-0 left-0 right-0 z-[60] flex items-center justify-center gap-2 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${
             !isOnline ? 'bg-amber-500 text-slate-900' : 'bg-emerald-500 text-white'
           }`}>
             {!isOnline ? (
@@ -353,7 +349,7 @@ const Layout: React.FC<LayoutProps> = () => {
         </header>
 
         {/* Content Area */}
-        <div className={`flex-1 overflow-y-auto bg-slate-200 print:bg-white print:overflow-visible pb-24 md:pb-0 ${((!isOnline || syncQueueCount > 0) && updateAvailable) ? 'pt-[100px]' : ((!isOnline || syncQueueCount > 0) || updateAvailable) ? 'pt-[60px]' : ''}`}>
+        <div className={`flex-1 overflow-y-auto bg-slate-200 print:bg-white print:overflow-visible pb-24 md:pb-0 ${(!isOnline || syncQueueCount > 0) ? 'pt-[60px]' : ''}`}>
           <Outlet context={{ isSidebarCollapsed }} />
         </div>
       </main>
