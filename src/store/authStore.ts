@@ -47,39 +47,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialize: async () => {
     set({ isLoading: true });
     
-    // --- DAILY CLEAN SLATE PROTOCOL ---
-    const today = new Date().toISOString().split('T')[0];
-    const lastRefresh = localStorage.getItem('last_refresh_date');
-
-    if (navigator.onLine && lastRefresh !== today) {
-      console.log('🔄 [Daily Clean Slate] New day detected. Running maintenance...');
-      try {
-        // 1. Purge Dexie
-        await db.clearAllData();
-
-        // 2. Update Service Worker
-        if ('serviceWorker' in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          for (const registration of registrations) {
-            await registration.update();
-          }
-        }
-
-        // 3. Sign out from Supabase
-        await supabase.auth.signOut();
-
-        // 4. Update refresh date
-        localStorage.setItem('last_refresh_date', today);
-
-        // 5. Force redirect to login for a clean start
-        window.location.href = '/login';
-        return;
-      } catch (err) {
-        console.error('❌ [Daily Clean Slate] Protocol failed:', err);
-      }
-    }
-    // ----------------------------------
-
     try {
       // 1. Try to get session from local storage immediately (fast)
       const { data: { session: localSession } } = await supabase.auth.getSession();

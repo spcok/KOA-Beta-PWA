@@ -1,5 +1,6 @@
-const CACHE_NAME = 'koa-static-v2';
+const CACHE_NAME = 'koa-static-v3';
 const COMPLIANCE_CACHE = 'compliance-data-cache';
+const MEDIA_CACHE = 'koa-media-cache';
 const COMPLIANCE_MAX_AGE = 14 * 24 * 60 * 60 * 1000; // 14 days in ms
 
 const APP_SHELL = [
@@ -10,6 +11,8 @@ const APP_SHELL = [
   '/icon-512.png',
   '/offline-media-fallback.svg'
 ];
+
+const broadcast = new BroadcastChannel('koa-pwa-messages');
 
 // Install Event
 self.addEventListener('install', (event) => {
@@ -29,7 +32,7 @@ self.addEventListener('activate', (event) => {
       caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            if (![CACHE_NAME, COMPLIANCE_CACHE].includes(cacheName)) {
+            if (![CACHE_NAME, COMPLIANCE_CACHE, MEDIA_CACHE].includes(cacheName)) {
               return caches.delete(cacheName);
             }
           })
@@ -40,6 +43,14 @@ self.addEventListener('activate', (event) => {
     ])
   );
   self.clients.claim();
+});
+
+// Background Sync
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'koa-sync') {
+    console.log('🌐 [SW] Background Sync triggered: koa-sync');
+    broadcast.postMessage({ type: 'SYNC_REQUESTED' });
+  }
 });
 
 self.addEventListener('message', (event) => {
@@ -75,7 +86,6 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // Rule 1: Strict Shield Bypass (Network Only)
-  // Explicitly bypass /functions/v1/ (AI/Edge) and /auth/v1/
   if (url.hostname.includes('supabase.co') && (
     url.pathname.includes('/auth/v1/') ||
     url.pathname.includes('/functions/v1/')
@@ -83,38 +93,60 @@ self.addEventListener('fetch', (event) => {
     return; // Network Only
   }
 
-  // Rule 2: Targeted Vault Caching (Strictly /rest/v1/)
+  // Rule 2: SWR for Media (Supabase Storage)
+  if (url.pathname.includes('/storage/v1/object/public/')) {
+    event.respondWith(staleWhileRevalidate(event.request, MEDIA_CACHE));
+    return;
+  }
+
+  // Rule 3: Targeted Vault Caching (Strictly /rest/v1/)
   if (url.hostname.includes('supabase.co') && url.pathname.includes('/rest/v1/')) {
     event.respondWith(networkFirstWithTimeout(event.request, COMPLIANCE_CACHE));
     return;
   }
 
-  // Rule 3: Network-First for HTML/UI Navigation
+  // Rule 4: SPA Routing Fallback (App Shell Pattern)
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(event.request).catch(() => caches.match('/index.html'))
     );
     return;
   }
 
-  // Rule 4: Static Assets (Cache First)
+  // Rule 5: Dynamic Asset Caching (Vite Assets)
   const isStaticAsset = [
-    '.js', '.css', '.png', '.jpg', '.jpeg', '.svg', '.woff2'
+    '.js', '.css', '.woff2', '.svg', '.png', '.jpg', '.jpeg'
   ].some(ext => url.pathname.endsWith(ext));
 
   if (isStaticAsset || APP_SHELL.includes(url.pathname)) {
     event.respondWith(
       caches.match(event.request).then((response) => {
         return response || fetch(event.request).then((networkResponse) => {
-          return caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
+          if (!networkResponse || networkResponse.status !== 200) return networkResponse;
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
           });
+          return networkResponse;
         });
       })
     );
   }
 });
+
+async function staleWhileRevalidate(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cachedResponse = await cache.match(request);
+  
+  const fetchPromise = fetch(request).then((networkResponse) => {
+    if (networkResponse && networkResponse.status === 200) {
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  });
+
+  return cachedResponse || fetchPromise;
+}
 
 async function networkFirstWithTimeout(request, cacheName) {
   const timeoutPromise = new Promise((resolve) => 

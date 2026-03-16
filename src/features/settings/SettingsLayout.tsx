@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   ShieldCheck, Users, FileText, Brain, 
-  Database, List, Building, HeartPulse, Bug 
+  Database, List, Building, HeartPulse, Bug,
+  History
 } from 'lucide-react';
 import AccessControl from './tabs/AccessControl';
 import Directory from './tabs/Directory';
@@ -13,9 +14,10 @@ import OperationalLists from './tabs/OperationalLists';
 import OrgProfile from './tabs/OrgProfile';
 import SystemHealth from './tabs/SystemHealth';
 import BugReports from './tabs/BugReports';
+import Changelog from './tabs/Changelog';
 import { usePermissions } from '../../hooks/usePermissions';
 
-type TabType = 'access' | 'directory' | 'zla' | 'intelligence' | 'migration' | 'lists' | 'org' | 'health' | 'bugs';
+type TabType = 'access' | 'directory' | 'zla' | 'intelligence' | 'migration' | 'lists' | 'org' | 'health' | 'bugs' | 'changelog';
 
 const SettingsLayout: React.FC = () => {
   const { tab } = useParams<{ tab: string }>();
@@ -34,6 +36,7 @@ const SettingsLayout: React.FC = () => {
     { id: 'org', label: 'Organisation Profile', icon: Building, permission: 'view_settings' },
     { id: 'health', label: 'System Health', icon: HeartPulse, permission: 'view_settings' },
     { id: 'bugs', label: 'Bug Reports', icon: Bug, permission: 'manage_incidents' },
+    { id: 'changelog', label: 'Changelog', icon: History, permission: 'view_settings' },
   ];
 
   const visibleTabs = tabs.filter(t => !t.permission || permissions[t.permission]);
@@ -56,6 +59,7 @@ const SettingsLayout: React.FC = () => {
       case 'org': return <OrgProfile />;
       case 'health': return <SystemHealth />;
       case 'bugs': return <BugReports />;
+      case 'changelog': return <Changelog />;
       default: return <OrgProfile />;
     }
   };

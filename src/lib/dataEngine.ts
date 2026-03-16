@@ -120,7 +120,12 @@ export function useHybridQuery<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableName, ...deps]);
 
-  return data;
+  // Apply implicit filtering for soft deletes to maintain ZLA 1981 audit trails in DB but hide from UI
+  const filteredData = Array.isArray(data)
+    ? data.filter((item: Record<string, unknown>) => !item.is_deleted)
+    : (data as Record<string, unknown>)?.is_deleted ? undefined : data;
+
+  return filteredData as T;
 }
 
 /**
@@ -148,21 +153,12 @@ export async function archiveAnimal(animal: Animal, reason: string, type: NonNul
     await db.animals.delete(animal.id);
   });
 
-  const pendingCount = await db.sync_queue.count();
+  // Safe transaction routing for archiving: Queue for Sync and trigger background process
+  await queueSync('archived_animals', animal.id, 'upsert', archivedAnimal);
+  await queueSync('animals', animal.id, 'delete', { id: animal.id });
 
-  // Supabase
-  if (pendingCount === 0 && navigator.onLine) {
-    try {
-      await supabase.from('archived_animals').upsert(archivedAnimal).throwOnError();
-      await supabase.from('animals').delete().eq('id', animal.id).throwOnError();
-    } catch (error) {
-      console.error('Failed to archive animal in Supabase', error);
-      await queueSync('archived_animals', animal.id, 'upsert', archivedAnimal);
-      await queueSync('animals', animal.id, 'delete', { id: animal.id });
-    }
-  } else {
-    await queueSync('archived_animals', animal.id, 'upsert', archivedAnimal);
-    await queueSync('animals', animal.id, 'delete', { id: animal.id });
+  if (navigator.onLine) {
+    processSyncQueue().catch(err => console.error('🛠️ [Engine QA] Archive sync deferred:', err));
   }
 }
 
@@ -182,21 +178,12 @@ export async function restoreAnimal(animal: Animal) {
     await db.archived_animals.delete(animal.id);
   });
 
-  const pendingCount = await db.sync_queue.count();
+  // Safe transaction routing for restoration: Queue for Sync and trigger background process
+  await queueSync('animals', animal.id, 'upsert', restoredAnimal as unknown as Record<string, unknown>);
+  await queueSync('archived_animals', animal.id, 'delete', { id: animal.id });
 
-  // Supabase
-  if (pendingCount === 0 && navigator.onLine) {
-    try {
-      await supabase.from('animals').upsert(restoredAnimal).throwOnError();
-      await supabase.from('archived_animals').delete().eq('id', animal.id).throwOnError();
-    } catch (error) {
-      console.error('Failed to restore animal in Supabase', error);
-      await queueSync('animals', animal.id, 'upsert', restoredAnimal as unknown as Record<string, unknown>);
-      await queueSync('archived_animals', animal.id, 'delete', { id: animal.id });
-    }
-  } else {
-    await queueSync('animals', animal.id, 'upsert', restoredAnimal as unknown as Record<string, unknown>);
-    await queueSync('archived_animals', animal.id, 'delete', { id: animal.id });
+  if (navigator.onLine) {
+    processSyncQueue().catch(err => console.error('🛠️ [Engine QA] Restore sync deferred:', err));
   }
 }
 
@@ -255,12 +242,27 @@ export async function mutateOnlineFirst<T extends { id?: string | number }>(
       // Inject updated_at for conflict resolution
       (payload as Record<string, unknown>).updated_at = new Date().toISOString();
       await table.put(payload);
+      
+      // 2. Queue for Sync
+      await queueSync(tableName as string, payload.id as string, operation, payload as Record<string, unknown>);
     } else {
-      await table.delete(payload.id as string);
+      // Tier-2 Soft Deletes & Blob Cleanup
+      
+      // Step 1: Blob Cleanup - Prevent storage bloat by removing orphaned media queue items
+      await db.media_upload_queue
+        .filter(item => item.tableName === tableName && item.recordId === payload.id)
+        .delete();
+      
+      // Step 2: Soft Delete Conversion - Maintain audit trail per ZLA 1981
+      const softDeletePayload = payload as Record<string, unknown>;
+      softDeletePayload.is_deleted = true;
+      softDeletePayload.deleted_at = new Date().toISOString();
+      softDeletePayload.updated_at = new Date().toISOString();
+      
+      // Step 3: Execution - Upsert locally and queue as upsert to Supabase
+      await table.put(payload);
+      await queueSync(tableName as string, payload.id as string, 'upsert', softDeletePayload);
     }
-
-    // 2. Queue for Sync
-    await queueSync(tableName as string, payload.id as string, operation, payload as Record<string, unknown>);
 
     // 3. Trigger Sync Process (Background)
     if (navigator.onLine) {
