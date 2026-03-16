@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { MessageSquareWarning, X, Send, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 import { useAuthStore } from '../../store/authStore';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/db';
+import { processSyncQueue } from '../../lib/syncEngine';
 
 const GlobalBugReporter: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,7 +23,10 @@ const GlobalBugReporter: React.FC = () => {
     setError(null);
     setIsSuccess(false);
 
+    const reportId = uuidv4();
     const payload = {
+      id: reportId,
+      created_at: new Date().toISOString(),
       message: `[${severity.toUpperCase()}] ${title.trim()}\n\n${message.trim()}`,
       is_online: navigator.onLine,
       url: window.location.href,
@@ -30,9 +35,19 @@ const GlobalBugReporter: React.FC = () => {
     };
 
     try {
-      const { error: supabaseError } = await supabase.from('bug_reports').insert([payload]);
-      
-      if (supabaseError) throw supabaseError;
+      await db.sync_queue.add({
+        table_name: 'bug_reports',
+        record_id: reportId,
+        operation: 'upsert',
+        payload: payload,
+        created_at: new Date().toISOString(),
+        status: 'pending',
+        priority: 5, // Lower priority (5) so clinical/medical data syncs first
+        retry_count: 0
+      });
+
+      // Fire and forget background sync
+      processSyncQueue().catch(console.error);
 
       setIsSuccess(true);
       setTitle('');
@@ -42,10 +57,10 @@ const GlobalBugReporter: React.FC = () => {
       setTimeout(() => {
         setIsSuccess(false);
         setIsOpen(false);
-      }, 2000);
+      }, 1500);
     } catch (err) {
-      console.error('Failed to submit bug report:', err);
-      setError('Failed to submit report. Please try again later.');
+      console.error('Failed to queue bug report:', err);
+      setError('Failed to queue report. Please try again later.');
     } finally {
       setIsSubmitting(false);
     }

@@ -1,11 +1,20 @@
 export interface ChangelogEntry {
   version: string;
   date: string;
-  type: 'Major' | 'Minor' | 'Patch';
+  type: 'Major' | 'Minor' | 'Patch' | 'Hotfix';
   changes: string[];
 }
 
 export const changelogData: ChangelogEntry[] = [
+  {
+    version: 'v1.1.3-beta',
+    date: '2026-03-16',
+    type: 'Hotfix',
+    changes: [
+      "Resolved infinite reload loop during Over-The-Air (OTA) updates,",
+      "Updated Service Worker lifecycle to respect manual user update confirmation."
+    ]
+  },
   {
     version: '1.1.2-beta',
     date: '2026-03-16',

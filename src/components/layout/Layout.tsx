@@ -165,6 +165,7 @@ const Layout: React.FC<LayoutProps> = () => {
         <NavItem to="/" icon={LayoutDashboard} label="Dashboard" permission={true} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
         <NavItem to="/weather" icon={CloudSun} label="Weather" permission={true} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
         <NavItem to="/daily-log" icon={ClipboardList} label="Daily Log" permission={view_daily_logs} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
+        <NavItem to="/daily-rounds" icon={ClipboardCheck} label="Daily Rounds" permission={view_daily_rounds} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
         <NavItem to="/tasks" icon={ListTodo} label="To-Do List" permission={view_tasks} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
         <NavItem to="/feeding-schedule" icon={Utensils} label="Feeding Schedule" permission={true} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
 
@@ -172,7 +173,6 @@ const Layout: React.FC<LayoutProps> = () => {
         <NavItem to="/medical" icon={Stethoscope} label="Medical Records" permission={view_medical} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
         <NavItem to="/movements" icon={ArrowLeftRight} label="Movements" permission={view_movements} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
         <NavItem to="/flight-records" icon={Map} label="Flight Records" permission={true} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
-        <NavItem to="/daily-rounds" icon={ClipboardCheck} label="Daily Rounds" permission={view_daily_rounds} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />
 
         <SectionHeader title="Site & Safety" isSidebarCollapsed={isSidebarCollapsed} />
         <NavItem to="/maintenance" icon={Wrench} label="Site Maintenance" permission={view_maintenance} isSidebarCollapsed={isSidebarCollapsed} setIsMobileMenuOpen={setIsMobileMenuOpen} />

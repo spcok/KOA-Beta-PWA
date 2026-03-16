@@ -117,9 +117,9 @@ const DailyRounds: React.FC<DailyRoundsProps> = () => {
                         <button onClick={() => setRoundType('Evening')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${roundType === 'Evening' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}><Moon size={16} /> Evening</button>
                     </div>
                 </div>
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                <div className="flex overflow-x-auto scrollbar-hide bg-slate-100 p-1 rounded-xl gap-0.5 sm:gap-1 mb-4">
                     {tabs.map((tab: AnimalCategory) => (
-                        <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 min-w-[100px] py-2.5 text-center rounded-lg text-xs font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === tab ? 'bg-slate-800 text-white border-slate-600 shadow-md' : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100'}`}>{tab}</button>
+                        <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 min-w-fit sm:min-w-[100px] py-1.5 px-1 sm:py-2.5 text-[11px] sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${activeTab === tab ? 'bg-white text-slate-800 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}>{tab}</button>
                     ))}
                 </div>
             </div>
@@ -235,7 +235,7 @@ const DailyRounds: React.FC<DailyRoundsProps> = () => {
                         <button 
                             onClick={handleSignOff} 
                             disabled={!isComplete || isSubmitting || !signingInitials || isNoteRequired || isPastRound} 
-                            className="bg-slate-900 text-white px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg flex items-center justify-center gap-3 hover:bg-black transition-all disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed active:scale-95 h-full"
+                            className="bg-slate-900 text-white px-6 py-4 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg flex items-center justify-center gap-3 hover:bg-black transition-all disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed active:scale-95 w-full"
                         >
                             {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={20}/>} 
                             {isPastRound ? 'Signed Off' : `Verify & Sign Off ${String(activeTab)}`}

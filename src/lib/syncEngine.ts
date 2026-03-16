@@ -260,16 +260,39 @@ export async function processSyncQueue() {
           }
 
           // ii. Bulk Conflict Check
-          const checkData = resolvedItems.map(ri => ({
-            id: ri.payload.id as string,
-            updated_at: (ri.payload.updated_at || ri.queueItem.created_at) as string
-          }));
-          const validIds = await bulkShouldUpsert(table, checkData);
+          // Split items into those requiring conflict resolution and those that bypass it
+          const itemsRequiringCheck = resolvedItems.filter(ri => ri.payload.updated_at !== undefined);
+          const itemsBypassingCheck = resolvedItems.filter(ri => ri.payload.updated_at === undefined);
+
+          // Only run bulkShouldUpsert on items that actually have timestamps
+          let validIds = new Set<string>();
+          if (itemsRequiringCheck.length > 0) {
+            const checkData = itemsRequiringCheck.map(ri => ({
+              id: ri.payload.id as string,
+              // Fallback to queueItem.created_at ONLY if we know this table tracks timestamps
+              updated_at: (ri.payload.updated_at || ri.queueItem.created_at) as string
+            }));
+            validIds = await bulkShouldUpsert(table, checkData);
+          }
+
+          // Combine the valid timestamped items with the bypassed items
+          itemsBypassingCheck.forEach(ri => validIds.add(ri.payload.id as string));
 
           // iii. Filter valid payloads
           const finalPayloads = resolvedItems
             .filter(ri => validIds.has(ri.payload.id as string))
-            .map(ri => ri.payload);
+            .map(ri => {
+              const payload = { ...ri.payload as Record<string, unknown> };
+              
+              // Sanitization Step: To ensure Supabase doesn't choke on empty timestamp columns during the actual .upsert(), 
+              // explicitly delete the updated_at and created_at keys if they are undefined.
+              if (payload.updated_at === undefined) delete payload.updated_at;
+              if (payload.created_at === undefined) delete payload.created_at;
+              
+              // Strip undefined properties
+              Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+              return payload;
+            });
           
           const staleItems = resolvedItems.filter(ri => !validIds.has(ri.payload.id as string));
 

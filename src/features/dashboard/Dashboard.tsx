@@ -239,12 +239,12 @@ const Dashboard: React.FC<DashboardProps> = ({
 
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto scrollbar-hide bg-slate-100 p-1 rounded-xl gap-1">
+      <div className="flex overflow-x-auto scrollbar-hide bg-slate-100 p-1 rounded-xl gap-0.5 sm:gap-1">
         {[AnimalCategory.OWLS, AnimalCategory.RAPTORS, AnimalCategory.MAMMALS, AnimalCategory.EXOTICS].map(cat => (
           <button
             key={cat}
             onClick={() => setActiveTab(cat)}
-            className={`flex-1 min-w-[100px] py-2 px-4 text-xs lg:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+            className={`flex-1 min-w-fit sm:min-w-[100px] py-1.5 px-1 sm:py-2 sm:px-4 text-[11px] sm:text-xs lg:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
               activeTab === cat ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -254,7 +254,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         {(permissions.isAdmin || permissions.isOwner) && (
           <button
             onClick={() => setActiveTab('ARCHIVED')}
-            className={`flex-1 min-w-[100px] py-2 px-4 text-xs lg:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+            className={`shrink-0 sm:flex-1 min-w-[80px] sm:min-w-[100px] py-1.5 px-3 sm:py-2 sm:px-4 text-[11px] sm:text-xs lg:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
               activeTab === 'ARCHIVED' ? 'bg-amber-100 text-amber-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >

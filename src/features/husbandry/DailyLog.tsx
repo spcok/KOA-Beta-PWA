@@ -77,15 +77,15 @@ const DailyLog: React.FC = () => {
         {isSyncing && <span className="text-sm text-slate-500 animate-pulse">Syncing Weather...</span>}
       </div>
 
-      <div className="flex gap-2 border-b border-slate-200 pb-4 overflow-x-auto">
+      <div className="flex overflow-x-auto scrollbar-hide bg-slate-100 p-1 rounded-xl gap-0.5 sm:gap-1 mb-4">
         {categories.map(category => (
           <button
             key={category}
             onClick={() => setActiveCategory(category)}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            className={`flex-1 min-w-fit sm:min-w-[100px] py-1.5 px-1 sm:py-2.5 text-[11px] sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
               activeCategory === category 
-                ? 'bg-blue-50 text-blue-700 rounded-xl font-bold' 
-                : 'text-slate-600 hover:bg-slate-100 rounded-xl'
+                ? 'bg-white text-blue-700 shadow-sm font-bold' 
+                : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             {category}
