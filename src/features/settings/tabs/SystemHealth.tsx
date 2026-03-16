@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../../lib/db';
-import { processSyncQueue } from '../../../lib/syncEngine';
+import { processSyncQueue, reconcileMissedEvents } from '../../../lib/syncEngine';
 import { PwaDiagnostics } from '../../../components/ui/PwaDiagnostics';
 import { 
   Activity, HardDrive, Database, AlertTriangle, 
@@ -39,7 +39,8 @@ const SystemHealth: React.FC = () => {
   const handleForceSync = async () => {
     setIsSyncing(true);
     try {
-      await processSyncQueue();
+      await reconcileMissedEvents(); // 1. Pull latest server data
+      await processSyncQueue();      // 2. Push local offline queue
     } finally {
       setIsSyncing(false);
     }
@@ -130,7 +131,7 @@ const SystemHealth: React.FC = () => {
           </div>
           <button 
             onClick={handleForceSync}
-            disabled={isSyncing || !syncMetrics?.total}
+            disabled={isSyncing}
             className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />

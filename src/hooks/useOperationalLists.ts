@@ -1,8 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../lib/db';
-import { AnimalCategory, OperationalList } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { mutateOnlineFirst } from '../lib/dataEngine';
+import { supabase } from '../lib/supabase';
+import { db } from '../lib/db';
+import { AnimalCategory } from '../types';
 
 export function useOperationalLists(category: AnimalCategory = AnimalCategory.ALL) {
   const allLists = useLiveQuery(() => db.operational_lists.toArray());
@@ -15,6 +15,8 @@ export function useOperationalLists(category: AnimalCategory = AnimalCategory.AL
 
   const addListItem = async (type: 'food' | 'method' | 'location' | 'event', value: string, itemCategory: AnimalCategory = category) => {
     if (!value.trim()) return;
+    if (!navigator.onLine) { alert("You must be online to modify global settings."); return; }
+    
     const val = value.trim();
     
     const exists = lists.find(l => 
@@ -25,24 +27,31 @@ export function useOperationalLists(category: AnimalCategory = AnimalCategory.AL
     
     if (exists) return;
 
-    await mutateOnlineFirst('operational_lists', {
+    const payload = {
       id: uuidv4(),
       type,
       category: (type === 'location' || type === 'event') ? AnimalCategory.ALL : itemCategory,
       value: val
-    } as OperationalList);
+    };
+
+    const { error } = await supabase.from('operational_lists').insert([payload]);
+    if (error) { console.error(error); alert('Failed to save to server.'); return; }
+    await db.operational_lists.put(payload);
   };
 
   const updateListItem = async (id: string, value: string) => {
     if (!value.trim()) return;
-    const item = lists.find(l => l.id === id);
-    if (item) {
-      await mutateOnlineFirst('operational_lists', { ...item, value: value.trim() } as OperationalList);
-    }
+    if (!navigator.onLine) return;
+    
+    await supabase.from('operational_lists').update({ value: value.trim() }).eq('id', id);
+    await db.operational_lists.update(id, { value: value.trim() });
   };
 
   const removeListItem = async (id: string) => {
-    await mutateOnlineFirst('operational_lists', { id } as OperationalList, 'delete');
+    if (!navigator.onLine) return;
+    
+    await supabase.from('operational_lists').delete().eq('id', id);
+    await db.operational_lists.delete(id);
   };
 
   return {

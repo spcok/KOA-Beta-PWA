@@ -1,6 +1,7 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
 // PWA Event Trap - Capture before React mounts to eliminate race conditions
@@ -30,7 +31,9 @@ window.addEventListener('unhandledrejection', function (event) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );
 
@@ -64,13 +67,15 @@ if ('serviceWorker' in navigator) {
         }
       });
 
-      // 2. Background Sync Registration
-      if ('sync' in registration) {
-        // @ts-expect-error - sync is not in standard types yet
-        await registration.sync.register('koa-sync').catch((err) => {
-          console.warn('🛠️ [PWA] Background Sync registration failed:', err);
-        });
-      }
+      // 2. Background Sync Registration (Wait for active state)
+      navigator.serviceWorker.ready.then((readyRegistration) => {
+        if ('sync' in readyRegistration) {
+          // @ts-expect-error - sync is not in standard types yet
+          readyRegistration.sync.register('koa-sync').catch((err) => {
+            console.warn('🛠️ [PWA] Background Sync registration failed:', err);
+          });
+        }
+      });
 
     } catch (err) {
       console.error('🛠️ [PWA] SW Registration Failed:', err);
