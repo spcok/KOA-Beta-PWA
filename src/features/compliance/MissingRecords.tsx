@@ -37,7 +37,7 @@ const MissingRecords: React.FC = () => {
   };
 
   const renderComplianceList = () => (
-    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
+    <div className="space-y-6">
         {/* Internal Compliance Bar */}
         <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-3">
@@ -143,7 +143,7 @@ const MissingRecords: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">ZLA Compliance</h1>
