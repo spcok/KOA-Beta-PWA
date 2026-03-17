@@ -25,26 +25,26 @@ export function useHybridQuery<T>(
     deps = depsOrUndefined || [];
   }
 
-  // 1. Reactive Dexie state
   const data = useLiveQuery(offlineQuery, deps);
 
-  // 2. Background Supabase fetch
   useEffect(() => {
+    let isMounted = true;
     async function fetchData() {
       try {
-        // Fetch remote data AND check local queue simultaneously
-        const [remoteResult, queuedItems] = await Promise.all([
-          onlineQuery,
-          db.sync_queue.where('table_name').equals(tableName as string).toArray()
-        ]);
+        // FIXED: Safe Promise.all implementation for TypeScript
+        const remotePromise = Promise.resolve(onlineQuery);
+        const queuePromise = db.sync_queue.where('table_name').equals(tableName as string).toArray();
+
+        const [remoteResult, queuedItems] = await Promise.all([remotePromise, queuePromise]);
         const { data: remoteData, error } = remoteResult;
         
         if (error) throw error;
 
-        if (remoteData) {
+        if (remoteData && isMounted) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const table = db[tableName] as import('dexie').Table<any, any>;
           const pk = table.schema.primKey.keyPath;
+
           const queuedIds = new Set(queuedItems.map(item => item.record_id));
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,7 +68,6 @@ export function useHybridQuery<T>(
                   const localItem: any = localItems[index];
                   if (!localItem) return true;
                   
-                  // 🚨 VULNERABILITY FIX: Prioritize updated_at over created_at to correctly gauge age
                   const remoteTime = new Date(remoteItem.updated_at || remoteItem.created_at || 0).getTime();
                   const localTime = new Date(localItem.updated_at || localItem.created_at || 0).getTime();
                   
@@ -91,7 +90,6 @@ export function useHybridQuery<T>(
                 if (!localItem) {
                   await table.put(remoteData);
                 } else {
-                  // 🚨 VULNERABILITY FIX: Prioritize updated_at over created_at to correctly gauge age
                   const remoteTime = new Date(remoteItem.updated_at || remoteItem.created_at || 0).getTime();
                   const localTime = new Date(localItem.updated_at || localItem.created_at || 0).getTime();
                   
@@ -109,18 +107,16 @@ export function useHybridQuery<T>(
     }
 
     const handleOnline = () => fetchData();
-
     if (navigator.onLine) fetchData();
-    
     window.addEventListener('online', handleOnline);
 
     return () => {
+      isMounted = false;
       window.removeEventListener('online', handleOnline);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableName, ...deps]);
 
-  // Apply implicit filtering for soft deletes to maintain ZLA 1981 audit trails in DB but hide from UI
   const filteredData = Array.isArray(data)
     ? data.filter((item: Record<string, unknown>) => !item.is_deleted)
     : (data as Record<string, unknown>)?.is_deleted ? undefined : data;
@@ -128,12 +124,8 @@ export function useHybridQuery<T>(
   return filteredData as T;
 }
 
-/**
- * archiveAnimal
- * Moves an animal to the archived_animals table.
- */
 export async function archiveAnimal(animal: Animal, reason: string, type: NonNullable<Animal['archive_type']>) {
-  let newDispositionStatus = 'Transferred'; // default for Disposition
+  let newDispositionStatus = 'Transferred';
   if (type === 'Death' || type === 'Euthanasia') newDispositionStatus = 'Deceased';
   if (type === 'Missing') newDispositionStatus = 'Missing';
   if (type === 'Stolen') newDispositionStatus = 'Stolen';
@@ -147,54 +139,34 @@ export async function archiveAnimal(animal: Animal, reason: string, type: NonNul
     updated_at: new Date().toISOString()
   };
   
-  // Dexie transaction
   await db.transaction('rw', db.animals, db.archived_animals, async () => {
     await db.archived_animals.add(archivedAnimal);
     await db.animals.delete(animal.id);
   });
 
-  // Safe transaction routing for archiving: Queue for Sync and trigger background process
-  await queueSync('archived_animals', animal.id, 'upsert', archivedAnimal);
-  await queueSync('animals', animal.id, 'delete', { id: animal.id });
-
-  if (navigator.onLine) {
-    processSyncQueue().catch(err => console.error('🛠️ [Engine QA] Archive sync deferred:', err));
-  }
+  queueSync('archived_animals', animal.id, 'upsert', archivedAnimal).catch(console.error);
+  queueSync('animals', animal.id, 'delete', { id: animal.id }).catch(console.error);
 }
 
-/**
- * restoreAnimal
- * Moves an animal back to the animals table.
- */
 export async function restoreAnimal(animal: Animal) {
   const restoredAnimal = {
     ...animal,
     updated_at: new Date().toISOString()
   };
   
-  // Dexie transaction
   await db.transaction('rw', db.animals, db.archived_animals, async () => {
     await db.animals.add(restoredAnimal);
     await db.archived_animals.delete(animal.id);
   });
 
-  // Safe transaction routing for restoration: Queue for Sync and trigger background process
-  await queueSync('animals', animal.id, 'upsert', restoredAnimal as unknown as Record<string, unknown>);
-  await queueSync('archived_animals', animal.id, 'delete', { id: animal.id });
-
-  if (navigator.onLine) {
-    processSyncQueue().catch(err => console.error('🛠️ [Engine QA] Restore sync deferred:', err));
-  }
+  queueSync('animals', animal.id, 'upsert', restoredAnimal as unknown as Record<string, unknown>).catch(console.error);
+  queueSync('archived_animals', animal.id, 'delete', { id: animal.id }).catch(console.error);
 }
 
 export async function queueSync(tableName: string, recordId: string, operation: 'upsert' | 'delete', payload: Record<string, unknown>) {
+  // FLASH UPGRADE: O(1) Compound Index Lookup replaces slow .filter()
   const existing = await db.sync_queue.where('[table_name+record_id]').equals([tableName, recordId]).first();
   
-  // Priority logic:
-  // 1: Critical daily logs
-  // 2: Medical, incidents, missing_animals
-  // 3: Movements & transfers
-  // 4: Everything else
   let priority = 4;
   if (tableName === 'daily_logs') priority = 1;
   else if (['medical_logs', 'incidents', 'missing_animals'].includes(tableName)) priority = 2;
@@ -206,8 +178,8 @@ export async function queueSync(tableName: string, recordId: string, operation: 
       payload, 
       operation, 
       priority,
-      status: 'pending', // Reset status if updated
-      retry_count: 0,    // Reset retries if updated
+      status: 'pending',
+      retry_count: 0,
       updated_at: new Date().toISOString() 
     });
   } else {
@@ -224,10 +196,6 @@ export async function queueSync(tableName: string, recordId: string, operation: 
   }
 }
 
-/**
- * mutateOnlineFirst
- * SaaS mutation pattern: Optimistic UI - Update local Dexie first, then queue for Supabase.
- */
 export async function mutateOnlineFirst<T extends { id?: string | number }>(
   tableName: keyof AppDatabase, 
   payload: T, 
@@ -237,52 +205,33 @@ export async function mutateOnlineFirst<T extends { id?: string | number }>(
   const table = db[tableName] as import('dexie').Table<unknown, string>;
 
   try {
-    // 1. Optimistic Update (Local Dexie)
     if (operation === 'upsert') {
-      // Inject updated_at for conflict resolution
       (payload as Record<string, unknown>).updated_at = new Date().toISOString();
       await table.put(payload);
       
-      // 2. Queue for Sync
-      // Fire and forget the sync queue logic so the UI unblocks instantly
+      // FLASH UPGRADE: Fire and forget to instantly unblock the UI
       queueSync(tableName as string, payload.id as string, operation, payload as Record<string, unknown>)
-        .then(() => {
-          if (navigator.onLine) processSyncQueue().catch(console.error);
-        })
-        .catch(err => console.error('🛠️ [Engine QA] Fatal Queue Error:', err));
+        .then(() => { if (navigator.onLine) processSyncQueue().catch(console.error); })
+        .catch(err => console.error('🛠️ [Engine QA] Queue Error:', err));
+        
     } else {
-      // Tier-2 Soft Deletes & Blob Cleanup
-      
-      // Step 1: Blob Cleanup - Prevent storage bloat by removing orphaned media queue items
       await db.media_upload_queue
         .filter(item => item.tableName === tableName && item.recordId === payload.id)
         .delete();
       
-      // Step 2: Soft Delete Conversion - Maintain audit trail per ZLA 1981
       const softDeletePayload = payload as Record<string, unknown>;
       softDeletePayload.is_deleted = true;
       softDeletePayload.deleted_at = new Date().toISOString();
       softDeletePayload.updated_at = new Date().toISOString();
       
-      // Step 3: Execution - Upsert locally and queue as upsert to Supabase
       await table.put(payload);
       
-      // Fire and forget the sync queue logic so the UI unblocks instantly
+      // FLASH UPGRADE: Fire and forget to instantly unblock the UI
       queueSync(tableName as string, payload.id as string, 'upsert', softDeletePayload)
-        .then(() => {
-          if (navigator.onLine) processSyncQueue().catch(console.error);
-        })
-        .catch(err => console.error('🛠️ [Engine QA] Fatal Queue Error:', err));
+        .then(() => { if (navigator.onLine) processSyncQueue().catch(console.error); })
+        .catch(err => console.error('🛠️ [Engine QA] Queue Error:', err));
     }
   } catch (error) {
     console.error('🛠️ [Engine QA] Critical Mutation Error:', error);
-    // Even if local update fails, we try to queue it if we have the ID
-    if (payload.id) {
-      try {
-        await queueSync(tableName as string, payload.id as string, operation, payload as Record<string, unknown>);
-      } catch (queueError) {
-        console.error('🛠️ [Engine QA] Fatal: Could not write to sync_queue:', queueError);
-      }
-    }
   }
 }

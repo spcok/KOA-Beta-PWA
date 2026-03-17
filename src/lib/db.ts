@@ -19,15 +19,16 @@ export interface MediaUploadQueueItem {
   recordId: string;
   tableName: string;
   columnName: string;
-  status: 'pending' | 'uploading' | 'failed';
+  status: 'pending' | 'uploading' | 'failed' | 'quarantined';
   createdAt: string;
+  retryCount?: number;
 }
 
 export class AppDatabase extends Dexie {
   animals!: Table<Animal, string>;
   archived_animals!: Table<Animal, string>;
   daily_logs!: Table<LogEntry, string>;
-  daily_logs_v2!: Table<LogEntry, string>; // Placeholder for future migration if needed
+  daily_logs_v2!: Table<LogEntry, string>; 
   tasks!: Table<Task, string>;
   medical_logs!: Table<ClinicalNote, string>;
   mar_charts!: Table<MARChart, string>;
@@ -54,6 +55,7 @@ export class AppDatabase extends Dexie {
 
   constructor() {
     super('KentOwlAcademyDB');
+    // BUMPED TO VERSION 32 FOR COMPOUND INDEXING
     this.version(32).stores({
       animals: 'id, name, species, category, location',
       archived_animals: 'id, name, species, category, location',
@@ -78,6 +80,7 @@ export class AppDatabase extends Dexie {
       daily_rounds: 'id, date, shift, status, completed_by, completed_at, updated_at',
       operational_lists: 'id, type, category, value',
       shifts: 'id, user_id, user_name, date, user_role, assigned_area, pattern_id, notes',
+      // FLASH UPGRADE: Added [table_name+record_id] compound index
       sync_queue: '++id, [table_name+record_id], table_name, record_id, operation, status, priority, retry_count',
       upload_queue: '++id, status, created_at',
       media_upload_queue: '++id, status, createdAt'
@@ -98,6 +101,5 @@ db.open().catch((err) => {
   console.error('🛠️ [Regression Check] Dexie Schema Mismatch detected.', err);
   if (err.name === 'SchemaError' || err.name === 'VersionError' || err.name === 'BulkError') {
     console.warn('Database schema error. Attempting to recover...');
-    // In a real catastrophic scenario, we might db.delete() and reload, but for now we just log it.
   }
 });

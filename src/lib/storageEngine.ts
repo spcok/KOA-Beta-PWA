@@ -54,22 +54,42 @@ export async function queueFileUpload(file: File, folder: string, recordId: stri
     thumbnailBase64 = await new Promise<string>((resolve, reject) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
-      img.onload = () => {
+      img.onload = async () => {
         try {
           URL.revokeObjectURL(url);
-          const canvas = document.createElement('canvas');
           const MAX_WIDTH = 200;
           const scale = MAX_WIDTH / img.width;
-          canvas.width = MAX_WIDTH;
-          canvas.height = img.height * scale;
-          
-          const ctx = canvas.getContext('2d');
+          const width = MAX_WIDTH;
+          const height = img.height * scale;
+
+          let canvas: HTMLCanvasElement | OffscreenCanvas;
+          let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+
+          if ('OffscreenCanvas' in window) {
+            canvas = new OffscreenCanvas(width, height);
+            ctx = canvas.getContext('2d');
+          } else {
+            canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            ctx = canvas.getContext('2d');
+          }
+
           if (!ctx) {
             reject(new Error('Failed to get canvas context'));
             return;
           }
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', 0.7));
+          
+          ctx.drawImage(img, 0, 0, width, height);
+
+          if (canvas instanceof OffscreenCanvas) {
+            const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.7 });
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          } else {
+            resolve(canvas.toDataURL('image/jpeg', 0.7));
+          }
         } catch {
           reject(new Error('Image too large for offline storage or processing failed.'));
         }
@@ -90,7 +110,8 @@ export async function queueFileUpload(file: File, folder: string, recordId: stri
     tableName,
     columnName,
     status: 'pending',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    retryCount: 0
   });
 
   return { attachment_url: `local://${fileName}`, thumbnail_url: thumbnailBase64 };
@@ -99,12 +120,11 @@ export async function queueFileUpload(file: File, folder: string, recordId: stri
 export async function processMediaUploadQueue(): Promise<void> {
   if (!navigator.onLine) return;
 
-  const pendingUploads = await db.media_upload_queue.where('status').equals('pending').toArray();
+  const pendingUploads = await db.media_upload_queue.where('status').anyOf('pending', 'failed').toArray();
   
-  for (const item of pendingUploads) {
+  await Promise.all(pendingUploads.map(async (item) => {
     try {
-      // Check if this item is already being handled by syncEngine (status check)
-      if (item.status === 'uploading') continue;
+      if (item.status === 'uploading') return;
 
       await db.media_upload_queue.update(item.id!, { status: 'uploading' });
       
@@ -120,26 +140,19 @@ export async function processMediaUploadQueue(): Promise<void> {
       const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
       const publicUrl = data.publicUrl;
 
-      // Update the actual record in Supabase with the new public URL
-      // Note: This might fail if the record hasn't been synced yet.
-      // That's okay, the syncEngine will handle it when it runs.
       const { error: updateError } = await supabase
         .from(item.tableName)
         .update({ [item.columnName]: publicUrl })
         .eq('id', item.recordId);
 
       if (updateError) {
-        // If the record doesn't exist yet, it's likely still in the sync_queue.
-        // We'll let the syncEngine handle the stitching.
         if (updateError.code === 'PGRST116' || updateError.message.includes('0 rows')) {
-          console.log(`🛠️ [Storage Engine] Record ${item.recordId} not found in Supabase yet. Deferring to Sync Engine.`);
           await db.media_upload_queue.update(item.id!, { status: 'pending' });
-          continue;
+          return;
         }
         throw updateError;
       }
 
-      // Also update local Dexie record
       const localTable = db.table(item.tableName);
       if (localTable) {
         await localTable.update(item.recordId, { [item.columnName]: publicUrl });
@@ -148,27 +161,33 @@ export async function processMediaUploadQueue(): Promise<void> {
       await db.media_upload_queue.delete(item.id!);
     } catch (error) {
       console.error(`Failed to upload queued media ${item.fileName}:`, error);
-      await db.media_upload_queue.update(item.id!, { status: 'failed' });
+      
+      // Orphaned blob prevention
+      const filePath = `${item.folder}/${item.fileName}`;
+      await supabase.storage.from(BUCKET_NAME).remove([filePath]).catch(console.error);
+
+      // Exponential backoff
+      const retryCount = (item.retryCount || 0) + 1;
+      if (retryCount >= 3) {
+        await db.media_upload_queue.update(item.id!, { status: 'quarantined', retryCount });
+      } else {
+        const delay = Math.min(60000, 2000 * Math.pow(2, retryCount));
+        await db.media_upload_queue.update(item.id!, { status: 'failed', retryCount });
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
-  }
+  }));
 }
 
-// Start a background worker to process the queue periodically
-setInterval(() => {
-  if (navigator.onLine) {
-    processMediaUploadQueue().catch(console.error);
-  }
-}, 30000); // Check every 30 seconds
-
-// Also check when coming back online
-window.addEventListener('online', () => {
-  processMediaUploadQueue().catch(console.error);
-});
+// Reactive Hair-Trigger
+if (typeof window !== 'undefined') {
+  db.media_upload_queue.hook('creating', () => {
+    setTimeout(() => processMediaUploadQueue().catch(console.error), 100);
+  });
+}
 
 export async function deleteFile(fileUrl: string): Promise<void> {
   try {
-    // Extract path from URL
-    // Public URL format: https://[project-id].supabase.co/storage/v1/object/public/koa-attachments/[folder]/[filename]
     const urlParts = fileUrl.split(`${BUCKET_NAME}/`);
     if (urlParts.length < 2) return;
 

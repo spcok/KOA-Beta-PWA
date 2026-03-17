@@ -9,7 +9,6 @@ import { db } from '../lib/db';
 export async function hydrateComplianceData() {
   if (!navigator.onLine) return;
 
-
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
   const isoDate = fourteenDaysAgo.toISOString();
@@ -25,12 +24,12 @@ export async function hydrateComplianceData() {
   ];
 
   try {
+    // WARP SPEED: Concurrent requests using updated_at to ensure edited records are caught
     await Promise.all(complianceTables.map(async ({ supabase: supabaseTable, dexie: dexieTable }) => {
-      // Fetch records created or updated in the last 14 days
       const { data, error } = await supabase
         .from(supabaseTable)
         .select('*')
-        .gte('created_at', isoDate);
+        .gte('updated_at', isoDate); // CHANGED FROM created_at to updated_at
 
       if (error) {
         console.error(`[SYNC] Error fetching ${supabaseTable}:`, error);
