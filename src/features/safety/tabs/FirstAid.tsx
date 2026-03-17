@@ -11,7 +11,7 @@ const FirstAid: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [personName, setPersonName] = useState('');
+  const [person_name, setPersonName] = useState('');
   const [type, setType] = useState<'Injury' | 'Illness' | 'Near Miss'>('Injury');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
@@ -20,7 +20,7 @@ const FirstAid: React.FC = () => {
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => 
-      log.personName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.person_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [logs, searchTerm]);
@@ -43,7 +43,7 @@ const FirstAid: React.FC = () => {
     const time = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     
     await addFirstAid({
-      date, time, personName, type, description, treatment,
+      date, time, person_name, type, description, treatment,
       location, outcome
     });
     setIsModalOpen(false);
@@ -110,7 +110,7 @@ const FirstAid: React.FC = () => {
                     <div className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-1"><Clock size={14}/> {log.time}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-base font-semibold text-slate-900 block mb-1">{log.personName}</span>
+                    <span className="text-base font-semibold text-slate-900 block mb-1">{log.person_name}</span>
                     <div className="flex items-center gap-1 text-sm font-medium text-slate-500"><MapPin size={14}/> {log.location}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -151,7 +151,7 @@ const FirstAid: React.FC = () => {
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                <div><label className="block text-sm font-medium text-slate-700 mb-1">Subject Name</label><input type="text" required value={personName} onChange={e => setPersonName(e.target.value)} className={inputClass} placeholder="Full Legal Name"/></div>
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Subject Name</label><input type="text" required value={person_name} onChange={e => setPersonName(e.target.value)} className={inputClass} placeholder="Full Legal Name"/></div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Classification</label>

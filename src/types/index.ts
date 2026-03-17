@@ -442,7 +442,7 @@ export interface FirstAidLog {
   id: string;
   date: string;
   time: string;
-  personName: string;
+  person_name: string;
   type: 'Injury' | 'Illness' | 'Near Miss';
   description: string;
   treatment: string;
@@ -469,8 +469,10 @@ export interface DailyRound {
   id: string;
   date: string;
   shift: 'Morning' | 'Evening';
-  status: 'Completed' | 'Pending';
-  completedBy: string;
+  status: 'Completed' | 'Pending' | 'completed' | 'pending';
+  completed_by: string;
+  completed_at?: string;
+  updated_at?: string;
   notes?: string;
 }
 

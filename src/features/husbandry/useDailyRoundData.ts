@@ -17,6 +17,7 @@ export function useDailyRoundData(viewDate: string) {
     const allAnimals = useMemo(() => liveAnimals || [], [liveAnimals]);
 
     const liveLogs = useHybridQuery<LogEntry[]>('daily_logs', () => db.daily_logs.where('log_date').startsWith(viewDate).toArray(), [viewDate]);
+    const liveRounds = useHybridQuery<DailyRound[]>('daily_rounds', () => db.daily_rounds.where('date').equals(viewDate).toArray(), [viewDate]);
 
     const [roundType, setRoundType] = useState<'Morning' | 'Evening'>('Morning');
     const [activeTab, setActiveTab] = useState<AnimalCategory>(AnimalCategory.OWLS);
@@ -26,16 +27,23 @@ export function useDailyRoundData(viewDate: string) {
     const [generalNotes, setGeneralNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const isLoading = liveAnimals === undefined;
+    const isLoading = liveAnimals === undefined || liveRounds === undefined;
+
+    const currentRound = useMemo(() => {
+        return liveRounds?.find(r => r.shift === roundType);
+    }, [liveRounds, roundType]);
+
+    const currentRoundId = currentRound?.id;
+    const isPastRound = currentRound?.status?.toLowerCase() === 'completed';
 
     useEffect(() => {
         const timer = setTimeout(() => {
             setChecks({});
-            setSigningInitials('');
-            setGeneralNotes('');
+            setSigningInitials(currentRound?.completed_by || '');
+            setGeneralNotes(currentRound?.notes || '');
         }, 0);
         return () => clearTimeout(timer);
-    }, [viewDate, roundType, activeTab]);
+    }, [viewDate, roundType, activeTab, currentRound]);
 
     const categoryAnimals = useMemo(() => {
         return allAnimals.filter(a => a.category === activeTab);
@@ -111,19 +119,19 @@ export function useDailyRoundData(viewDate: string) {
         return false;
     }, [activeTab]);
 
-    const isPastRound = false;
-
     const handleSignOff = async () => {
         if (!isComplete || !signingInitials) return;
         
         setIsSubmitting(true);
         try {
             const round: DailyRound = {
-                id: uuidv4(),
+                id: currentRoundId || uuidv4(),
                 date: viewDate,
                 shift: roundType,
-                status: 'Completed',
-                completedBy: signingInitials,
+                status: 'completed',
+                completed_by: signingInitials,
+                completed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
                 notes: generalNotes
             };
             
