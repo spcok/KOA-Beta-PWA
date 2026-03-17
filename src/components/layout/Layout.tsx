@@ -338,8 +338,8 @@ const Layout: React.FC<LayoutProps> = () => {
           </div>
         )}
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto bg-slate-200 print:bg-white print:overflow-visible pb-24 md:pb-0">
+        {/* Content Area - STRICT ENTERPRISE FRAME */}
+        <div className="flex-1 overflow-y-auto bg-slate-200 print:bg-white print:overflow-visible p-4 md:p-6 lg:p-8 pb-24 md:pb-6 lg:pb-8">
           <Outlet context={{ isSidebarCollapsed }} />
         </div>
       </main>

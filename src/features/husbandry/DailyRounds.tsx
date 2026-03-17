@@ -95,7 +95,7 @@ const DailyRounds: React.FC<DailyRoundsProps> = () => {
     const maxWidthClass = isSidebarCollapsed ? 'max-w-6xl' : 'max-w-4xl';
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-6">
             <div className="bg-white border-b border-slate-200 px-4 py-4 shadow-sm">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>

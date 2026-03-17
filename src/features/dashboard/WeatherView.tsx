@@ -138,17 +138,14 @@ const WeatherView: React.FC = () => {
   const isWindRisk = windGust > 18 || windSpeed > 15;
 
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+    <div className="space-y-6">
       
       {/* TOP HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-           <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
-             <CloudSun className="text-emerald-600" size={32} /> Meteorological Station
-           </h1>
-           <p className="text-sm text-slate-500 mt-1">Kent Owl Academy • Flight Safety Briefing</p>
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">WEATHER</h1>
+          <p className="text-sm text-slate-500 mt-1">Live conditions and forecasting.</p>
         </div>
-
         <div className="flex flex-wrap gap-1.5">
             {isFrostRisk && (
                 <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-lg border border-blue-200">
@@ -169,7 +166,7 @@ const WeatherView: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-2 mx-4">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
           
           {/* SIDEBAR: LIVE & AI */}
           <div className="xl:col-span-4 space-y-2">

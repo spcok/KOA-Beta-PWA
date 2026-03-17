@@ -134,7 +134,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
   const isHighHazard = animal.hazard_rating === HazardRating.HIGH || animal.is_venomous;
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 font-sans">
+    <div className="space-y-6 pb-24 font-sans">
         {isArchived && (
             <div className="bg-amber-500 text-white px-6 py-3 text-center font-bold flex items-center justify-center gap-2">
                 <AlertTriangle size={20} />

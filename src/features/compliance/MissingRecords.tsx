@@ -146,8 +146,8 @@ const MissingRecords: React.FC = () => {
     <div className="">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">ZLA Compliance</h1>
-          <p className="text-sm text-slate-500 mt-1">Zoo Licensing Act 1981 Command Centre</p>
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">ZLA COMPLIANCE</h1>
+          <p className="text-sm text-slate-500 mt-1">Track missing mandatory records for Zoo Licensing Act</p>
         </div>
         <select 
             value={selectedCategory} 

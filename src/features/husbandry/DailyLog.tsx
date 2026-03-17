@@ -71,10 +71,10 @@ const DailyLog: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Daily Operations</h1>
+            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">DAILY LOG</h1>
             <p className="text-sm text-slate-500 mt-1">Log and track daily animal activities.</p>
         </div>
         {isSyncing && <span className="text-sm text-slate-500 animate-pulse">Syncing Weather...</span>}

@@ -26,7 +26,7 @@ export default function Timesheets() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Attendance Ledger</h1>
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">TIME SHEETS</h1>
           <p className="text-sm text-slate-500 mt-1">Record of personnel presence and operational hours.</p>
         </div>
         <button 
