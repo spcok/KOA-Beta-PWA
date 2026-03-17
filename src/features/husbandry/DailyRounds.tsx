@@ -95,13 +95,14 @@ const DailyRounds: React.FC<DailyRoundsProps> = () => {
     const maxWidthClass = isSidebarCollapsed ? 'max-w-6xl' : 'max-w-4xl';
 
     return (
-        <div className="flex flex-col min-h-full bg-slate-50">
-            <div className="bg-white border-b border-slate-200 px-4 py-4 sticky top-0 z-20 shadow-sm">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white border-b border-slate-200 px-4 py-4 shadow-sm">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                        <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
                             <ClipboardCheck className="text-emerald-600" size={24} /> Daily Rounds
                         </h1>
+                        <p className="text-sm text-slate-500 mt-1">Manage daily animal checks and husbandry tasks.</p>
                         <div className="flex items-center gap-2 mt-2">
                             <CalendarIcon size={14} className="text-slate-400" />
                             <input 
@@ -117,7 +118,7 @@ const DailyRounds: React.FC<DailyRoundsProps> = () => {
                         <button onClick={() => setRoundType('Evening')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${roundType === 'Evening' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}><Moon size={16} /> Evening</button>
                     </div>
                 </div>
-                <div className="flex overflow-x-auto scrollbar-hide bg-slate-100 p-1 rounded-xl gap-0.5 sm:gap-1 mb-4">
+                <div className="flex overflow-x-auto scrollbar-hide bg-slate-100 p-1 rounded-xl gap-0.5 sm:gap-1 mt-4">
                     {tabs.map((tab: AnimalCategory) => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 min-w-fit sm:min-w-[100px] py-1.5 px-1 sm:py-2.5 text-[11px] sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${activeTab === tab ? 'bg-white text-slate-800 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}>{tab}</button>
                     ))}

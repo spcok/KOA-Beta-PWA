@@ -52,15 +52,14 @@ export async function queueFileUpload(file: File, folder: string, recordId: stri
 
   if (file.type.startsWith('image/')) {
     thumbnailBase64 = await new Promise<string>((resolve, reject) => {
-      const img = new Image();
       const url = URL.createObjectURL(file);
-      img.onload = async () => {
+      createImageBitmap(file).then(async (bitmap) => {
         try {
           URL.revokeObjectURL(url);
           const MAX_WIDTH = 200;
-          const scale = MAX_WIDTH / img.width;
+          const scale = MAX_WIDTH / bitmap.width;
           const width = MAX_WIDTH;
-          const height = img.height * scale;
+          const height = bitmap.height * scale;
 
           let canvas: HTMLCanvasElement | OffscreenCanvas;
           let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
@@ -80,7 +79,8 @@ export async function queueFileUpload(file: File, folder: string, recordId: stri
             return;
           }
           
-          ctx.drawImage(img, 0, 0, width, height);
+          ctx.drawImage(bitmap, 0, 0, width, height);
+          bitmap.close();
 
           if (canvas instanceof OffscreenCanvas) {
             const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.7 });
@@ -93,9 +93,7 @@ export async function queueFileUpload(file: File, folder: string, recordId: stri
         } catch {
           reject(new Error('Image too large for offline storage or processing failed.'));
         }
-      };
-      img.onerror = () => reject(new Error('Failed to load image for thumbnail generation.'));
-      img.src = url;
+      }).catch(() => reject(new Error('Failed to load image for thumbnail generation.')));
     });
   }
 
@@ -120,7 +118,7 @@ export async function queueFileUpload(file: File, folder: string, recordId: stri
 export async function processMediaUploadQueue(): Promise<void> {
   if (!navigator.onLine) return;
 
-  const pendingUploads = await db.media_upload_queue.where('status').anyOf('pending', 'failed').toArray();
+  const pendingUploads = await db.media_upload_queue.where('status').anyOf('pending', 'failed').limit(20).toArray();
   
   await Promise.all(pendingUploads.map(async (item) => {
     try {
@@ -150,6 +148,8 @@ export async function processMediaUploadQueue(): Promise<void> {
           await db.media_upload_queue.update(item.id!, { status: 'pending' });
           return;
         }
+        // Orphaned blob prevention
+        await supabase.storage.from(BUCKET_NAME).remove([filePath]).catch(console.error);
         throw updateError;
       }
 
@@ -162,10 +162,6 @@ export async function processMediaUploadQueue(): Promise<void> {
     } catch (error) {
       console.error(`Failed to upload queued media ${item.fileName}:`, error);
       
-      // Orphaned blob prevention
-      const filePath = `${item.folder}/${item.fileName}`;
-      await supabase.storage.from(BUCKET_NAME).remove([filePath]).catch(console.error);
-
       // Exponential backoff
       const retryCount = (item.retryCount || 0) + 1;
       if (retryCount >= 3) {
@@ -181,9 +177,11 @@ export async function processMediaUploadQueue(): Promise<void> {
 
 // Reactive Hair-Trigger
 if (typeof window !== 'undefined') {
-  db.media_upload_queue.hook('creating', () => {
+  const wakeStorage = () => {
     setTimeout(() => processMediaUploadQueue().catch(console.error), 100);
-  });
+  };
+  db.media_upload_queue.hook('creating', wakeStorage);
+  db.media_upload_queue.hook('updating', wakeStorage);
 }
 
 export async function deleteFile(fileUrl: string): Promise<void> {

@@ -18,11 +18,11 @@ export default function FlightRecords() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Flight Records</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">Log of all training and display flights for collection animals.</p>
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Flight Records</h1>
+          <p className="text-sm text-slate-500 mt-1">Log of all training and display flights for collection animals.</p>
         </div>
         <button 
           className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -31,14 +31,14 @@ export default function FlightRecords() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500 shadow-sm">
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
-            <History size={32} />
+      <div className="bg-white rounded-xl border border-slate-200 p-6 text-center text-slate-500 shadow-sm">
+        <div className="flex flex-col items-center justify-center space-y-3">
+          <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
+            <History size={24} />
           </div>
           <div>
-            <p className="text-sm font-medium">No flights have been recorded yet.</p>
-            <p className="text-xs text-slate-400 mt-1">Start by recording your first training or display flight.</p>
+            <p className="text-xs font-medium">No flights have been recorded yet.</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Start by recording your first training or display flight.</p>
           </div>
         </div>
       </div>

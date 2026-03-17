@@ -8,10 +8,18 @@ export function useOperationalLists(category: AnimalCategory = AnimalCategory.AL
   const allLists = useLiveQuery(() => db.operational_lists.toArray());
   const lists = allLists || [];
 
-  const foodTypes = lists.filter(l => l.type === 'food' && (l.category === category || l.category === AnimalCategory.ALL));
-  const feedMethods = lists.filter(l => l.type === 'method' && (l.category === category || l.category === AnimalCategory.ALL));
-  const eventTypes = lists.filter(l => l.type === 'event');
-  const locations = lists.filter(l => l.type === 'location');
+  const foodTypes = lists
+    .filter(l => l.type === 'food' && (l.category === category || l.category === AnimalCategory.ALL))
+    .sort((a, b) => a.value.localeCompare(b.value));
+  const feedMethods = lists
+    .filter(l => l.type === 'method' && (l.category === category || l.category === AnimalCategory.ALL))
+    .sort((a, b) => a.value.localeCompare(b.value));
+  const eventTypes = lists
+    .filter(l => l.type === 'event')
+    .sort((a, b) => a.value.localeCompare(b.value));
+  const locations = lists
+    .filter(l => l.type === 'location')
+    .sort((a, b) => a.value.localeCompare(b.value));
 
   const addListItem = async (type: 'food' | 'method' | 'location' | 'event', value: string, itemCategory: AnimalCategory = category) => {
     if (!value.trim()) return;

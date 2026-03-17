@@ -179,10 +179,15 @@ export async function processSyncQueue() {
       if (upserts.length > 0) {
         try {
           // WARP SPEED: Resolve media uploads concurrently instead of sequentially
-          const resolvedItems = await Promise.all(upserts.map(async (item) => {
-            const resolvedPayload = await resolvePayloadMedia(item.payload as Record<string, unknown>);
-            return { queueItem: item, payload: resolvedPayload };
-          }));
+          const resolvedItems = (await Promise.all(upserts.map(async (item) => {
+            try {
+              const resolvedPayload = await resolvePayloadMedia(item.payload as Record<string, unknown>);
+              return { queueItem: item, payload: resolvedPayload };
+            } catch (err) {
+              await handleSyncFailure(item, err);
+              return undefined;
+            }
+          }))).filter((item): item is { queueItem: SyncQueueItem, payload: Record<string, unknown> } => !!item);
 
           const itemsRequiringCheck = resolvedItems.filter(ri => ri.payload.updated_at !== undefined);
           const itemsBypassingCheck = resolvedItems.filter(ri => ri.payload.updated_at === undefined);
@@ -320,9 +325,11 @@ if (typeof window !== 'undefined') {
     reconcileMissedEvents().then(() => processSyncQueue()).catch(console.error);
   });
   
-  db.sync_queue.hook('creating', () => {
+  const wakeEngine = () => {
     setTimeout(() => {
       if (!isProcessing) processSyncQueue().catch(console.error);
     }, 100);
-  });
+  };
+  db.sync_queue.hook('creating', wakeEngine);
+  db.sync_queue.hook('updating', wakeEngine);
 }

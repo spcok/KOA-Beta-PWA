@@ -23,17 +23,17 @@ export default function Holidays() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Holiday Registry</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">Official records of staff leave and availability.</p>
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Holiday Registry</h1>
+          <p className="text-sm text-slate-500 mt-1">Official records of staff leave and availability.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)} 
           className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
-          <Plus size={18}/> Request Leave
+          <Plus size={16}/> Request Leave
         </button>
       </div>
 

@@ -143,18 +143,16 @@ const MissingRecords: React.FC = () => {
   );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b-2 border-slate-200 pb-6">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">ZLA Compliance</h1>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
-            Zoo Licensing Act 1981 Command Centre
-          </p>
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">ZLA Compliance</h1>
+          <p className="text-sm text-slate-500 mt-1">Zoo Licensing Act 1981 Command Centre</p>
         </div>
         <select 
             value={selectedCategory} 
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="bg-white border-2 border-slate-200 rounded-xl px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-900 focus:border-indigo-500 focus:ring-0 outline-none transition-colors shadow-sm cursor-pointer appearance-none min-w-[200px]"
+            className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold uppercase tracking-tight text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm cursor-pointer"
         >
             {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
         </select>

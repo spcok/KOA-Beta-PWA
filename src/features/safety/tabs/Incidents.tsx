@@ -3,7 +3,7 @@ import { IncidentType, IncidentSeverity } from '../../../types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { useIncidentData } from '../useIncidentData';
 import { useTimesheetData } from '../../staff/useTimesheetData';
-import { ShieldAlert, Plus, Clock, X, AlertTriangle, MapPin, Trash2, Loader2, Search, Lock, Users } from 'lucide-react';
+import { Plus, Clock, X, AlertTriangle, MapPin, Trash2, Loader2, Search, Lock, Users } from 'lucide-react';
 import { LiveAttendanceRegister } from '../components/LiveAttendanceRegister';
 
 const Incidents: React.FC = () => {
@@ -85,13 +85,11 @@ const Incidents: React.FC = () => {
   const inputClass = "w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-slate-400";
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-4">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-                <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                    <ShieldAlert className="text-rose-600" size={32} /> Statutory Incident Log
-                </h1>
-                <p className="text-slate-500 text-sm font-medium mt-1">Compliance records for health, safety, and security events.</p>
+                <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Statutory Incident Log</h1>
+                <p className="text-sm text-slate-500 mt-1">Compliance records for health, safety, and security events.</p>
             </div>
             <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                 <div className="relative flex-1 md:w-64">
@@ -101,11 +99,11 @@ const Incidents: React.FC = () => {
                         placeholder="Search incidents..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm"
+                        className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
                     />
                 </div>
-                <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2 shadow-sm shrink-0">
-                    <Plus size={18}/> New Occurrence
+                <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors text-sm font-bold flex items-center gap-2 shadow-sm shrink-0">
+                    <Plus size={16}/> New Occurrence
                 </button>
             </div>
         </div>

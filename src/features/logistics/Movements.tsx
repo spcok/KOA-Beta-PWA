@@ -26,11 +26,11 @@ export default function Movements() {
   }
 
   return (
-    <div className="p-2 md:p-4 max-w-[1920px] mx-auto space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Logistics & Movements</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">Record of internal transfers and external acquisitions/dispositions.</p>
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Logistics & Movements</h1>
+          <p className="text-sm text-slate-500 mt-1">Record of internal transfers and external acquisitions/dispositions.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)} 

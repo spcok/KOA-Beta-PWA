@@ -77,20 +77,21 @@ const Dashboard: React.FC<DashboardProps> = ({
   }
 
   return (
-    <div className="p-2 md:p-4 max-w-[1920px] mx-auto space-y-6">
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-500 mt-0.5 flex items-center gap-2 text-xs">
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Dashboard</h1>
+          <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
             {new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} <span className="text-slate-300">|</span> 🌤️ 14°C Partly Cloudy
           </p>
         </div>
       </div>
 
-      {/* Tasks & Health Rota Bento */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+      <div className="space-y-4 mx-4">
+        {/* Tasks & Health Rota Bento */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col transition-all duration-300">
               <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsBentoMinimized(!isBentoMinimized)}>
                   <div className="flex items-center gap-2">
@@ -388,6 +389,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {isCreateAnimalModalOpen && (
           <AnimalFormModal isOpen={isCreateAnimalModalOpen} onClose={() => setIsCreateAnimalModalOpen(false)} />
       )}
+      </div>
     </div>
   );
 };

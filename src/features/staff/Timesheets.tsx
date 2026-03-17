@@ -23,17 +23,17 @@ export default function Timesheets() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Attendance Ledger</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">Record of personnel presence and operational hours.</p>
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Attendance Ledger</h1>
+          <p className="text-sm text-slate-500 mt-1">Record of personnel presence and operational hours.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)} 
           className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
-          <Plus size={18}/> Record Attendance
+          <Plus size={16}/> Record Attendance
         </button>
       </div>
 

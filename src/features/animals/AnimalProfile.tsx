@@ -134,7 +134,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
   const isHighHazard = animal.hazard_rating === HazardRating.HIGH || animal.is_venomous;
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-24 font-sans">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 font-sans">
         {isArchived && (
             <div className="bg-amber-500 text-white px-6 py-3 text-center font-bold flex items-center justify-center gap-2">
                 <AlertTriangle size={20} />
@@ -143,7 +143,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
         )}
         {/* STICKY FROSTED HEADER */}
         <div className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 px-6 py-4">
-            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <button onClick={onBack} className="p-2.5 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-900">
                         <ChevronLeft size={20} />
@@ -154,7 +154,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h1 className="text-3xl font-bold text-slate-900">{String(animal.name)}</h1>
+                                <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">{String(animal.name)}</h1>
                                 {isHighHazard && <span className="text-rose-600 animate-pulse"><Skull size={16}/></span>}
                                 {isArchived && <span className="bg-slate-900 text-white text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest">Archived</span>}
                             </div>
@@ -201,7 +201,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
             </div>
         </div>
 
-        <div className="max-w-[1920px] mx-auto px-2 md:px-4 py-4">
+        <div className="px-2 md:px-4 py-4">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 
                 {/* LEFT COLUMN: IDENTITY & STATS (BENTO) */}

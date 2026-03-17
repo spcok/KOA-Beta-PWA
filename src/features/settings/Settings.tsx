@@ -18,10 +18,15 @@ const Settings: React.FC = () => {
   if (!currentUser) return <div>Loading...</div>;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
-      <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full p-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Settings</h1>
+          <p className="text-sm text-slate-500 mt-1">Manage your account and app preferences.</p>
+        </div>
+      </div>
 
-      <div className="flex gap-4 border-b border-slate-200">
+      <div className="flex gap-4 border-b border-slate-200 overflow-x-auto scrollbar-hide">
         {[
           { id: 'profile', label: 'User Profile', icon: User },
           { id: 'preferences', label: 'App Preferences', icon: Palette },

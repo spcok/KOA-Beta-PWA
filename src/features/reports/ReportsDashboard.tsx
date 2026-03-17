@@ -597,16 +597,18 @@ export default function ReportsDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-grow flex flex-col overflow-hidden">
+      <div className="flex-grow flex flex-col overflow-hidden space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full p-4">
         {/* Header */}
-        <div className="bg-white border-b border-slate-200 px-4 py-4 print:hidden">
-          <h1 className="text-3xl font-bold text-slate-900">
-            {activeReport.title}
-          </h1>
-          <p className="text-slate-500 mt-1">{activeReport.description}</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm print:hidden">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+              {activeReport.title}
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">{activeReport.description}</p>
+          </div>
         </div>
 
-        <div className="bg-white border-b border-slate-200 px-4 py-3 print:hidden">
+        <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm print:hidden">
           <div className="flex flex-wrap items-end gap-4">
             {activeReport?.id !== 'site_maintenance' && activeReport?.id !== 'death_certificate' && (
               <>
