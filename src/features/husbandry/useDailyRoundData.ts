@@ -30,15 +30,19 @@ export function useDailyRoundData(viewDate: string) {
     const isLoading = liveAnimals === undefined || liveRounds === undefined;
 
     const currentRound = useMemo(() => {
-        return liveRounds?.find(r => r.shift === roundType);
-    }, [liveRounds, roundType]);
+        return liveRounds?.find(r => r.shift === roundType && r.section === activeTab);
+    }, [liveRounds, roundType, activeTab]);
 
     const currentRoundId = currentRound?.id;
     const isPastRound = currentRound?.status?.toLowerCase() === 'completed';
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            setChecks({});
+            if (currentRound?.check_data) {
+                setChecks(currentRound.check_data as Record<string, AnimalCheckState>);
+            } else {
+                setChecks({});
+            }
             setSigningInitials(currentRound?.completed_by || '');
             setGeneralNotes(currentRound?.notes || '');
         }, 0);
@@ -128,6 +132,8 @@ export function useDailyRoundData(viewDate: string) {
                 id: currentRoundId || uuidv4(),
                 date: viewDate,
                 shift: roundType,
+                section: activeTab,
+                check_data: checks,
                 status: 'completed',
                 completed_by: signingInitials,
                 completed_at: new Date().toISOString(),

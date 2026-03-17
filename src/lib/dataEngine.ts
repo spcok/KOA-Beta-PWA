@@ -30,20 +30,21 @@ export function useHybridQuery<T>(
 
   // 2. Background Supabase fetch
   useEffect(() => {
-    let isMounted = true;
     async function fetchData() {
       try {
-        const { data: remoteData, error } = await onlineQuery;
+        // Fetch remote data AND check local queue simultaneously
+        const [remoteResult, queuedItems] = await Promise.all([
+          onlineQuery,
+          db.sync_queue.where('table_name').equals(tableName as string).toArray()
+        ]);
+        const { data: remoteData, error } = remoteResult;
         
         if (error) throw error;
 
-        if (remoteData && isMounted) {
+        if (remoteData) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const table = db[tableName] as import('dexie').Table<any, any>;
           const pk = table.schema.primKey.keyPath;
-
-          // Queue Protection: Get IDs of items currently in sync queue
-          const queuedItems = await db.sync_queue.where('table_name').equals(tableName as string).toArray();
           const queuedIds = new Set(queuedItems.map(item => item.record_id));
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,7 +115,6 @@ export function useHybridQuery<T>(
     window.addEventListener('online', handleOnline);
 
     return () => {
-      isMounted = false;
       window.removeEventListener('online', handleOnline);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -188,7 +188,7 @@ export async function restoreAnimal(animal: Animal) {
 }
 
 export async function queueSync(tableName: string, recordId: string, operation: 'upsert' | 'delete', payload: Record<string, unknown>) {
-  const existing = await db.sync_queue.filter(item => item.table_name === tableName && item.record_id === recordId).first();
+  const existing = await db.sync_queue.where('[table_name+record_id]').equals([tableName, recordId]).first();
   
   // Priority logic:
   // 1: Critical daily logs
@@ -244,7 +244,12 @@ export async function mutateOnlineFirst<T extends { id?: string | number }>(
       await table.put(payload);
       
       // 2. Queue for Sync
-      await queueSync(tableName as string, payload.id as string, operation, payload as Record<string, unknown>);
+      // Fire and forget the sync queue logic so the UI unblocks instantly
+      queueSync(tableName as string, payload.id as string, operation, payload as Record<string, unknown>)
+        .then(() => {
+          if (navigator.onLine) processSyncQueue().catch(console.error);
+        })
+        .catch(err => console.error('🛠️ [Engine QA] Fatal Queue Error:', err));
     } else {
       // Tier-2 Soft Deletes & Blob Cleanup
       
@@ -261,12 +266,13 @@ export async function mutateOnlineFirst<T extends { id?: string | number }>(
       
       // Step 3: Execution - Upsert locally and queue as upsert to Supabase
       await table.put(payload);
-      await queueSync(tableName as string, payload.id as string, 'upsert', softDeletePayload);
-    }
-
-    // 3. Trigger Sync Process (Background)
-    if (navigator.onLine) {
-      processSyncQueue().catch(err => console.warn('🛠️ [Engine QA] Background sync deferred:', err));
+      
+      // Fire and forget the sync queue logic so the UI unblocks instantly
+      queueSync(tableName as string, payload.id as string, 'upsert', softDeletePayload)
+        .then(() => {
+          if (navigator.onLine) processSyncQueue().catch(console.error);
+        })
+        .catch(err => console.error('🛠️ [Engine QA] Fatal Queue Error:', err));
     }
   } catch (error) {
     console.error('🛠️ [Engine QA] Critical Mutation Error:', error);

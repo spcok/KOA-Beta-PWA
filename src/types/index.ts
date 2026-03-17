@@ -469,6 +469,8 @@ export interface DailyRound {
   id: string;
   date: string;
   shift: 'Morning' | 'Evening';
+  section: string;
+  check_data?: Record<string, unknown>;
   status: 'Completed' | 'Pending' | 'completed' | 'pending';
   completed_by: string;
   completed_at?: string;
