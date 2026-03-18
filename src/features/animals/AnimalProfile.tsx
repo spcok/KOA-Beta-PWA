@@ -208,8 +208,8 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                 <div className="lg:col-span-4 space-y-6">
                     
                     {/* IDENTITY CARD */}
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group flex flex-col sm:flex-row lg:flex-col">
-                        <div className="w-full sm:w-[45%] lg:w-full aspect-square relative overflow-hidden shrink-0">
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group flex flex-col sm:flex-row lg:flex-col lg:items-center">
+                        <div className="w-full sm:w-[40%] lg:w-[90%] lg:mx-auto aspect-square relative overflow-hidden shrink-0">
                             <img src={animal.image_url || 'https://picsum.photos/seed/placeholder/800/800'} alt={animal.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                             <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end">
