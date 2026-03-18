@@ -178,7 +178,17 @@ const DailyRounds: React.FC<DailyRoundsProps> = () => {
                                             <div className="min-w-0">
                                                 <h3 className="font-black text-slate-800 text-xs sm:text-sm md:text-base truncate uppercase tracking-tight">
                                                     {String(animal.name)}
-                                                    {isGroup && animal.census_count !== undefined ? <span className="ml-2 text-xs font-medium text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">{animal.census_count} individuals</span> : null}
+                                                    {isGroup && (
+                                                        (() => {
+                                                            const children = (categoryAnimals || []).filter(a => a.parent_mob_id === animal.id);
+                                                            const displayCensus = children.length > 0 ? children.length : animal.census_count;
+                                                            return displayCensus !== undefined ? (
+                                                                <span className="ml-2 text-xs font-medium text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
+                                                                    {displayCensus} individuals
+                                                                </span>
+                                                            ) : null;
+                                                        })()
+                                                    )}
                                                 </h3>
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">{String(animal.location)}</p>
                                                 <div className="flex flex-wrap gap-1 sm:gap-2 mt-1 sm:mt-1.5">

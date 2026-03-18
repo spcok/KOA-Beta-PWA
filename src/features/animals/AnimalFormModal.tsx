@@ -64,7 +64,14 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
       console.error('Failed to save animal:', error);
     }
   }, (errors) => {
-    console.error("Validation Errors:", errors);
+    // Strip the DOM 'ref' from the errors object before logging to prevent Circular JSON crashes in the global bug reporter
+    const safeErrors = Object.keys(errors).reduce((acc, key) => {
+      const err = errors[key as keyof typeof errors];
+      if (err) acc[key] = { message: err.message, type: err.type };
+      return acc;
+    }, {} as Record<string, { message: string | undefined; type: string | number | undefined }>);
+
+    console.error("Validation Errors:", safeErrors);
     alert("Please check the form for missing required fields.");
   });
 
@@ -117,6 +124,11 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
     () => db.animals.filter(a => a.entity_type === 'GROUP' && a.id !== initialData?.id).toArray(),
     [initialData?.id]
   );
+
+  const linkedChildrenCount = useLiveQuery(
+    () => initialData?.id ? db.animals.filter(a => a.parent_mob_id === initialData.id).count() : 0,
+    [initialData?.id]
+  ) || 0;
 
   // Track if Environmental Controls are required
   const [envNa, setEnvNa] = useState<boolean>(
@@ -254,7 +266,15 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                     </div>
                                     <div>
                                         <label className={labelClass}>Census Count</label>
-                                        <input type="number" {...register('census_count', { valueAsNumber: true })} className={inputClass} placeholder="Number of individuals" />
+                                        {linkedChildrenCount > 0 ? (
+                                            <div className="p-3 bg-white border border-amber-200 rounded-md">
+                                                <span className="text-sm font-bold text-amber-900 block">{linkedChildrenCount} Linked Individuals</span>
+                                                <span className="text-xs text-amber-700 block">Census is automatically managed based on linked individuals.</span>
+                                                <input type="hidden" {...register('census_count', { setValueAs: v => (v === "" || Number.isNaN(Number(v))) ? undefined : Number(v) })} value={linkedChildrenCount} />
+                                            </div>
+                                        ) : (
+                                            <input type="number" {...register('census_count', { setValueAs: v => (v === "" || Number.isNaN(Number(v))) ? undefined : Number(v) })} className={inputClass} placeholder="Manual Census (Leave blank if linking individuals later)" />
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -287,7 +307,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                         <input {...register('species')} className={inputClass} placeholder="e.g. Barn Owl" />
                                         <button 
                                           type="button" 
-                                          onClick={handleAutoFill}
+                                          onClick={(e) => { e.preventDefault(); handleAutoFill(); }}
                                           disabled={isFetchingAI}
                                           className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-3 rounded-2xl border border-indigo-100 font-black uppercase text-[10px] tracking-widest hover:bg-indigo-100 transition-colors disabled:opacity-50"
                                         >
@@ -407,7 +427,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                             type="number" 
                                             step="0.1"
                                             {...register('water_tipping_temp', { 
-                                                setValueAs: v => v === "" ? null : parseFloat(v) 
+                                                setValueAs: v => v === "" ? undefined : parseFloat(v) 
                                             })} 
                                             className={inputClass} 
                                             placeholder="e.g. 2.0" 
@@ -558,19 +578,19 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                                         <div>
                                             <label className={labelClass}>Day Temp (°C)</label>
-                                            <input type="number" step="0.1" {...register('target_day_temp_c', { setValueAs: v => v === "" ? null : parseFloat(v) })} className={inputClass} placeholder="28.5" />
+                                            <input type="number" step="0.1" {...register('target_day_temp_c', { setValueAs: v => v === "" ? undefined : parseFloat(v) })} className={inputClass} placeholder="28.5" />
                                         </div>
                                         <div>
                                             <label className={labelClass}>Night Temp (°C)</label>
-                                            <input type="number" step="0.1" {...register('target_night_temp_c', { setValueAs: v => v === "" ? null : parseFloat(v) })} className={inputClass} placeholder="22.0" />
+                                            <input type="number" step="0.1" {...register('target_night_temp_c', { setValueAs: v => v === "" ? undefined : parseFloat(v) })} className={inputClass} placeholder="22.0" />
                                         </div>
                                         <div>
                                             <label className={labelClass}>Min Humidity %</label>
-                                            <input type="number" {...register('target_humidity_min_percent', { setValueAs: v => v === "" ? null : parseInt(v) })} className={inputClass} placeholder="60" />
+                                            <input type="number" {...register('target_humidity_min_percent', { setValueAs: v => v === "" ? undefined : parseInt(v) })} className={inputClass} placeholder="60" />
                                         </div>
                                         <div>
                                             <label className={labelClass}>Max Humidity %</label>
-                                            <input type="number" {...register('target_humidity_max_percent', { setValueAs: v => v === "" ? null : parseInt(v) })} className={inputClass} placeholder="80" />
+                                            <input type="number" {...register('target_humidity_max_percent', { setValueAs: v => v === "" ? undefined : parseInt(v) })} className={inputClass} placeholder="80" />
                                         </div>
                                         <div>
                                             <label className={labelClass}>Misting Freq.</label>
