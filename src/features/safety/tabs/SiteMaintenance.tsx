@@ -77,10 +77,10 @@ const SiteMaintenance: React.FC = () => {
   const inputClass = "w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-slate-400";
 
   return (
-    <div className="">
+    <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Facility Maintenance</h1>
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Site Maintenance</h1>
           <p className="text-sm text-slate-500 mt-1">Work orders, repairs, and site safety logs.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">

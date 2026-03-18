@@ -26,7 +26,7 @@ import FirstAidLog from './features/safety/tabs/FirstAid';
 import SafetyDrills from './features/safety/tabs/SafetyDrills';
 import SiteMaintenance from './features/safety/tabs/SiteMaintenance';
 import ReportsDashboard from './features/reports/ReportsDashboard';
-import { processSyncQueue, prune14DayCache, startRealtimeSubscription } from './lib/syncEngine';
+import { processSyncQueue, prune14DayCache, startRealtimeSubscription, reconcileMissedEvents } from './lib/syncEngine';
 import { hydrateComplianceData } from './services/syncService';
 import { processMediaUploadQueue } from './lib/storageEngine';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -55,9 +55,11 @@ export default function App() {
       
       // 3. Process queue and hydrate if online
       if (navigator.onLine) {
-        processSyncQueue();
-        hydrateComplianceData();
-        processMediaUploadQueue();
+        reconcileMissedEvents().then(() => {
+          processSyncQueue();
+          hydrateComplianceData();
+          processMediaUploadQueue();
+        });
       }
 
       return () => {

@@ -92,10 +92,10 @@ const SafetyDrills: React.FC = () => {
   }
 
   return (
-    <div className="">
+    <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Emergency Readiness Log</h1>
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Safety Drills</h1>
           <p className="text-sm text-slate-500 mt-1">Statutory readiness audits and cross-referenced roll calls.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

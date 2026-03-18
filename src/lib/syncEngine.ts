@@ -84,8 +84,7 @@ export async function prune14DayCache() {
   try {
     await Promise.all([
       db.daily_logs.where('log_date').below(isoDate).delete(),
-      db.tasks.where('due_date').below(isoDate).delete(),
-      db.medical_logs.where('date').below(isoDate).delete()
+      db.tasks.where('due_date').below(isoDate).delete()
     ]);
   } catch (error) {
     console.error('Janitor Error:', error);
@@ -281,7 +280,7 @@ export async function reconcileMissedEvents() {
     'first_aid_logs', 'organisations', 'contacts', 'zla_documents', 'bug_reports'
   ];
   
-  const lastSync = localStorage.getItem('last_sync_reconcile') || new Date(Date.now() - 3600000).toISOString();
+  const lastSync = localStorage.getItem('last_sync_reconcile') || '2000-01-01T00:00:00.000Z';
 
   try {
     // WARP SPEED: Concurrent background downloading for all 22 tables at once

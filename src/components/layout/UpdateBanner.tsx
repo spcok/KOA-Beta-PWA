@@ -6,8 +6,16 @@ export const UpdateBanner: React.FC = () => {
 
   useEffect(() => {
     if (sessionStorage.getItem('koa_just_updated') === 'true') {
-      return; // Safety lock: prevents banner from looping after a manual reload
+      return; // Safety lock
     }
+
+    // Catch updates that arrived while the auth layer was loading
+    // @ts-expect-error - custom property
+    if (window.pwaUpdateReady) {
+      console.log('🛠️ [PWA] Caught stashed update flag on mount.');
+      setTimeout(() => setShow(true), 0);
+    }
+
     const handleUpdate = () => {
       console.log('🛠️ [PWA] Update banner triggered by event.');
       setShow(true);

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Users } from 'lucide-react';
+import { Users, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Animal, LogEntry, LogType, AnimalCategory, EntityType } from '../../types';
 import { useDailyLogData } from './useDailyLogData';
 import { useWeatherSync } from './hooks/useWeatherSync';
@@ -10,7 +10,24 @@ import { MammalRow } from './components/MammalRow';
 import { ExoticRow } from './components/ExoticRow';
 
 const DailyLog: React.FC = () => {
-  const [viewDate] = useState(new Date().toISOString().split('T')[0]);
+  const [viewDate, setViewDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  const handlePrevDay = () => {
+    const d = new Date(viewDate);
+    d.setDate(d.getDate() - 1);
+    setViewDate(d.toISOString().split('T')[0]);
+  };
+
+  const handleNextDay = () => {
+    const d = new Date(viewDate);
+    d.setDate(d.getDate() + 1);
+    setViewDate(d.toISOString().split('T')[0]);
+  };
+
+  const handleToday = () => {
+    setViewDate(new Date().toISOString().split('T')[0]);
+  };
+
   const [activeCategory, setActiveCategory] = useState<AnimalCategory>(AnimalCategory.OWLS);
   const [hideSubAccounts, setHideSubAccounts] = useState(true);
   const isProcessing = useRef<Set<string>>(new Set());
@@ -90,6 +107,40 @@ const DailyLog: React.FC = () => {
         <div>
             <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">DAILY LOG</h1>
             <p className="text-sm text-slate-500 mt-1">Log and track daily animal activities.</p>
+            <div className="flex items-center gap-1 mt-2 bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit shadow-sm">
+              <button 
+                onClick={handlePrevDay} 
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
+                title="Previous Day"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <div className="flex items-center gap-2 px-2 border-x border-slate-200">
+                <Calendar size={14} className="text-slate-400" />
+                <input 
+                  type="date" 
+                  value={viewDate}
+                  onChange={(e) => setViewDate(e.target.value)}
+                  className="text-xs font-bold text-slate-700 bg-transparent focus:outline-none w-28 text-center cursor-pointer"
+                />
+              </div>
+
+              <button 
+                onClick={handleNextDay} 
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
+                title="Next Day"
+              >
+                <ChevronRight size={16} />
+              </button>
+
+              <button 
+                onClick={handleToday}
+                className={`ml-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors ${viewDate === new Date().toISOString().split('T')[0] ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-200'}`}
+              >
+                Today
+              </button>
+            </div>
         </div>
         {isSyncing && <span className="text-sm text-slate-500 animate-pulse">Syncing Weather...</span>}
       </div>
@@ -112,7 +163,7 @@ const DailyLog: React.FC = () => {
         </div>
         <button 
           onClick={() => setHideSubAccounts(!hideSubAccounts)}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${hideSubAccounts ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+          className={`ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${hideSubAccounts ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
         >
           <Users size={14} />
           {hideSubAccounts ? 'Sub-Accounts Hidden' : 'Showing All'}

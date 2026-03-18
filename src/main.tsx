@@ -38,14 +38,6 @@ createRoot(document.getElementById('root')!).render(
 );
 
 if ('serviceWorker' in navigator) {
-  // Nuclear Ghost Killer
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    for (const registration of registrations) {
-      console.warn('🗑️ [Nuclear Cleanup] Removing Service Worker:', registration.scope);
-      registration.unregister();
-    }
-  });
-
   window.addEventListener('load', async () => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
@@ -58,6 +50,8 @@ if ('serviceWorker' in navigator) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               console.log('🛠️ [PWA] New content available; please refresh.');
+              // @ts-expect-error - custom property stash
+              window.pwaUpdateReady = true;
               window.dispatchEvent(new CustomEvent('pwa-update-available'));
             }
           });

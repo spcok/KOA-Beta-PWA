@@ -65,7 +65,7 @@ const FirstAid: React.FC = () => {
   }
 
   return (
-    <div className="">
+    <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">FIRST AID LOG</h1>

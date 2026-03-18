@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { X, Save, Loader2 } from 'lucide-react';
+import { X, Save, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Animal, LogType, LogEntry, AnimalCategory } from '../../types';
 import { getMaidstoneDailyWeather } from '../../services/weatherService';
 import { mutateOnlineFirst } from '../../lib/dataEngine';
@@ -34,29 +34,25 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
   const [logType, setLogType] = useState<LogType>(initialType);
   const [date, setDate] = useState(initialDate);
   const [value, setValue] = useState(existingLog?.value || '');
-  const [foodType, setFoodType] = useState<string>(() => {
+  const [feedItems, setFeedItems] = useState<{type: string, quantity: string}[]>(() => {
     if (existingLog?.log_type === LogType.FEED && existingLog.value) {
-      const parts = existingLog.value.split(' - ');
-      return parts.length > 1 ? parts[0] : 'Other';
+      // Parse existing comma-separated multi-items (e.g., "Mice - 2x, Chicks - 1x")
+      return existingLog.value.split(', ').map(item => {
+        const parts = item.split(' - ');
+        return { type: parts[0] || '', quantity: parts[1] || '' };
+      });
     }
-    return '';
+    return [{ type: '', quantity: '' }];
   });
 
   useEffect(() => {
-    if (!foodType && foodTypes.length > 0) {
-      setFoodType(foodTypes[0].value);
+    if (foodTypes.length > 0 && feedItems.length === 1 && !feedItems[0].type && !existingLog) {
+      setFeedItems([{ ...feedItems[0], type: foodTypes[0].value }]);
     }
     if (logType === LogType.EVENT && !value && eventTypes.length > 0) {
       setValue(eventTypes[0].value);
     }
-  }, [foodTypes, eventTypes, logType, foodType, value]);
-  const [foodQuantity, setFoodQuantity] = useState<string>(() => {
-    if (existingLog?.log_type === LogType.FEED && existingLog.value) {
-      const parts = existingLog.value.split(' - ');
-      return parts.length > 1 ? parts[1] : existingLog.value;
-    }
-    return '';
-  });
+  }, [foodTypes, eventTypes, logType, feedItems, existingLog, value]);
   const [notes, setNotes] = useState(() => {
     if (existingLog?.log_type === LogType.FEED && existingLog.notes) {
       try {
@@ -67,6 +63,17 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
       }
     }
     return existingLog?.notes || '';
+  });
+  const [feedTime, setFeedTime] = useState(() => {
+    if (existingLog?.log_type === LogType.FEED && existingLog.notes) {
+      try {
+        const parsed = JSON.parse(existingLog.notes);
+        return parsed.feedTime || new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      } catch {
+        return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      }
+    }
+    return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   });
   const [cast, setCast] = useState<'AM' | 'PM' | 'NO' | 'N/A'>(() => {
     if (existingLog?.log_type === LogType.FEED && existingLog.notes) {
@@ -140,8 +147,8 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
       return;
     }
 
-    if (logType === LogType.FEED && (!foodType || !foodQuantity)) {
-      setError('Both Food Type and Quantity are required.');
+    if (logType === LogType.FEED && feedItems.some(item => !item.type || !item.quantity)) {
+      setError('All Food Items must have both Type and Quantity.');
       return;
     }
 
@@ -183,7 +190,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
     setIsSubmitting(true);
     
     try {
-      const finalValue = logType === LogType.FEED ? `${foodType} - ${foodQuantity}` : (value || logType);
+      const finalValue = logType === LogType.FEED ? feedItems.map(item => `${item.type} - ${item.quantity}`).join(', ') : (value || logType);
       
       const entry: Partial<LogEntry> = {
         id: existingLog?.id || uuidv4(),
@@ -192,7 +199,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
         log_date: date,
         value: finalValue,
         user_initials: userInitials.toUpperCase(),
-        notes: logType === LogType.FEED ? JSON.stringify({ cast, feedTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), userNotes: notes }) : notes,
+        notes: logType === LogType.FEED ? JSON.stringify({ cast, feedTime, userNotes: notes }) : notes,
       };
 
       if (logType === LogType.WEIGHT) {
@@ -361,31 +368,57 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
       case LogType.FEED:
         return (
           <div className="space-y-4">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Food Type</label>
-                <select 
-                  value={foodType} 
-                  onChange={e => setFoodType(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold text-sm"
-                >
-                  {foodTypes.map(opt => (
-                    <option key={opt.id} value={opt.value}>{opt.value}</option>
-                  ))}
-                </select>
+            {feedItems.map((item, index) => (
+              <div key={index} className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Food Type</label>
+                  <select 
+                    value={item.type} 
+                    onChange={e => {
+                      const newItems = [...feedItems];
+                      newItems[index].type = e.target.value;
+                      setFeedItems(newItems);
+                    }}
+                    className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold text-sm"
+                  >
+                    {foodTypes.map(opt => (
+                      <option key={opt.id} value={opt.value}>{opt.value}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Quantity</label>
+                  <input 
+                    type="text" 
+                    value={item.quantity} 
+                    onChange={e => {
+                      const newItems = [...feedItems];
+                      newItems[index].quantity = e.target.value;
+                      setFeedItems(newItems);
+                    }}
+                    className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold text-sm"
+                    placeholder="e.g. 2x, 50g"
+                    required
+                  />
+                </div>
+                {feedItems.length > 1 && (
+                  <button 
+                    type="button" 
+                    onClick={() => setFeedItems(feedItems.filter((_, i) => i !== index))}
+                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                )}
               </div>
-              <div className="flex-1">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Quantity / Amount</label>
-                <input 
-                  type="text" 
-                  value={foodQuantity} 
-                  onChange={e => setFoodQuantity(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold text-sm"
-                  placeholder="e.g. 2x, 50g"
-                  required
-                />
-              </div>
-            </div>
+            ))}
+            <button 
+              type="button"
+              onClick={() => setFeedItems([...feedItems, { type: foodTypes[0]?.value || '', quantity: '' }])}
+              className="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-bold text-xs uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-600 transition-all flex items-center justify-center gap-2"
+            >
+              <Plus size={16} /> Add Another Item
+            </button>
             {feedMethods.length > 0 && (
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Method</label>
@@ -403,18 +436,30 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
                 </div>
               </div>
             )}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Cast</label>
-              <select 
-                value={cast} 
-                onChange={(e) => setCast(e.target.value as 'AM' | 'PM' | 'NO' | 'N/A')}
-                className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold"
-              >
-                <option value="AM">AM</option>
-                <option value="PM">PM</option>
-                <option value="NO">NO</option>
-                <option value="N/A">N/A</option>
-              </select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Time of Feed</label>
+                <input 
+                  type="time" 
+                  value={feedTime} 
+                  onChange={e => setFeedTime(e.target.value)}
+                  className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Cast</label>
+                <select 
+                  value={cast} 
+                  onChange={(e) => setCast(e.target.value as 'AM' | 'PM' | 'NO' | 'N/A')}
+                  className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold"
+                >
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                  <option value="NO">NO</option>
+                  <option value="N/A">N/A</option>
+                </select>
+              </div>
             </div>
           </div>
         );

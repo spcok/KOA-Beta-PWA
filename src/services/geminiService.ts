@@ -4,7 +4,7 @@ import { SignContent, ConservationStatus } from '../types';
 /**
  * DIAGNOSTIC TRACER: Master helper to invoke the Edge Function
  */
-const invokeGeminiEdge = async (prompt: string, expectJson: boolean = false, timeoutMs: number = 15000) => {
+const invokeGeminiEdge = async (prompt: string, expectJson: boolean = false, timeoutMs: number = 30000) => {
   
   try {
 
@@ -65,7 +65,7 @@ export interface AnimalIntelligenceResponse {
 export const getAnimalIntelligence = async (speciesName: string): Promise<AnimalIntelligenceResponse> => {
   try {
     const prompt = `You are a zoological database. Find the scientific name and IUCN Red List status for the animal: "${speciesName}". Return ONLY a raw JSON object matching exactly this schema: {"latin_name": "Scientific Name", "red_list_status": "One of: NE, DD, LC, NT, VU, EN, CR, EW, EX"}. Do not include markdown formatting or backticks.`;
-    return await invokeGeminiEdge(prompt, true) as AnimalIntelligenceResponse;
+    return await invokeGeminiEdge(prompt, true, 30000) as AnimalIntelligenceResponse;
   } catch (error: unknown) {
     console.error("❌ [getAnimalIntelligence] Caught Error from invokeGeminiEdge:", error);
     throw new Error("Failed to fetch animal intelligence.", { cause: error });

@@ -110,9 +110,9 @@ const MedicalRecords: React.FC = () => {
     }
   };
 
-  const filteredNotes = (clinicalNotes || []).filter(n => 
-    selectedPatient === 'All' || n.animal_id === selectedPatient
-  );
+  const filteredNotes = (clinicalNotes || [])
+    .filter(n => selectedPatient === 'All' || n.animal_id === selectedPatient)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div className="space-y-6">

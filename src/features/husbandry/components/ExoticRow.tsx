@@ -19,6 +19,16 @@ export const ExoticRow: React.FC<ExoticRowProps> = memo(({ animal, getTodayLog, 
     return isGroup ? `${log.value} (Mob Total)` : log.value;
   };
 
+  const getFeedTime = (log: LogEntry | undefined) => {
+    if (!log || !log.notes) return null;
+    try {
+      const parsed = JSON.parse(log.notes);
+      return parsed.feedTime ? `@ ${parsed.feedTime}` : null;
+    } catch {
+      return null;
+    }
+  };
+
   return (
     <tr className="border-b border-slate-100 hover:bg-slate-50">
       <td className="px-1 py-3 sm:p-4 flex items-center gap-1 sm:gap-3">
@@ -39,9 +49,19 @@ export const ExoticRow: React.FC<ExoticRowProps> = memo(({ animal, getTodayLog, 
         </div>
       </td>
       <td className="px-1 py-3 sm:p-4 text-center">
-        <button onClick={() => onCellClick(animal, LogType.FEED)} className="w-full min-w-[40px] sm:min-w-[60px] px-1 sm:px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 rounded-lg text-xs font-bold text-emerald-800 text-center truncate">
-          {formatValue(feedLog, 'Feed')}
-        </button>
+        <div className="flex flex-col items-center gap-1">
+          <button 
+            onClick={() => onCellClick(animal, LogType.FEED)} 
+            className="w-full min-w-[40px] sm:min-w-[60px] px-1 sm:px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 rounded-lg text-xs font-bold text-emerald-800 text-center truncate"
+          >
+            {formatValue(feedLog, 'Feed')}
+          </button>
+          {getFeedTime(feedLog) && (
+            <span className="text-[10px] font-bold text-slate-400">
+              {getFeedTime(feedLog)}
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-1 py-3 sm:p-4 text-center">
         <button onClick={() => onCellClick(animal, LogType.MISTING)} className="w-full min-w-[40px] sm:min-w-[60px] px-1 sm:px-3 py-1.5 bg-blue-100 hover:bg-blue-200 rounded-lg text-xs font-bold text-blue-800 text-center truncate">

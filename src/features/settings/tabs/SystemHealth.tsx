@@ -40,6 +40,14 @@ const SystemHealth: React.FC = () => {
     }
   }, []);
 
+  const handleClearQuarantine = async () => {
+    if (window.confirm('Are you sure you want to permanently delete all quarantined sync items?')) {
+      const quarantined = await db.sync_queue.where('status').equals('quarantined').toArray();
+      const ids = quarantined.map(q => q.id as number);
+      await db.sync_queue.bulkDelete(ids);
+    }
+  };
+
   const handleForceSync = async () => {
     setIsSyncing(true);
     try {
@@ -78,6 +86,7 @@ const SystemHealth: React.FC = () => {
           id: testId, 
           animal_id: targetAnimalId, // Real ID satisfies the Foreign Key constraint
           log_type: 'GENERAL', // Satisfies the NOT NULL constraint
+          value: 'SYSTEM_PING_TEST', // Added to satisfy NOT NULL constraint
           log_date: new Date().toISOString(), 
           notes: 'PIPELINE_PING_TEST', 
           created_at: new Date().toISOString() 
@@ -293,6 +302,12 @@ const SystemHealth: React.FC = () => {
               {syncMetrics.quarantined} items have failed multiple sync attempts and are quarantined to prevent queue blockage. 
               These usually indicate schema conflicts or validation errors. Please contact technical support for manual reconciliation.
             </p>
+            <button 
+              onClick={handleClearQuarantine}
+              className="mt-3 px-3 py-1.5 bg-rose-200 text-rose-800 text-xs font-bold rounded-lg hover:bg-rose-300 transition-colors"
+            >
+              Clear Quarantine Queue
+            </button>
           </div>
         </div>
       ) : null}

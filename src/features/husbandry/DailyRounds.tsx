@@ -4,7 +4,7 @@ import { Animal, AnimalCategory } from '../../types';
 import { 
     ClipboardCheck, Sun, Moon, Check, X, Droplets, Lock, 
     Heart, AlertTriangle, ShieldCheck, PenTool, Loader2, Calendar as CalendarIcon,
-    Info, Snowflake, ChevronDown, ChevronRight, CornerDownRight
+    Info, Snowflake, ChevronDown, ChevronRight, CornerDownRight, ChevronLeft
 } from 'lucide-react';
 import { useDailyRoundData } from './useDailyRoundData';
 
@@ -18,6 +18,23 @@ const DailyRounds: React.FC<DailyRoundsProps> = () => {
     const { view_daily_rounds } = usePermissions();
     const { isSidebarCollapsed } = useOutletContext<{ isSidebarCollapsed: boolean }>();
     const [viewDate, setViewDate] = useState(new Date().toISOString().split('T')[0]);
+    
+    const handlePrevDay = () => {
+        const d = new Date(viewDate);
+        d.setDate(d.getDate() - 1);
+        setViewDate(d.toISOString().split('T')[0]);
+    };
+
+    const handleNextDay = () => {
+        const d = new Date(viewDate);
+        d.setDate(d.getDate() + 1);
+        setViewDate(d.toISOString().split('T')[0]);
+    };
+
+    const handleToday = () => {
+        setViewDate(new Date().toISOString().split('T')[0]);
+    };
+
     const [expandedMobs, setExpandedMobs] = useState<Set<string>>(new Set());
 
     const toggleMob = (id: string) => {
@@ -114,13 +131,40 @@ const DailyRounds: React.FC<DailyRoundsProps> = () => {
                         </h1>
                         <p className="text-sm text-slate-500 mt-1">Manage daily animal checks and husbandry tasks.</p>
                         <div className="flex items-center gap-2 mt-2">
-                            <CalendarIcon size={14} className="text-slate-400" />
-                            <input 
-                                type="date" 
-                                value={viewDate}
-                                onChange={(e) => setViewDate(e.target.value)}
-                                className="text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:border-emerald-500"
-                            />
+                            <div className="flex items-center gap-1 mt-2 bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit shadow-sm">
+                              <button 
+                                onClick={handlePrevDay} 
+                                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
+                                title="Previous Day"
+                              >
+                                <ChevronLeft size={16} />
+                              </button>
+
+                              <div className="flex items-center gap-2 px-2 border-x border-slate-200">
+                                <CalendarIcon size={14} className="text-slate-400" />
+                                <input 
+                                  type="date" 
+                                  value={viewDate}
+                                  onChange={(e) => setViewDate(e.target.value)}
+                                  className="text-xs font-bold text-slate-700 bg-transparent focus:outline-none w-28 text-center cursor-pointer"
+                                />
+                              </div>
+
+                              <button 
+                                onClick={handleNextDay} 
+                                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
+                                title="Next Day"
+                              >
+                                <ChevronRight size={16} />
+                              </button>
+
+                              <button 
+                                onClick={handleToday}
+                                className={`ml-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors ${viewDate === new Date().toISOString().split('T')[0] ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-200'}`}
+                              >
+                                Today
+                              </button>
+                            </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
