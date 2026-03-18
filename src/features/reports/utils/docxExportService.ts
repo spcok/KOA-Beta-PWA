@@ -328,10 +328,12 @@ export const generateExternalTransfersDocx = async (
 
   const tableRows = transfers.map(transfer => {
     const animal = animals.find(a => a.id === transfer.animal_id);
+    const count = animal?.entity_type === 'GROUP' ? (animal?.census_count || 0) : 1;
+    const name = animal?.entity_type === 'GROUP' ? `${animal?.name || transfer.animal_name || '--'} (Count: ${count})` : (animal?.name || transfer.animal_name || '--');
     return new TableRow({
       children: [
         new TableCell({ children: [new Paragraph(transfer.date)] }),
-        new TableCell({ children: [new Paragraph(animal?.name || transfer.animal_name || '--')] }),
+        new TableCell({ children: [new Paragraph(name)] }),
         new TableCell({ children: [new Paragraph(animal?.species || '--')] }),
         new TableCell({ children: [new Paragraph(transfer.transfer_type || '--')] }),
         new TableCell({ children: [new Paragraph(transfer.institution || '--')] }),

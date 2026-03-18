@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { Users } from 'lucide-react';
 import { Animal, LogEntry, LogType, AnimalCategory, EntityType } from '../../types';
 import { useDailyLogData } from './useDailyLogData';
 import { useWeatherSync } from './hooks/useWeatherSync';
@@ -11,6 +12,7 @@ import { ExoticRow } from './components/ExoticRow';
 const DailyLog: React.FC = () => {
   const [viewDate] = useState(new Date().toISOString().split('T')[0]);
   const [activeCategory, setActiveCategory] = useState<AnimalCategory>(AnimalCategory.OWLS);
+  const [hideSubAccounts, setHideSubAccounts] = useState(true);
   const isProcessing = useRef<Set<string>>(new Set());
   
   const { animals, getTodayLog, addLogEntry, isLoading } = useDailyLogData(viewDate, activeCategory);
@@ -19,6 +21,10 @@ const DailyLog: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
   const [selectedType, setSelectedType] = useState<LogType>(LogType.GENERAL);
+
+  const visibleAnimals = hideSubAccounts 
+    ? animals.filter(a => !(a.entity_type === EntityType.INDIVIDUAL && a.parent_mob_id))
+    : animals;
 
   const categories = [
     AnimalCategory.OWLS,
@@ -88,20 +94,29 @@ const DailyLog: React.FC = () => {
         {isSyncing && <span className="text-sm text-slate-500 animate-pulse">Syncing Weather...</span>}
       </div>
 
-      <div className="flex overflow-x-auto scrollbar-hide bg-slate-100 p-1 rounded-xl gap-0.5 sm:gap-1 mb-4">
-        {categories.map(category => (
-          <button
-            key={category}
-            onClick={() => setActiveCategory(category)}
-            className={`flex-1 min-w-fit sm:min-w-[100px] py-1.5 px-1 sm:py-2.5 text-[11px] sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
-              activeCategory === category 
-                ? 'bg-white text-blue-700 shadow-sm font-bold' 
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {category}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div className="flex overflow-x-auto scrollbar-hide bg-slate-100 p-1 rounded-xl gap-0.5 sm:gap-1">
+          {categories.map(category => (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`flex-1 min-w-fit sm:min-w-[100px] py-1.5 px-1 sm:py-2.5 text-[11px] sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                activeCategory === category 
+                  ? 'bg-white text-blue-700 shadow-sm font-bold' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+        <button 
+          onClick={() => setHideSubAccounts(!hideSubAccounts)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${hideSubAccounts ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+        >
+          <Users size={14} />
+          {hideSubAccounts ? 'Sub-Accounts Hidden' : 'Showing All'}
+        </button>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -126,7 +141,7 @@ const DailyLog: React.FC = () => {
                 </tr>
               ))
             ) : (
-              animals.map(renderRow)
+              visibleAnimals.map(renderRow)
             )}
           </tbody>
         </table>

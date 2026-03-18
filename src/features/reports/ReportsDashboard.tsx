@@ -321,23 +321,30 @@ export default function ReportsDashboard() {
         }
         return;
       } else if (activeReportId === 'census') {
-        const activeAnimals = (animals || []).filter(a => {
+        const allAnimals = (animals || []);
+        const linkedChildIds = new Set(allAnimals.filter(a => a.parent_mob_id).map(a => a.id));
+
+        const activeAnimals = allAnimals.filter(a => {
           const isActive = a.disposition_status !== 'Deceased' && 
                            a.disposition_status !== 'Transferred' && 
                            !a.archived;
           const matchesSection = selectedSection ? ((a as unknown as Record<string, string>).section === selectedSection || a.category === selectedSection) : true;
-          return isActive && matchesSection;
+          return isActive && matchesSection && !linkedChildIds.has(a.id);
         });
 
-        const tableData = activeAnimals.map(animal => [
-          animal.name || '--',
-          animal.species || '--',
-          animal.latin_name || '--',
-          animal.sex || '--',
-          animal.ring_number || (animal as unknown as Record<string, string>).id_number || '--',
-          animal.location || (animal as unknown as Record<string, string>).enclosure || '--',
-          animal.disposition_status || 'Active'
-        ]);
+        const tableData = activeAnimals.map(animal => {
+          const count = animal.entity_type === 'GROUP' ? (animal.census_count || 0) : 1;
+          const name = animal.entity_type === 'GROUP' ? `${animal.name || '--'} (Count: ${count})` : (animal.name || '--');
+          return [
+            name,
+            animal.species || '--',
+            animal.latin_name || '--',
+            animal.sex || '--',
+            animal.ring_number || (animal as unknown as Record<string, string>).id_number || '--',
+            animal.location || (animal as unknown as Record<string, string>).enclosure || '--',
+            animal.disposition_status || 'Active'
+          ];
+        });
 
         const blob = await generateAnimalCensusDocx(
           tableData,
@@ -376,8 +383,17 @@ export default function ReportsDashboard() {
         // Combine both arrays to ensure historical accuracy
         const allAnimals = [...(animals || []), ...(archivedAnimals || [])];
 
+        // NEW: Hybrid Counting Logic
+        const linkedChildIds = new Set(allAnimals.filter(a => a.parent_mob_id).map(a => a.id));
+
         allAnimals.forEach(animal => {
           if (selectedSection && animalSectionMap.get(animal.id) !== selectedSection) return;
+          
+          // NEW: Skip linked children
+          if (linkedChildIds.has(animal.id)) return;
+
+          // NEW: Calculate count
+          const count = animal.entity_type === 'GROUP' ? (animal.census_count || 0) : 1;
 
           const species = animal.species || 'Unknown Species';
           if (!speciesMap.has(species)) {
@@ -389,27 +405,27 @@ export default function ReportsDashboard() {
           const dispDate = animal.transfer_date ? new Date(animal.transfer_date).getTime() : Infinity;
 
           if (acqDate < start && dispDate >= start) {
-            stats.startCount++;
+            stats.startCount += count;
           }
 
           if (acqDate >= start && acqDate <= endInclusive) {
             if (animal.acquisition_type === 'BORN') {
-              stats.births++;
+              stats.births += count;
             } else {
-              stats.arrivals++;
+              stats.arrivals += count;
             }
           }
 
           if (dispDate >= start && dispDate <= endInclusive) {
             if (animal.disposition_status === 'Deceased') {
-              stats.deaths++;
+              stats.deaths += count;
             } else {
-              stats.departures++;
+              stats.departures += count;
             }
           }
 
           if (acqDate <= endInclusive && dispDate > endInclusive) {
-            stats.endCount++;
+            stats.endCount += count;
           }
         });
 

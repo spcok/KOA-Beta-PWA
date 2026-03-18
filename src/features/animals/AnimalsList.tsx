@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useHybridQuery } from '../../lib/dataEngine';
 import { db } from '../../lib/db';
 import { Animal } from '../../types';

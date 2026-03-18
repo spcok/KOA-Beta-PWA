@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { AnimalCategory, DailyRound, Animal, LogType, LogEntry } from '../../types';
+import { AnimalCategory, DailyRound, Animal, LogType, LogEntry, EntityType } from '../../types';
 import { db } from '../../lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { useHybridQuery, mutateOnlineFirst } from '../../lib/dataEngine';
@@ -70,34 +70,90 @@ export function useDailyRoundData(viewDate: string) {
 
     const toggleHealth = (id: string, issue?: string) => {
         setChecks(prev => {
-            const current = prev[id] || { isWatered: false, isSecure: false };
-            if (current.isAlive === true) {
-                return { ...prev, [id]: { ...current, isAlive: false, healthIssue: issue } };
-            } else if (current.isAlive === false) {
-                return { ...prev, [id]: { ...current, isAlive: true, healthIssue: undefined } };
+            const currentParent = prev[id] || { isWatered: false, isSecure: false };
+            
+            let newIsAlive: boolean;
+            let newHealthIssue: string | undefined;
+            
+            if (currentParent.isAlive === true) {
+                newIsAlive = false;
+                newHealthIssue = issue;
+            } else if (currentParent.isAlive === false) {
+                newIsAlive = true;
+                newHealthIssue = undefined;
             } else {
-                return { ...prev, [id]: { ...current, isAlive: true } };
+                newIsAlive = true;
+                newHealthIssue = undefined;
             }
+            
+            const animal = allAnimals.find(a => a.id === id);
+            const isGroup = animal?.entity_type === EntityType.GROUP;
+            const childIds = isGroup ? allAnimals.filter(a => a.parent_mob_id === id).map(a => a.id) : [];
+            
+            const nextState = { ...prev };
+            nextState[id] = { ...currentParent, isAlive: newIsAlive, healthIssue: newHealthIssue };
+            
+            childIds.forEach(childId => {
+                const currentChild = nextState[childId] || { isWatered: false, isSecure: false };
+                nextState[childId] = { ...currentChild, isAlive: newIsAlive, healthIssue: newHealthIssue };
+            });
+            
+            return nextState;
         });
     };
 
     const toggleWater = (id: string) => {
         setChecks(prev => {
-            const current = prev[id] || { isWatered: false, isSecure: false };
-            return { ...prev, [id]: { ...current, isWatered: !current.isWatered } };
+            const currentParent = prev[id] || { isWatered: false, isSecure: false };
+            const newWaterState = !currentParent.isWatered;
+            
+            const animal = allAnimals.find(a => a.id === id);
+            const isGroup = animal?.entity_type === EntityType.GROUP;
+            const childIds = isGroup ? allAnimals.filter(a => a.parent_mob_id === id).map(a => a.id) : [];
+            
+            const nextState = { ...prev };
+            nextState[id] = { ...currentParent, isWatered: newWaterState };
+            
+            childIds.forEach(childId => {
+                const currentChild = nextState[childId] || { isWatered: false, isSecure: false };
+                nextState[childId] = { ...currentChild, isWatered: newWaterState };
+            });
+            
+            return nextState;
         });
     };
 
     const toggleSecure = (id: string, issue?: string) => {
         setChecks(prev => {
-            const current = prev[id] || { isWatered: false, isSecure: false };
-            if (current.isSecure) {
-                return { ...prev, [id]: { ...current, isSecure: false, securityIssue: issue } };
-            } else if (current.securityIssue) {
-                return { ...prev, [id]: { ...current, isSecure: true, securityIssue: undefined } };
+            const currentParent = prev[id] || { isWatered: false, isSecure: false };
+            
+            let newIsSecure: boolean;
+            let newSecurityIssue: string | undefined;
+            
+            if (currentParent.isSecure) {
+                newIsSecure = false;
+                newSecurityIssue = issue;
+            } else if (currentParent.securityIssue) {
+                newIsSecure = true;
+                newSecurityIssue = undefined;
             } else {
-                return { ...prev, [id]: { ...current, isSecure: true } };
+                newIsSecure = true;
+                newSecurityIssue = undefined;
             }
+            
+            const animal = allAnimals.find(a => a.id === id);
+            const isGroup = animal?.entity_type === EntityType.GROUP;
+            const childIds = isGroup ? allAnimals.filter(a => a.parent_mob_id === id).map(a => a.id) : [];
+            
+            const nextState = { ...prev };
+            nextState[id] = { ...currentParent, isSecure: newIsSecure, securityIssue: newSecurityIssue };
+            
+            childIds.forEach(childId => {
+                const currentChild = nextState[childId] || { isWatered: false, isSecure: false };
+                nextState[childId] = { ...currentChild, isSecure: newIsSecure, securityIssue: newSecurityIssue };
+            });
+            
+            return nextState;
         });
     };
 

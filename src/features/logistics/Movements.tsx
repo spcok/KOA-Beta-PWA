@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Truck, Plus, History, MapPin, Calendar, User as UserIcon, ArrowRight, Plane, Lock } from 'lucide-react';
 import { useMovementsData } from './useMovementsData';
 import { useTransfersData } from './useTransfersData';

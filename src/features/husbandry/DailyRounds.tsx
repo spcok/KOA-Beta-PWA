@@ -243,6 +243,8 @@ const DailyRounds: React.FC<DailyRoundsProps> = () => {
                                         </React.Fragment>
                                     );
                                 })}
+                                {/* Explicit spacer to ensure last item clears the fixed footer */}
+                                <div className="h-24 sm:h-32 w-full shrink-0 flex-none opacity-0"></div>
                             </>
                         );
                     })()

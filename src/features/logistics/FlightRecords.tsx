@@ -1,4 +1,3 @@
-import React from 'react';
 import { Plus, Lock, History } from 'lucide-react';
 import { usePermissions } from '../../hooks/usePermissions';
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Plus, Calendar, Trash2, Lock } from 'lucide-react';
 import { useTimesheetData } from './useTimesheetData';
 import AddTimesheetModal from './AddTimesheetModal';
