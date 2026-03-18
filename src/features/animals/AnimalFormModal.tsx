@@ -31,20 +31,26 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
   const [weightUnit, setWeightUnit] = useState<'g' | 'lb' | 'oz'>(
     initialData?.weight_unit === 'lbs_oz' ? 'lb' : (initialData?.weight_unit as 'g' | 'oz') || 'g'
   );
-  
-  const initialWeightValues = initialData?.flying_weight_g 
-    ? convertFromGrams(initialData.flying_weight_g, weightUnit)
-    : { g: 0, lb: 0, oz: 0, eighths: 0 };
 
-  const [weightValues, setWeightValues] = useState(initialWeightValues);
+  const [flightWeightValues, setFlightWeightValues] = useState(
+    initialData?.flying_weight_g ? convertFromGrams(initialData.flying_weight_g, weightUnit) : { g: 0, lb: 0, oz: 0, eighths: 0 }
+  );
 
-  const handleWeightChange = (field: string, value: string) => {
-    const num = parseInt(value) || 0;
-    setWeightValues(prev => ({ ...prev, [field]: num }));
+  const [winterWeightValues, setWinterWeightValues] = useState(
+    initialData?.winter_weight_g ? convertFromGrams(initialData.winter_weight_g, weightUnit) : { g: 0, lb: 0, oz: 0, eighths: 0 }
+  );
+
+  const handleFlightWeightChange = (field: string, value: string) => {
+    setFlightWeightValues(prev => ({ ...prev, [field]: parseInt(value) || 0 }));
+  };
+
+  const handleWinterWeightChange = (field: string, value: string) => {
+    setWinterWeightValues(prev => ({ ...prev, [field]: parseInt(value) || 0 }));
   };
 
   const onSubmit = form.handleSubmit(async (data) => {
-    const totalGrams = convertToGrams(weightUnit, weightValues);
+    const flightGrams = convertToGrams(weightUnit, flightWeightValues);
+    const winterGrams = convertToGrams(weightUnit, winterWeightValues);
 
     // Scrub empty strings from UUID fields to prevent Postgres syntax errors
     const sanitizedData = {
@@ -56,7 +62,8 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
 
     const payload = {
       ...sanitizedData,
-      flying_weight_g: totalGrams,
+      flying_weight_g: flightGrams > 0 ? flightGrams : null,
+      winter_weight_g: winterGrams > 0 ? winterGrams : null,
       weight_unit: weightUnit === 'lb' ? 'lbs_oz' : weightUnit
     };
     
@@ -471,9 +478,8 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                             onChange={(e) => {
                                                 const newUnit = e.target.value as 'g' | 'lb' | 'oz';
                                                 setWeightUnit(newUnit);
-                                                // Recalculate values when unit changes to maintain consistency
-                                                const currentGrams = convertToGrams(weightUnit, weightValues);
-                                                setWeightValues(convertFromGrams(currentGrams, newUnit));
+                                                setFlightWeightValues(convertFromGrams(convertToGrams(weightUnit, flightWeightValues), newUnit));
+                                                setWinterWeightValues(convertFromGrams(convertToGrams(weightUnit, winterWeightValues), newUnit));
                                             }}
                                             className="text-[10px] font-bold bg-white border-2 border-slate-200 rounded-lg py-1 px-2 uppercase tracking-widest focus:ring-0 cursor-pointer"
                                         >
@@ -484,13 +490,16 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div className="sm:col-span-3">
+                                            <h5 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Flight Target</h5>
+                                        </div>
                                         {weightUnit === 'g' && (
                                             <div className="sm:col-span-3">
                                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Grams</label>
                                                 <input 
                                                     type="number" 
-                                                    value={weightValues.g || ''} 
-                                                    onChange={(e) => handleWeightChange('g', e.target.value)}
+                                                    value={flightWeightValues.g || ''} 
+                                                    onChange={(e) => handleFlightWeightChange('g', e.target.value)}
                                                     className={inputClass}
                                                     placeholder="e.g. 1050"
                                                 />
@@ -503,8 +512,8 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
                                                     <input 
                                                         type="number" 
-                                                        value={weightValues.oz || ''} 
-                                                        onChange={(e) => handleWeightChange('oz', e.target.value)}
+                                                        value={flightWeightValues.oz || ''} 
+                                                        onChange={(e) => handleFlightWeightChange('oz', e.target.value)}
                                                         className={inputClass}
                                                         placeholder="oz"
                                                     />
@@ -512,8 +521,8 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                                 <div>
                                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
                                                     <select 
-                                                        value={weightValues.eighths || 0} 
-                                                        onChange={(e) => handleWeightChange('eighths', e.target.value)}
+                                                        value={flightWeightValues.eighths || 0} 
+                                                        onChange={(e) => handleFlightWeightChange('eighths', e.target.value)}
                                                         className={inputClass}
                                                     >
                                                         {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
@@ -528,8 +537,8 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Pounds (lb)</label>
                                                     <input 
                                                         type="number" 
-                                                        value={weightValues.lb || ''} 
-                                                        onChange={(e) => handleWeightChange('lb', e.target.value)}
+                                                        value={flightWeightValues.lb || ''} 
+                                                        onChange={(e) => handleFlightWeightChange('lb', e.target.value)}
                                                         className={inputClass}
                                                         placeholder="lb"
                                                     />
@@ -537,8 +546,8 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                                 <div>
                                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
                                                     <select 
-                                                        value={weightValues.oz || 0} 
-                                                        onChange={(e) => handleWeightChange('oz', e.target.value)}
+                                                        value={flightWeightValues.oz || 0} 
+                                                        onChange={(e) => handleFlightWeightChange('oz', e.target.value)}
                                                         className={inputClass}
                                                     >
                                                         {Array.from({length: 16}, (_, i) => i).map(n => <option key={n} value={n}>{n} oz</option>)}
@@ -547,8 +556,86 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                                 <div>
                                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
                                                     <select 
-                                                        value={weightValues.eighths || 0} 
-                                                        onChange={(e) => handleWeightChange('eighths', e.target.value)}
+                                                        value={flightWeightValues.eighths || 0} 
+                                                        onChange={(e) => handleFlightWeightChange('eighths', e.target.value)}
+                                                        className={inputClass}
+                                                    >
+                                                        {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
+                                                    </select>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-200">
+                                        <div className="sm:col-span-3">
+                                            <h5 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Winter Target</h5>
+                                        </div>
+                                        {weightUnit === 'g' && (
+                                            <div className="sm:col-span-3">
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Grams</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={winterWeightValues.g || ''} 
+                                                    onChange={(e) => handleWinterWeightChange('g', e.target.value)}
+                                                    className={inputClass}
+                                                    placeholder="e.g. 1050"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {weightUnit === 'oz' && (
+                                            <>
+                                                <div className="sm:col-span-2">
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={winterWeightValues.oz || ''} 
+                                                        onChange={(e) => handleWinterWeightChange('oz', e.target.value)}
+                                                        className={inputClass}
+                                                        placeholder="oz"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
+                                                    <select 
+                                                        value={winterWeightValues.eighths || 0} 
+                                                        onChange={(e) => handleWinterWeightChange('eighths', e.target.value)}
+                                                        className={inputClass}
+                                                    >
+                                                        {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
+                                                    </select>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {weightUnit === 'lb' && (
+                                            <>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Pounds (lb)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={winterWeightValues.lb || ''} 
+                                                        onChange={(e) => handleWinterWeightChange('lb', e.target.value)}
+                                                        className={inputClass}
+                                                        placeholder="lb"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
+                                                    <select 
+                                                        value={winterWeightValues.oz || 0} 
+                                                        onChange={(e) => handleWinterWeightChange('oz', e.target.value)}
+                                                        className={inputClass}
+                                                    >
+                                                        {Array.from({length: 16}, (_, i) => i).map(n => <option key={n} value={n}>{n} oz</option>)}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
+                                                    <select 
+                                                        value={winterWeightValues.eighths || 0} 
+                                                        onChange={(e) => handleWinterWeightChange('eighths', e.target.value)}
                                                         className={inputClass}
                                                     >
                                                         {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
@@ -558,7 +645,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                         )}
                                     </div>
                                     <p className="text-[10px] font-medium text-slate-400 italic">
-                                        Calculated Value: {convertToGrams(weightUnit, weightValues).toFixed(2)}g
+                                        Flight: {convertToGrams(weightUnit, flightWeightValues).toFixed(2)}g · Winter: {convertToGrams(weightUnit, winterWeightValues).toFixed(2)}g
                                     </p>
                                 </div>
                             )}

@@ -8,72 +8,17 @@ export interface ChangelogEntry {
 
 export const changelogData: ChangelogEntry[] = [
   {
-    version: 'v2.0.0',
-    date: '2026-03-17',
-    title: 'Titanium Architecture & Weather Station Rebuild',
-    type: 'Major',
-    changes: [
-      "Complete UI standardization across all operational modules (Dashboard Standard).",
-      "Enterprise-grade background Sync Engine with concurrent network processing.",
-      "Lightning-fast O(1) local database queries for offline failover.",
-      "Brand new Falconry Weather Station with hourly timelines and focused 11:00-16:00 AI Flight Advisory."
-    ]
-  },
-  {
-    version: 'v1.1.3-beta',
-    date: '2026-03-16',
-    type: 'Hotfix',
-    changes: [
-      "Resolved infinite reload loop during Over-The-Air (OTA) updates,",
-      "Updated Service Worker lifecycle to respect manual user update confirmation."
-    ]
-  },
-  {
-    version: '1.1.2-beta',
-    date: '2026-03-16',
-    type: 'Patch',
-    changes: [
-      'Upgraded Bug Report Viewer with severity parsing and visual badges.',
-      'Added ability to resolve and clear bug reports from the administrative dashboard.',
-      'Improved bug viewer offline handling with connection status awareness.',
-      'Added manual refresh capability to the bug report dashboard.'
-    ]
-  },
-  {
-    version: '1.1.1-beta',
-    date: '2026-03-16',
-    type: 'Patch',
-    changes: [
-      'Added local database JSON export for manual backups.',
-      'Restored PWA Diagnostics view for real-time service worker monitoring.',
-      'Added emergency local database purge protocol with double-confirmation.',
-      'Improved storage usage visualization in System Health dashboard.'
-    ]
-  },
-  {
-    version: '1.1.0-beta',
-    date: '2026-03-16',
-    type: 'Minor',
-    changes: [
-      'Added System Health & Diagnostics Dashboard for real-time monitoring.',
-      'Enabled real-time Sync Engine monitoring for administrators.',
-      'Added local storage usage estimation and quota warnings.',
-      'Implemented manual "Force Sync" capability for immediate data flushing.'
-    ]
-  },
-  {
-    version: '1.0.0-beta',
+    version: 'V1.0.0 Beta',
     date: '2026-03-16',
     type: 'Major',
     changes: [
       'Initial Beta Release of Kent Owl Academy Management System.',
-      'Implementation of Tier-2 Offline Sync Engine with prioritized queueing.',
-      'Soft delete system for ZLA 1981 audit trail compliance.',
-      'Enterprise PWA architecture with Background Sync and SWR media caching.',
-      'Hybrid Data Engine (Supabase + Dexie) for 14-day offline failover.',
-      'Role-Based Access Control (RBAC) for staff and administrators.',
-      'Automated media upload queue with background processing.',
-      'Real-time reconciliation of missed events during offline periods.'
+      'Enterprise PWA architecture with Background Sync and Hybrid Data Engine (Supabase + Dexie) for offline failover.',
+      'Tier-2 Offline Sync Engine with real-time reconciliation.',
+      'System Health & Diagnostics Dashboard with real-time monitoring.',
+      'Role-Based Access Control (RBAC) and Soft delete system for ZLA 1981 compliance.',
+      'Automated media upload queue and manual backup capabilities.',
+      'UI standardization and improved bug reporting/resolution tools.'
     ]
   }
 ];

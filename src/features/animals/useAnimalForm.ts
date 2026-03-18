@@ -38,6 +38,7 @@ export const animalFormSchema = z.object({
   archived: z.boolean(),
   is_quarantine: z.boolean(),
   water_tipping_temp: z.number().nullable().optional(),
+  winter_weight_g: z.number().nullable().optional(),
   target_day_temp_c: z.number().nullable().optional(),
   target_night_temp_c: z.number().nullable().optional(),
   target_humidity_min_percent: z.number().nullable().optional(),

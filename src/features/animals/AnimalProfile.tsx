@@ -7,7 +7,7 @@ import {
   History, Heart, Layers, Thermometer, Droplets,
   CheckCircle2, Clock, User, Fingerprint, ClipboardCheck, FileText, RotateCcw
 } from 'lucide-react';
-import { formatWeightDisplay } from '../../services/weightUtils';
+import { formatWeightDisplay, parseLegacyWeightToGrams } from '../../services/weightUtils';
 import AddEntryModal from './AddEntryModal';
 import SignGenerator from './SignGenerator';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -141,8 +141,8 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                 ⚠️ ARCHIVED RECORD - Reason: {animal?.archive_reason}
             </div>
         )}
-        {/* STICKY FROSTED HEADER */}
-        <div className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 px-6 py-4">
+        {/* STICKY FULL-BLEED SOLID HEADER */}
+        <div className="sticky -top-4 md:-top-6 lg:-top-8 z-30 bg-white border-b border-slate-200 px-6 lg:px-10 py-4 shadow-sm -mt-4 md:-mt-6 lg:-mt-8 -mx-4 md:-mx-6 lg:-mx-8 mb-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <button onClick={onBack} className="p-2.5 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-900">
@@ -208,8 +208,8 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                 <div className="lg:col-span-4 space-y-6">
                     
                     {/* IDENTITY CARD */}
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group">
-                        <div className="aspect-square relative overflow-hidden">
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group flex flex-col sm:flex-row lg:flex-col">
+                        <div className="w-full sm:w-[45%] lg:w-full aspect-square relative overflow-hidden shrink-0">
                             <img src={animal.image_url || 'https://picsum.photos/seed/placeholder/800/800'} alt={animal.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                             <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end">
@@ -220,7 +220,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                                 <IUCNBadge status={animal.red_list_status} size="md" />
                             </div>
                         </div>
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-4 flex-1 flex flex-col justify-center">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-white p-4 rounded-xl border border-slate-200">
                                     <p className="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1.5"><Calendar size={14}/> Hatched/DOB</p>
@@ -271,7 +271,19 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                             </div>
                             <div>
                                 <h3 className="text-2xl font-bold text-slate-900 mb-1">
-                                    {latestWeight?.weight ? `${latestWeight.weight}${latestWeight.weight_unit || 'g'}` : latestWeight?.weight_grams ? formatWeightDisplay(latestWeight.weight_grams, animal.weight_unit) : String(latestWeight?.value || 'N/A')}
+                                    {latestWeight?.log_type === LogType.WEIGHT ? (
+                                        (() => {
+                                            // 1. If it has strict DB grams, use it
+                                            if (latestWeight.weight_grams) return formatWeightDisplay(latestWeight.weight_grams, animal.weight_unit);
+
+                                            // 2. If it's a legacy string, parse and format it
+                                            const parsedGrams = parseLegacyWeightToGrams(latestWeight.value);
+                                            if (parsedGrams !== null) return formatWeightDisplay(parsedGrams, animal.weight_unit);
+
+                                            // 3. Absolute fallback
+                                            return latestWeight.weight ? `${latestWeight.weight}${latestWeight.weight_unit || 'g'}` : String(latestWeight.value || 'N/A');
+                                        })()
+                                    ) : String(latestWeight?.value || 'N/A')}
                                 </h3>
                                 <p className="text-sm font-medium text-slate-500">
                                     {latestWeight ? `Last recorded ${new Date(latestWeight.log_date).toLocaleDateString('en-GB')}` : 'No records found'}
@@ -461,7 +473,19 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                                                        {log.log_type === LogType.WEIGHT ? (log.weight ? `${log.weight}${log.weight_unit || 'g'}` : log.weight_grams ? formatWeightDisplay(log.weight_grams, animal.weight_unit) : String(log.value)) : String(log.value)}
+                                                        {log.log_type === LogType.WEIGHT ? (
+                                                            (() => {
+                                                                // 1. If it has strict DB grams, use it
+                                                                if (log.weight_grams) return formatWeightDisplay(log.weight_grams, animal.weight_unit);
+
+                                                                // 2. If it's a legacy string, parse and format it
+                                                                const parsedGrams = parseLegacyWeightToGrams(log.value);
+                                                                if (parsedGrams !== null) return formatWeightDisplay(parsedGrams, animal.weight_unit);
+
+                                                                // 3. Absolute fallback
+                                                                return log.weight ? `${log.weight}${log.weight_unit || 'g'}` : String(log.value);
+                                                            })()
+                                                        ) : String(log.value)}
                                                     </td>
                                                     <td className="px-6 py-4 text-sm text-slate-600 italic">{String(log.notes || '-')}</td>
                                                     <td className="px-6 py-4 text-right text-sm font-medium text-slate-500">{String(log.user_initials)}</td>

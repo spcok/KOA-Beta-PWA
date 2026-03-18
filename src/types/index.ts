@@ -162,6 +162,7 @@ export interface Animal {
   sire_id?: string;
   dam_id?: string;
   flying_weight_g?: number;
+  winter_weight_g?: number;
   display_order?: number;
   archived?: boolean;
   archive_reason?: string;

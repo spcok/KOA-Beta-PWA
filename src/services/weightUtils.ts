@@ -59,3 +59,15 @@ export const convertFromGrams = (grams: number, unit: 'g' | 'oz' | 'lb'): { g?: 
   
   return {};
 };
+
+export const parseLegacyWeightToGrams = (raw: string | undefined | null): number | null => {
+  if (!raw) return null;
+  const s = String(raw).toLowerCase().replace(/\s/g, '');
+  const num = parseFloat(s);
+  if (isNaN(num)) return null;
+
+  if (s.includes('kg')) return num * 1000;
+  if (s.includes('oz')) return num * 28.3495;
+  if (s.includes('lb')) return num * 453.592;
+  return num; // Default assumption is grams
+};
