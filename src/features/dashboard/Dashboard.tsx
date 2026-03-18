@@ -300,11 +300,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                 const standalone: EnhancedAnimal[] = [];
                 
                 (filteredAnimals || []).forEach(animal => {
-                  if (animal.group_name) {
-                    if (!grouped.has(animal.group_name)) {
-                      grouped.set(animal.group_name, []);
+                  if (animal.parent_mob_id) {
+                    if (!grouped.has(animal.parent_mob_id)) {
+                      grouped.set(animal.parent_mob_id, []);
                     }
-                    grouped.get(animal.group_name)!.push(animal);
+                    grouped.get(animal.parent_mob_id)!.push(animal);
                   } else {
                     standalone.push(animal);
                   }
@@ -355,18 +355,18 @@ const Dashboard: React.FC<DashboardProps> = ({
 
                 const rows: React.ReactNode[] = [];
 
-                // Render standalone animals first (or groups first, let's do standalone first)
-                standalone.forEach(animal => rows.push(renderRow(animal)));
-
                 // Render groups
-                Array.from(grouped.entries()).forEach(([groupName, animals]) => {
-                  const isExpanded = expandedGroups[groupName];
+                Array.from(grouped.entries()).forEach(([parentMobId, animals]) => {
+                  const isExpanded = expandedGroups[parentMobId];
+                  const parentMob = standalone.find(a => a.id === parentMobId);
+                  const displayName = parentMob ? parentMob.name : 'Unknown Group';
+                  
                   rows.push(
-                    <tr key={`group-${groupName}`} className="bg-slate-100/50 border-y border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => toggleGroup(groupName)}>
+                    <tr key={`group-${parentMobId}`} className="bg-slate-100/50 border-y border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => toggleGroup(parentMobId)}>
                       <td colSpan={8} className="px-2 py-3 lg:px-4 lg:py-4">
                         <div className="flex items-center gap-2">
                           {isExpanded ? <ChevronDown size={16} className="text-slate-500" /> : <ChevronRight size={16} className="text-slate-500" />}
-                          <span className="font-bold text-slate-800">{groupName}</span>
+                          <span className="font-bold text-slate-800">{displayName}</span>
                           <span className="text-xs font-medium text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">{animals.length} individuals</span>
                         </div>
                       </td>
@@ -377,6 +377,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                     animals.forEach(animal => rows.push(renderRow(animal, true)));
                   }
                 });
+
+                // Render standalone animals (excluding those that are parent mobs)
+                standalone.filter(a => !grouped.has(a.id)).forEach(animal => rows.push(renderRow(animal)));
 
                 return rows;
               })()}

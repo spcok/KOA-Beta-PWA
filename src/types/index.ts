@@ -119,8 +119,16 @@ export enum HolidayStatus {
   DECLINED = 'Declined'
 }
 
+export enum EntityType {
+  INDIVIDUAL = 'INDIVIDUAL',
+  GROUP = 'GROUP'
+}
+
 export interface Animal {
   id: string;
+  entity_type?: EntityType;
+  parent_mob_id?: string;
+  census_count?: number;
   name: string;
   species: string;
   latin_name?: string;
@@ -154,7 +162,6 @@ export interface Animal {
   sire_id?: string;
   dam_id?: string;
   flying_weight_g?: number;
-  is_group_animal?: boolean;
   display_order?: number;
   archived?: boolean;
   archive_reason?: string;
@@ -163,7 +170,6 @@ export interface Animal {
   is_quarantine?: boolean;
   distribution_map_url?: string;
   water_tipping_temp?: number;
-  group_name?: string;
   acquisition_type?: 'BORN' | 'TRANSFERRED_IN' | 'RESCUE' | 'UNKNOWN';
 }
 

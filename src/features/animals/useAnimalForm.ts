@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadFile } from '../../lib/storageEngine';
-import { Animal, AnimalCategory, HazardRating, ConservationStatus } from '../../types';
+import { Animal, AnimalCategory, HazardRating, ConservationStatus, EntityType } from '../../types';
 import { batchGetSpeciesData } from '../../services/geminiService';
 import { mutateOnlineFirst } from '../../lib/dataEngine';
 
@@ -21,8 +21,8 @@ export const animalFormSchema = z.object({
   special_requirements: z.string().optional(),
   image_url: z.string().optional(),
   distribution_map_url: z.string().optional(),
-  acquisition_date: z.string().min(1, 'Acquisition date is required'),
-  origin: z.string().min(1, 'Origin is required'),
+  acquisition_date: z.string().optional(),
+  origin: z.string().optional(),
   sire_id: z.string().optional(),
   dam_id: z.string().optional(),
   microchip_id: z.string().optional(),
@@ -31,7 +31,9 @@ export const animalFormSchema = z.object({
   hazard_rating: z.nativeEnum(HazardRating),
   is_venomous: z.boolean(),
   red_list_status: z.nativeEnum(ConservationStatus),
-  is_group_animal: z.boolean(),
+  entity_type: z.nativeEnum(EntityType).optional(),
+  parent_mob_id: z.string().optional(),
+  census_count: z.number().optional(),
   display_order: z.number(),
   archived: z.boolean(),
   is_quarantine: z.boolean(),
@@ -41,8 +43,24 @@ export const animalFormSchema = z.object({
   target_humidity_min_percent: z.number().optional(),
   target_humidity_max_percent: z.number().optional(),
   misting_frequency: z.string().optional(),
-  group_name: z.string().optional(),
   acquisition_type: z.enum(['BORN', 'TRANSFERRED_IN', 'RESCUE', 'UNKNOWN']).optional(),
+}).superRefine((data, ctx) => {
+  if (data.entity_type === EntityType.INDIVIDUAL || !data.entity_type) {
+    if (!data.acquisition_date) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Acquisition date is required',
+        path: ['acquisition_date'],
+      });
+    }
+    if (!data.origin) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Origin is required',
+        path: ['origin'],
+      });
+    }
+  }
 });
 
 export type AnimalFormData = z.infer<typeof animalFormSchema>;
@@ -80,12 +98,13 @@ export function useAnimalForm({ initialData, onClose }: UseAnimalFormProps) {
       hazard_rating: initialData.hazard_rating || HazardRating.LOW,
       is_venomous: initialData.is_venomous || false,
       red_list_status: initialData.red_list_status || ConservationStatus.NE,
-      is_group_animal: initialData.is_group_animal || false,
+      entity_type: initialData.entity_type || EntityType.INDIVIDUAL,
+      parent_mob_id: initialData.parent_mob_id || '',
+      census_count: initialData.census_count,
       display_order: initialData.display_order || 0,
       archived: initialData.archived || false,
       is_quarantine: initialData.is_quarantine || false,
       water_tipping_temp: initialData.water_tipping_temp,
-      group_name: initialData.group_name || '',
       acquisition_type: initialData.acquisition_type || 'UNKNOWN',
     } : {
       name: '',
@@ -110,12 +129,13 @@ export function useAnimalForm({ initialData, onClose }: UseAnimalFormProps) {
       hazard_rating: HazardRating.LOW,
       is_venomous: false,
       red_list_status: ConservationStatus.NE,
-      is_group_animal: false,
+      entity_type: EntityType.INDIVIDUAL,
+      parent_mob_id: '',
+      census_count: undefined,
       display_order: 0,
       archived: false,
       is_quarantine: false,
       water_tipping_temp: undefined,
-      group_name: '',
       acquisition_type: 'UNKNOWN',
     },
   });
@@ -124,25 +144,31 @@ export function useAnimalForm({ initialData, onClose }: UseAnimalFormProps) {
   const redListStatus = useWatch({ control: form.control, name: 'red_list_status' });
 
   useEffect(() => {
-    if (species && (redListStatus === ConservationStatus.NE || !redListStatus)) {
-      if (!navigator.onLine) {
-        console.warn("Offline: Automatic AI Autofill disabled.");
-        return;
-      }
-      console.log("Automatic AI Autofill Triggered. Species:", species);
-      startAiTransition(async () => {
-        try {
-          const data = await batchGetSpeciesData([species]);
-          console.log("Automatic AI Data Received:", data);
-          if (data[species]) {
-            form.setValue('latin_name', data[species].latin_name, { shouldDirty: true });
-            form.setValue('red_list_status', data[species].conservation_status as ConservationStatus, { shouldDirty: true });
-          }
-        } catch (error) {
-          console.error('Automatic AI Autofill failed:', error);
+    const handler = setTimeout(() => {
+      if (species && species.length > 2 && (redListStatus === ConservationStatus.NE || !redListStatus)) {
+        if (!navigator.onLine) {
+          console.warn("Offline: Automatic AI Autofill disabled.");
+          return;
         }
-      });
-    }
+        console.log("Automatic AI Autofill Triggered. Species:", species);
+        startAiTransition(async () => {
+          try {
+            const data = await batchGetSpeciesData([species]);
+            console.log("Automatic AI Data Received:", data);
+            if (data[species]) {
+              form.setValue('latin_name', data[species].latin_name, { shouldDirty: true });
+              form.setValue('red_list_status', data[species].conservation_status as ConservationStatus, { shouldDirty: true });
+            }
+          } catch (error) {
+            console.error('Automatic AI Autofill failed:', error);
+          }
+        });
+      }
+    }, 1000);
+
+    return () => {
+      clearTimeout(handler);
+    };
   }, [species, redListStatus, form]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'image_url' | 'distribution_map_url') => {

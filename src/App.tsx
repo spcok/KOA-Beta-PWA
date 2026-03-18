@@ -101,7 +101,7 @@ export default function App() {
             <Route path="/" element={<Layout />}>
               {/* COMPLETED MILESTONE 1 ROUTES */}
               <Route index element={<DashboardContainer />} />
-              <Route path="weather" element={<div className="p-2 md:p-4"><WeatherView /></div>} />
+              <Route path="weather" element={<div className="-mx-2.5 md:-mx-[18px] lg:-mx-[26px]"><WeatherView /></div>} />
               <Route path="daily-log" element={<DailyLog />} />
               <Route path="tasks" element={<Tasks />} />
               <Route path="feeding-schedule" element={<FeedingSchedule />} />

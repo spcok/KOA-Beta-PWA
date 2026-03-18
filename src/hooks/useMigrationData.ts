@@ -12,7 +12,8 @@ import {
   MovementType, 
   ClinicalNote,
   HazardRating,
-  ConservationStatus
+  ConservationStatus,
+  EntityType
 } from '../types';
 
 // Define Legacy Interfaces for Type Safety
@@ -126,7 +127,7 @@ export const useMigrationData = () => {
           dob: legacyAnimal.dob === "" ? undefined : legacyAnimal.dob,
           is_dob_unknown: legacyAnimal.dob === "",
           sex: mapSex(legacyAnimal.sex),
-          is_group_animal: !!legacyAnimal.isGroup,
+          entity_type: legacyAnimal.isGroup ? EntityType.GROUP : EntityType.INDIVIDUAL,
           has_no_id: !!legacyAnimal.hasNoId,
           origin: legacyAnimal.origin || undefined,
           acquisition_date: legacyAnimal.arrivalDate || new Date().toISOString(),

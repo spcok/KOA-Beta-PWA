@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { X, Check, Camera, Loader2, Zap, Shield, History, Info, Globe, Skull, Users, Thermometer, Scale } from 'lucide-react';
-import { Animal, AnimalCategory, HazardRating, ConservationStatus } from '../../types';
+import { Animal, AnimalCategory, HazardRating, ConservationStatus, EntityType } from '../../types';
 import { useAnimalForm } from './useAnimalForm';
 import { getAnimalIntelligence } from '../../services/geminiService';
 import { convertToGrams, convertFromGrams } from '../../services/weightUtils';
 import { mutateOnlineFirst } from '../../lib/dataEngine';
 import { useOperationalLists } from '../../hooks/useOperationalLists';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../lib/db';
 
 interface AnimalFormModalProps {
   isOpen: boolean;
@@ -108,7 +110,13 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
   const category = watch('category');
   const imageUrl = watch('image_url');
   const distroUrl = watch('distribution_map_url');
+  const currentEntityType = watch('entity_type');
   const isBird = category === AnimalCategory.OWLS || category === AnimalCategory.RAPTORS;
+
+  const parentMobs = useLiveQuery(
+    () => db.animals.filter(a => a.entity_type === 'GROUP' && a.id !== initialData?.id).toArray(),
+    [initialData?.id]
+  );
 
   // Track if Environmental Controls are required
   const [envNa, setEnvNa] = useState<boolean>(
@@ -183,13 +191,39 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                     </div>
 
                     <div className="lg:col-span-8 space-y-8">
+                        {/* Master Toggle */}
+                        <div className="bg-slate-100 p-1.5 rounded-xl flex items-center w-full sm:w-fit mx-auto mb-8 shadow-inner">
+                            <button
+                                type="button"
+                                onClick={() => setValue('entity_type', EntityType.INDIVIDUAL)}
+                                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                                    currentEntityType === EntityType.INDIVIDUAL 
+                                    ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50' 
+                                    : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                Individual Animal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setValue('entity_type', EntityType.GROUP)}
+                                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                                    currentEntityType === EntityType.GROUP 
+                                    ? 'bg-white text-amber-700 shadow-sm ring-1 ring-slate-200/50' 
+                                    : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                Group / Mob Entity
+                            </button>
+                        </div>
+
                         <section className="space-y-4">
                             <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2"><Info size={18}/> Identification & Taxonomy</h3>
                             
                             <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
                                 <div className="sm:col-span-5">
-                                    <label className={labelClass}>Subject Name *</label>
-                                    <input {...register('name')} className={inputClass} placeholder="e.g. Barnaby" />
+                                    <label className={labelClass}>{currentEntityType === EntityType.GROUP ? 'Mob Name *' : 'Subject Name *'}</label>
+                                    <input {...register('name')} className={inputClass} placeholder={currentEntityType === EntityType.GROUP ? "e.g. Meerkat Troop" : "e.g. Barnaby"} />
                                     {errors.name && <p className={errorClass}>{errors.name.message}</p>}
                                 </div>
                                 <div className="sm:col-span-4">
@@ -207,22 +241,42 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                     </datalist>
                                     {errors.location && <p className={errorClass}>{errors.location.message}</p>}
                                 </div>
-                                <div className="sm:col-span-12">
-                                    <label className={labelClass}>Group Name</label>
-                                    <input {...register('group_name')} className={inputClass} placeholder="e.g. The Mob" />
-                                </div>
                             </div>
 
-                            {category === AnimalCategory.MAMMALS && (
-                                <div className="md:col-span-12 bg-amber-50 p-3 rounded-md border border-amber-200 flex items-center gap-3">
-                                    <div className="p-1.5 bg-white rounded border border-amber-200 text-amber-600"><Users size={16}/></div>
-                                    <label className="flex items-center gap-3 cursor-pointer flex-1">
-                                        <input type="checkbox" {...register('is_group_animal')} className="w-4 h-4 accent-amber-600 rounded focus:ring-amber-500"/>
-                                        <div>
-                                            <span className="text-sm font-medium text-amber-900 block">Group / Mob Designation</span>
-                                            <span className="text-xs text-amber-700 block">Classify this record as a collective group (e.g. Meerkat Mob)</span>
+                            {currentEntityType === EntityType.GROUP && (
+                                <div className="md:col-span-12 bg-amber-50 p-4 rounded-xl border border-amber-200 flex flex-col gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white rounded-lg border border-amber-200 text-amber-600 shadow-sm"><Users size={18}/></div>
+                                        <div className="flex-1">
+                                            <span className="text-sm font-bold text-amber-900 block">Group Census</span>
+                                            <span className="text-xs text-amber-700 block">Track the total number of individuals in this mob</span>
                                         </div>
-                                    </label>
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Census Count</label>
+                                        <input type="number" {...register('census_count', { valueAsNumber: true })} className={inputClass} placeholder="Number of individuals" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {currentEntityType === EntityType.INDIVIDUAL && (
+                                <div className="md:col-span-12 bg-indigo-50 p-4 rounded-xl border border-indigo-200 flex flex-col gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white rounded-lg border border-indigo-200 text-indigo-600 shadow-sm"><Users size={18}/></div>
+                                        <div className="flex-1">
+                                            <span className="text-sm font-bold text-indigo-900 block">Parent Mob Link</span>
+                                            <span className="text-xs text-indigo-700 block">Optionally link this individual to a larger group</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Parent Mob</label>
+                                        <select {...register('parent_mob_id')} className={inputClass}>
+                                            <option value="">None (Independent)</option>
+                                            {parentMobs?.map(mob => (
+                                                <option key={mob.id} value={mob.id}>{mob.name} ({mob.species})</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                             )}
 
@@ -249,88 +303,96 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
-                                <div className="sm:col-span-4">
-                                    <label className={labelClass}>Sex</label>
-                                    <select {...register('sex')} className={inputClass}>
-                                        <option value="Male">Male</option>
-                                        <option value="Female">Female</option>
-                                        <option value="Unknown">Unknown</option>
-                                    </select>
-                                </div>
-                                <div className="sm:col-span-4">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <label className={labelClass}>Date of Birth</label>
-                                        <div className="flex items-center gap-1">
-                                            <input type="checkbox" {...register('is_dob_unknown')} />
-                                            <span className="text-xs text-slate-500">Unknown</span>
+                                {currentEntityType === EntityType.INDIVIDUAL && (
+                                    <>
+                                        <div className="sm:col-span-4">
+                                            <label className={labelClass}>Sex</label>
+                                            <select {...register('sex')} className={inputClass}>
+                                                <option value="Male">Male</option>
+                                                <option value="Female">Female</option>
+                                                <option value="Unknown">Unknown</option>
+                                            </select>
                                         </div>
-                                    </div>
-                                    <input type="date" {...register('dob')} className={inputClass} />
-                                </div>
-                                <div className="sm:col-span-4">
+                                        <div className="sm:col-span-4">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className={labelClass}>Date of Birth</label>
+                                                <div className="flex items-center gap-1">
+                                                    <input type="checkbox" {...register('is_dob_unknown')} />
+                                                    <span className="text-xs text-slate-500">Unknown</span>
+                                                </div>
+                                            </div>
+                                            <input type="date" {...register('dob')} className={inputClass} />
+                                        </div>
+                                    </>
+                                )}
+                                <div className="col-span-12 sm:col-span-6">
                                     <label className={labelClass}>IUCN Status</label>
-                                    <select {...register('red_list_status')} className={inputClass}>
+                                    <select {...register('red_list_status')} className={`${inputClass} text-sm sm:text-base`}>
                                         {(Object.values(ConservationStatus) as string[]).map(s => <option key={String(s)} value={s}>{s}</option>)}
                                     </select>
                                 </div>
                             </div>
                         </section>
 
-                        <section className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                            <h3 className="text-sm font-bold text-slate-900 mb-4 border-b border-slate-200 pb-2 flex items-center gap-2">
-                                <History size={16} /> Statutory Acquisition & Pedigree
-                            </h3>
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                                <div>
-                                    <label className={labelClass}>Date of Arrival *</label>
-                                    <input type="date" {...register('acquisition_date')} className={inputClass} />
-                                    {errors.acquisition_date && <p className={errorClass}>{errors.acquisition_date.message}</p>}
+                        {currentEntityType === EntityType.INDIVIDUAL && (
+                            <section className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                                <h3 className="text-sm font-bold text-slate-900 mb-4 border-b border-slate-200 pb-2 flex items-center gap-2">
+                                    <History size={16} /> Statutory Acquisition & Pedigree
+                                </h3>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                                    <div>
+                                        <label className={labelClass}>Date of Arrival *</label>
+                                        <input type="date" {...register('acquisition_date')} className={inputClass} />
+                                        {errors.acquisition_date && <p className={errorClass}>{errors.acquisition_date.message}</p>}
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Acquisition Type</label>
+                                        <select {...register('acquisition_type')} className={inputClass}>
+                                            <option value="UNKNOWN">Unknown</option>
+                                            <option value="BORN">Born</option>
+                                            <option value="TRANSFERRED_IN">Transferred In</option>
+                                            <option value="RESCUE">Rescue</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Source / Origin *</label>
+                                        <input {...register('origin')} className={inputClass} placeholder="e.g. International Centre for Birds of Prey" />
+                                        {errors.origin && <p className={errorClass}>{errors.origin.message}</p>}
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className={labelClass}>Acquisition Type</label>
-                                    <select {...register('acquisition_type')} className={inputClass}>
-                                        <option value="UNKNOWN">Unknown</option>
-                                        <option value="BORN">Born</option>
-                                        <option value="TRANSFERRED_IN">Transferred In</option>
-                                        <option value="RESCUE">Rescue</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelClass}>Source / Origin *</label>
-                                    <input {...register('origin')} className={inputClass} placeholder="e.g. International Centre for Birds of Prey" />
-                                    {errors.origin && <p className={errorClass}>{errors.origin.message}</p>}
-                                </div>
-                            </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className={labelClass}>Sire (Father)</label>
-                                    <input {...register('sire_id')} className={inputClass} placeholder="Ancestry ID or Name" />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelClass}>Sire (Father)</label>
+                                        <input {...register('sire_id')} className={inputClass} placeholder="Ancestry ID or Name" />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Dam (Mother)</label>
+                                        <input {...register('dam_id')} className={inputClass} placeholder="Ancestry ID or Name" />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className={labelClass}>Dam (Mother)</label>
-                                    <input {...register('dam_id')} className={inputClass} placeholder="Ancestry ID or Name" />
-                                </div>
-                            </div>
-                        </section>
+                            </section>
+                        )}
 
                         <section className="space-y-4">
                             <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2"><Zap size={18}/> Markers & Biometrics</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <div className="sm:col-span-2 lg:col-span-2">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <label className={labelClass}>Identification</label>
-                                        <div className="flex items-center gap-1">
-                                            <input type="checkbox" {...register('has_no_id')} />
-                                            <span className="text-xs text-slate-500">No ID</span>
+                                {currentEntityType === EntityType.INDIVIDUAL && (
+                                    <div className="sm:col-span-2 lg:col-span-2">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className={labelClass}>Identification</label>
+                                            <div className="flex items-center gap-1">
+                                                <input type="checkbox" {...register('has_no_id')} />
+                                                <span className="text-xs text-slate-500">No ID</span>
+                                            </div>
+                                        </div>
+                                        <div className={`grid ${isBird ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
+                                            <input {...register('microchip_id')} className={`${inputClass} font-mono`} placeholder="Microchip..." />
+                                            {isBird && <input {...register('ring_number')} className={`${inputClass} font-mono`} placeholder="Ring..." />}
                                         </div>
                                     </div>
-                                    <div className={`grid ${isBird ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
-                                        <input {...register('microchip_id')} className={`${inputClass} font-mono`} placeholder="Microchip..." />
-                                        {isBird && <input {...register('ring_number')} className={`${inputClass} font-mono`} placeholder="Ring..." />}
-                                    </div>
-                                </div>
+                                )}
                                 <div>
                                     <label className={labelClass}>Hazard Class</label>
                                     <select {...register('hazard_rating')} className={inputClass}>
@@ -369,155 +431,159 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                             </div>
 
                             {/* WEIGHT SECTION */}
-                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
-                                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                                        <Scale size={14} className="text-blue-500" /> Weight Configuration
-                                    </h4>
-                                    <select 
-                                        value={weightUnit} 
-                                        onChange={(e) => {
-                                            const newUnit = e.target.value as 'g' | 'lb' | 'oz';
-                                            setWeightUnit(newUnit);
-                                            // Recalculate values when unit changes to maintain consistency
-                                            const currentGrams = convertToGrams(weightUnit, weightValues);
-                                            setWeightValues(convertFromGrams(currentGrams, newUnit));
-                                        }}
-                                        className="text-[10px] font-bold bg-white border-2 border-slate-200 rounded-lg py-1 px-2 uppercase tracking-widest focus:ring-0 cursor-pointer"
-                                    >
-                                        <option value="g">Grams (g)</option>
-                                        <option value="lb">Pounds (lb/oz)</option>
-                                        <option value="oz">Ounces (oz)</option>
-                                    </select>
-                                </div>
+                            {currentEntityType === EntityType.INDIVIDUAL && (
+                                <div className="bg-slate-50 p-4 rounded-lg border-2 border-dashed border-blue-300 space-y-4">
+                                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                            <Scale size={14} className="text-blue-500" /> Weight Configuration
+                                        </h4>
+                                        <select 
+                                            value={weightUnit} 
+                                            onChange={(e) => {
+                                                const newUnit = e.target.value as 'g' | 'lb' | 'oz';
+                                                setWeightUnit(newUnit);
+                                                // Recalculate values when unit changes to maintain consistency
+                                                const currentGrams = convertToGrams(weightUnit, weightValues);
+                                                setWeightValues(convertFromGrams(currentGrams, newUnit));
+                                            }}
+                                            className="text-[10px] font-bold bg-white border-2 border-slate-200 rounded-lg py-1 px-2 uppercase tracking-widest focus:ring-0 cursor-pointer"
+                                        >
+                                            <option value="g">Grams (g)</option>
+                                            <option value="lb">Pounds (lb/oz)</option>
+                                            <option value="oz">Ounces (oz)</option>
+                                        </select>
+                                    </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    {weightUnit === 'g' && (
-                                        <div className="sm:col-span-3">
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Grams</label>
-                                            <input 
-                                                type="number" 
-                                                value={weightValues.g || ''} 
-                                                onChange={(e) => handleWeightChange('g', e.target.value)}
-                                                className={inputClass}
-                                                placeholder="e.g. 1050"
-                                            />
-                                        </div>
-                                    )}
-
-                                    {weightUnit === 'oz' && (
-                                        <>
-                                            <div className="sm:col-span-2">
-                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        {weightUnit === 'g' && (
+                                            <div className="sm:col-span-3">
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Grams</label>
                                                 <input 
                                                     type="number" 
-                                                    value={weightValues.oz || ''} 
-                                                    onChange={(e) => handleWeightChange('oz', e.target.value)}
+                                                    value={weightValues.g || ''} 
+                                                    onChange={(e) => handleWeightChange('g', e.target.value)}
                                                     className={inputClass}
-                                                    placeholder="oz"
+                                                    placeholder="e.g. 1050"
                                                 />
                                             </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
-                                                <select 
-                                                    value={weightValues.eighths || 0} 
-                                                    onChange={(e) => handleWeightChange('eighths', e.target.value)}
-                                                    className={inputClass}
-                                                >
-                                                    {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
-                                                </select>
-                                            </div>
-                                        </>
-                                    )}
+                                        )}
 
-                                    {weightUnit === 'lb' && (
-                                        <>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Pounds (lb)</label>
-                                                <input 
-                                                    type="number" 
-                                                    value={weightValues.lb || ''} 
-                                                    onChange={(e) => handleWeightChange('lb', e.target.value)}
-                                                    className={inputClass}
-                                                    placeholder="lb"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
-                                                <select 
-                                                    value={weightValues.oz || 0} 
-                                                    onChange={(e) => handleWeightChange('oz', e.target.value)}
-                                                    className={inputClass}
-                                                >
-                                                    {Array.from({length: 16}, (_, i) => i).map(n => <option key={n} value={n}>{n} oz</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
-                                                <select 
-                                                    value={weightValues.eighths || 0} 
-                                                    onChange={(e) => handleWeightChange('eighths', e.target.value)}
-                                                    className={inputClass}
-                                                >
-                                                    {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
-                                                </select>
-                                            </div>
-                                        </>
-                                    )}
+                                        {weightUnit === 'oz' && (
+                                            <>
+                                                <div className="sm:col-span-2">
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={weightValues.oz || ''} 
+                                                        onChange={(e) => handleWeightChange('oz', e.target.value)}
+                                                        className={inputClass}
+                                                        placeholder="oz"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
+                                                    <select 
+                                                        value={weightValues.eighths || 0} 
+                                                        onChange={(e) => handleWeightChange('eighths', e.target.value)}
+                                                        className={inputClass}
+                                                    >
+                                                        {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
+                                                    </select>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {weightUnit === 'lb' && (
+                                            <>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Pounds (lb)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={weightValues.lb || ''} 
+                                                        onChange={(e) => handleWeightChange('lb', e.target.value)}
+                                                        className={inputClass}
+                                                        placeholder="lb"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ounces (oz)</label>
+                                                    <select 
+                                                        value={weightValues.oz || 0} 
+                                                        onChange={(e) => handleWeightChange('oz', e.target.value)}
+                                                        className={inputClass}
+                                                    >
+                                                        {Array.from({length: 16}, (_, i) => i).map(n => <option key={n} value={n}>{n} oz</option>)}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">8ths</label>
+                                                    <select 
+                                                        value={weightValues.eighths || 0} 
+                                                        onChange={(e) => handleWeightChange('eighths', e.target.value)}
+                                                        className={inputClass}
+                                                    >
+                                                        {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
+                                                    </select>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] font-medium text-slate-400 italic">
+                                        Calculated Value: {convertToGrams(weightUnit, weightValues).toFixed(2)}g
+                                    </p>
                                 </div>
-                                <p className="text-[10px] font-medium text-slate-400 italic">
-                                    Calculated Value: {convertToGrams(weightUnit, weightValues).toFixed(2)}g
-                                </p>
-                            </div>
+                            )}
                         </section>
 
 
                         {/* NEW: TARGET ENVIRONMENT SECTION */}
-                        <section className="space-y-4">
-                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                                    <Thermometer size={18}/> Target Environment
-                                </h3>
-                                <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-100 transition-colors">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={envNa} 
-                                        onChange={handleEnvNaToggle}
-                                        className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                                    />
-                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-widest mt-0.5">N/A (No Temp Controls)</span>
-                                </label>
-                            </div>
-                            
-                            {!envNa ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                                    <div>
-                                        <label className={labelClass}>Day Temp (°C)</label>
-                                        <input type="number" step="0.1" {...register('target_day_temp_c', { setValueAs: v => v === "" ? null : parseFloat(v) })} className={inputClass} placeholder="28.5" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}>Night Temp (°C)</label>
-                                        <input type="number" step="0.1" {...register('target_night_temp_c', { setValueAs: v => v === "" ? null : parseFloat(v) })} className={inputClass} placeholder="22.0" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}>Min Humidity %</label>
-                                        <input type="number" {...register('target_humidity_min_percent', { setValueAs: v => v === "" ? null : parseInt(v) })} className={inputClass} placeholder="60" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}>Max Humidity %</label>
-                                        <input type="number" {...register('target_humidity_max_percent', { setValueAs: v => v === "" ? null : parseInt(v) })} className={inputClass} placeholder="80" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}>Misting Freq.</label>
-                                        <input type="text" {...register('misting_frequency')} className={inputClass} placeholder="e.g. Twice Daily" />
-                                    </div>
+                        {currentEntityType === EntityType.INDIVIDUAL && (
+                            <section className="space-y-4">
+                                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                        <Thermometer size={18}/> Target Environment
+                                    </h3>
+                                    <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-100 transition-colors">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={envNa} 
+                                            onChange={handleEnvNaToggle}
+                                            className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                                        />
+                                        <span className="text-xs font-bold text-slate-700 uppercase tracking-widest mt-0.5">N/A (No Temp Controls)</span>
+                                    </label>
                                 </div>
-                            ) : (
-                                <div className="w-full px-3 py-6 bg-slate-50 border border-dashed border-slate-300 rounded-lg text-sm text-slate-400 text-center font-medium shadow-inner">
-                                    Environmental controls disabled for this subject.
-                                </div>
-                            )}
-                        </section>
+                                
+                                {!envNa ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                                        <div>
+                                            <label className={labelClass}>Day Temp (°C)</label>
+                                            <input type="number" step="0.1" {...register('target_day_temp_c', { setValueAs: v => v === "" ? null : parseFloat(v) })} className={inputClass} placeholder="28.5" />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>Night Temp (°C)</label>
+                                            <input type="number" step="0.1" {...register('target_night_temp_c', { setValueAs: v => v === "" ? null : parseFloat(v) })} className={inputClass} placeholder="22.0" />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>Min Humidity %</label>
+                                            <input type="number" {...register('target_humidity_min_percent', { setValueAs: v => v === "" ? null : parseInt(v) })} className={inputClass} placeholder="60" />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>Max Humidity %</label>
+                                            <input type="number" {...register('target_humidity_max_percent', { setValueAs: v => v === "" ? null : parseInt(v) })} className={inputClass} placeholder="80" />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>Misting Freq.</label>
+                                            <input type="text" {...register('misting_frequency')} className={inputClass} placeholder="e.g. Twice Daily" />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="w-full px-3 py-6 bg-slate-50 border border-dashed border-slate-300 rounded-lg text-sm text-slate-400 text-center font-medium shadow-inner">
+                                        Environmental controls disabled for this subject.
+                                    </div>
+                                )}
+                            </section>
+                        )}
 
                     </div>
                 </div>

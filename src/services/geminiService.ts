@@ -74,7 +74,7 @@ export const getAnimalIntelligence = async (speciesName: string): Promise<Animal
 
 // --- FLIGHT & WEATHER ---
 export const analyzeFlightWeather = async (hourlyData: unknown[]): Promise<string> => {
-  const prompt = `You are an Avian Flight Safety Expert. Analyze the following 24-hour 'Live' forecast for Falconry safety. Focus on immediate risks like wind gusts over 15mph, heavy rain, or extreme heat. Provide a safety recommendation for flying birds of prey TODAY. Data: ${JSON.stringify(hourlyData)}`;
+  const prompt = `You are an Avian Flight Safety Expert. Analyze the following forecast specifically for the 11:00 to 16:00 flight window. Focus on immediate falconry risks like wind gusts over 15mph, heavy rain, or extreme heat. Provide a safety recommendation. STRICT REQUIREMENT: Output a maximum of 6 short, punchy bullet points. Do not include introductory or concluding text. Data: ${JSON.stringify(hourlyData)}`;
   return await invokeGeminiEdge(prompt, false, 30000) as string;
 };
 

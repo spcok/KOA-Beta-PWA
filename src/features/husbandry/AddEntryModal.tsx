@@ -27,6 +27,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
   initialType,
   existingLog,
   initialDate,
+  allAnimals,
   defaultTemperature
 }) => {
   const { foodTypes, feedMethods, eventTypes } = useOperationalLists(animal.category);
@@ -243,7 +244,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
               origin: 'Captive Bred',
               dam_id: animal.sex === 'Female' ? animal.id : undefined,
               sire_id: animal.sex === 'Male' ? animal.id : undefined,
-              group_name: animal.group_name || animal.name,
+              parent_mob_id: animal.entity_type === 'GROUP' ? animal.id : animal.parent_mob_id,
               archived: false,
               is_quarantine: false,
               display_order: 0,
@@ -286,7 +287,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
                     type="number" 
                     value={weightValues.g || ''} 
                     onChange={(e) => handleWeightChange('g', e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-xs text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
                     placeholder="e.g. 1050"
                   />
                 </div>
@@ -300,7 +301,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
                       type="number" 
                       value={weightValues.oz || ''} 
                       onChange={(e) => handleWeightChange('oz', e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-xs text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
                       placeholder="oz"
                     />
                   </div>
@@ -309,7 +310,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
                     <select 
                       value={weightValues.eighths || 0} 
                       onChange={(e) => handleWeightChange('eighths', e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-xs text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
                     >
                       {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
                     </select>
@@ -325,7 +326,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
                       type="number" 
                       value={weightValues.lb || ''} 
                       onChange={(e) => handleWeightChange('lb', e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-xs text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
                       placeholder="lb"
                     />
                   </div>
@@ -334,7 +335,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
                     <select 
                       value={weightValues.oz || 0} 
                       onChange={(e) => handleWeightChange('oz', e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-xs text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
                     >
                       {Array.from({length: 16}, (_, i) => i).map(n => <option key={n} value={n}>{n} oz</option>)}
                     </select>
@@ -344,7 +345,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
                     <select 
                       value={weightValues.eighths || 0} 
                       onChange={(e) => handleWeightChange('eighths', e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-xs text-slate-900 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-400"
                     >
                       {[0,1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}/8</option>)}
                     </select>
@@ -564,7 +565,19 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
             <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
               {existingLog ? 'Edit' : 'Add'} {logType}
             </h2>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{animal.name} ({animal.species})</p>
+            <div className="flex items-center flex-wrap gap-2 mt-1">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{animal.name} ({animal.species})</p>
+              {animal.entity_type === 'GROUP' && (
+                <span className="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  Group Record (Census: {animal.census_count || 0})
+                </span>
+              )}
+              {animal.entity_type === 'INDIVIDUAL' && animal.parent_mob_id && (
+                <span className="text-[10px] text-slate-500 italic">
+                  Part of {allAnimals.find(a => a.id === animal.parent_mob_id)?.name || 'Unknown Mob'}
+                </span>
+              )}
+            </div>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
             <X size={20} />
@@ -584,7 +597,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
                 type="date" 
                 value={date} 
                 onChange={e => setDate(e.target.value)}
-                className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold text-sm"
+                className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold text-xs"
                 required
               />
             </div>
@@ -593,7 +606,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
               <select 
                 value={logType} 
                 onChange={e => setLogType(e.target.value as LogType)}
-                className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold text-sm"
+                className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-bold text-xs"
               >
                 {Object.values(LogType).map(type => (
                   <option key={type} value={type}>{type}</option>
@@ -610,7 +623,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
               type="text" 
               value={userInitials}
               onChange={e => setUserInitials(e.target.value)}
-              className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:ring-0 transition-all font-bold text-sm"
+              className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-red-500 focus:ring-0 transition-all font-bold text-xs"
               placeholder="e.g. JD"
               required
               minLength={2}
@@ -624,7 +637,7 @@ const AddEntryModal: React.FC<AddEntryModalProps> = ({
             <textarea 
               value={notes} 
               onChange={e => setNotes(e.target.value)}
-              className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-medium text-sm min-h-[100px] resize-none"
+              className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-0 transition-all font-medium text-xs min-h-[100px] resize-none"
               placeholder="Add any additional observations..."
             />
           </div>

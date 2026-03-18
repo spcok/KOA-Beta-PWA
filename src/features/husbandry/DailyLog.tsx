@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Animal, LogEntry, LogType, AnimalCategory } from '../../types';
+import { Animal, LogEntry, LogType, AnimalCategory, EntityType } from '../../types';
 import { useDailyLogData } from './useDailyLogData';
 import { useWeatherSync } from './hooks/useWeatherSync';
 import AddEntryModal from './AddEntryModal';
@@ -38,33 +38,41 @@ const DailyLog: React.FC = () => {
       case AnimalCategory.EXOTICS:
         return (
           <tr>
-            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">Animal</th>
-            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">FEED</th>
-            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">MISTING</th>
-            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">ENV</th>
+            <th className="px-1 py-4 sm:p-4 text-left text-xs font-semibold text-slate-900 uppercase">Animal</th>
+            <th className="px-1 py-4 sm:p-4 text-center text-xs font-semibold text-slate-900 uppercase">FEED</th>
+            <th className="px-1 py-4 sm:p-4 text-center text-xs font-semibold text-slate-900 uppercase">MISTING</th>
+            <th className="px-1 py-4 sm:p-4 text-center text-xs font-semibold text-slate-900 uppercase">ENV</th>
           </tr>
         );
       default:
         return (
           <tr>
-            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">Animal</th>
-            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">WT</th>
-            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">FEED</th>
-            <th className="p-4 text-left text-xs font-semibold text-slate-900 uppercase">ENV</th>
+            <th className="px-1 py-4 sm:p-4 text-left text-xs font-semibold text-slate-900 uppercase">Animal</th>
+            <th className="px-1 py-4 sm:p-4 text-center text-xs font-semibold text-slate-900 uppercase">WT</th>
+            <th className="px-1 py-4 sm:p-4 text-center text-xs font-semibold text-slate-900 uppercase">FEED</th>
+            <th className="px-1 py-4 sm:p-4 text-center text-xs font-semibold text-slate-900 uppercase">ENV</th>
           </tr>
         );
     }
   };
 
   const renderRow = (animal: Animal) => {
+    let parentMobName: string | undefined;
+    if (animal.entity_type === EntityType.INDIVIDUAL && animal.parent_mob_id) {
+      const parent = animals.find(a => a.id === animal.parent_mob_id);
+      if (parent) {
+        parentMobName = parent.name;
+      }
+    }
+
     switch (animal.category) {
       case AnimalCategory.OWLS:
       case AnimalCategory.RAPTORS:
-        return <BirdRow key={animal.id} animal={animal} getTodayLog={getTodayLog} onCellClick={handleCellClick} />;
+        return <BirdRow key={animal.id} animal={animal} getTodayLog={getTodayLog} onCellClick={handleCellClick} parentMobName={parentMobName} />;
       case AnimalCategory.MAMMALS:
-        return <MammalRow key={animal.id} animal={animal} getTodayLog={getTodayLog} onCellClick={handleCellClick} />;
+        return <MammalRow key={animal.id} animal={animal} getTodayLog={getTodayLog} onCellClick={handleCellClick} parentMobName={parentMobName} />;
       case AnimalCategory.EXOTICS:
-        return <ExoticRow key={animal.id} animal={animal} getTodayLog={getTodayLog} onCellClick={handleCellClick} />;
+        return <ExoticRow key={animal.id} animal={animal} getTodayLog={getTodayLog} onCellClick={handleCellClick} parentMobName={parentMobName} />;
       default:
         return null;
     }
@@ -105,16 +113,16 @@ const DailyLog: React.FC = () => {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i} className="border-b border-slate-100 animate-pulse">
-                  <td className="p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-200"></div>
+                  <td className="px-1 py-4 sm:p-4 flex items-center gap-1 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-200 hidden sm:block"></div>
                     <div>
-                      <div className="h-4 w-24 bg-slate-200 rounded mb-2"></div>
-                      <div className="h-3 w-16 bg-slate-200 rounded"></div>
+                      <div className="h-4 w-16 sm:w-24 bg-slate-200 rounded mb-2"></div>
+                      <div className="h-3 w-12 sm:w-16 bg-slate-200 rounded"></div>
                     </div>
                   </td>
-                  <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
-                  <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
-                  <td className="p-4"><div className="h-8 w-16 bg-slate-200 rounded-lg"></div></td>
+                  <td className="px-1 py-4 sm:p-4"><div className="h-8 w-full min-w-[40px] sm:w-16 bg-slate-200 rounded-lg"></div></td>
+                  <td className="px-1 py-4 sm:p-4"><div className="h-8 w-full min-w-[40px] sm:w-16 bg-slate-200 rounded-lg"></div></td>
+                  <td className="px-1 py-4 sm:p-4"><div className="h-8 w-full min-w-[40px] sm:w-16 bg-slate-200 rounded-lg"></div></td>
                 </tr>
               ))
             ) : (

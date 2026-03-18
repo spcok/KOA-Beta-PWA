@@ -1,11 +1,24 @@
 export interface ChangelogEntry {
   version: string;
   date: string;
+  title?: string;
   type: 'Major' | 'Minor' | 'Patch' | 'Hotfix';
   changes: string[];
 }
 
 export const changelogData: ChangelogEntry[] = [
+  {
+    version: 'v2.0.0',
+    date: '2026-03-17',
+    title: 'Titanium Architecture & Weather Station Rebuild',
+    type: 'Major',
+    changes: [
+      "Complete UI standardization across all operational modules (Dashboard Standard).",
+      "Enterprise-grade background Sync Engine with concurrent network processing.",
+      "Lightning-fast O(1) local database queries for offline failover.",
+      "Brand new Falconry Weather Station with hourly timelines and focused 11:00-16:00 AI Flight Advisory."
+    ]
+  },
   {
     version: 'v1.1.3-beta',
     date: '2026-03-16',
