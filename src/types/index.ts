@@ -172,6 +172,11 @@ export interface Animal {
   distribution_map_url?: string;
   water_tipping_temp?: number;
   acquisition_type?: 'BORN' | 'TRANSFERRED_IN' | 'RESCUE' | 'UNKNOWN';
+  enclosure_id?: string;
+  temp_range?: string;
+  uvb_requirements?: string;
+  weight?: number;
+  feed_type?: string;
 }
 
 export interface LogEntry {

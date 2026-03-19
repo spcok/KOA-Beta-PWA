@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Animal, LogType, HazardRating } from '../../types';
 import { 
   ChevronLeft, Printer, Edit, 
   AlertTriangle, Plus, Archive, Skull, 
   Loader2, Info,
   History, Heart, FileText, RotateCcw, Fingerprint, Layers, Zap, ClipboardCheck,
-  Calendar, User, MapPin, Map, Scale, Utensils
+  Calendar, User, MapPin, Map, Scale, Utensils, Thermometer, Droplets
 } from 'lucide-react';
 import { formatWeightDisplay, parseLegacyWeightToGrams } from '../../services/weightUtils';
 import AddEntryModal from './AddEntryModal';
@@ -37,6 +37,16 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
     archiveAnimal
   } = useAnimalProfileData(animalId);
 
+  const latestWeight = useMemo(() => {
+      const weightLogs = logs.filter(l => l.log_type === LogType.WEIGHT).sort((a,b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime());
+      return weightLogs[0];
+  }, [logs]);
+
+  const lastFeed = useMemo(() => {
+      const feedLogs = logs.filter(l => l.log_type === LogType.FEED).sort((a,b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime());
+      return feedLogs[0];
+  }, [logs]);
+
   const isArchived = animal?.archived;
 
   const handleRestore = async () => {
@@ -49,7 +59,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'Overview' | 'History' | 'Medical' | 'Tasks'>('Overview');
+  const [activeTab, setActiveTab] = useState<'Overview' | 'History' | 'Medical' | 'Tasks' | 'Training'>('Overview');
   const [logFilter, setLogFilter] = useState<LogType | 'ALL'>('ALL');
   
   const [isSignGeneratorOpen, setIsSignGeneratorOpen] = useState(false);
@@ -131,16 +141,6 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
   }
 
   const isHighHazard = animal.hazard_rating === HazardRating.HIGH || animal.is_venomous;
-
-  const latestWeight = useMemo(() => {
-      const weightLogs = logs.filter(l => l.log_type === LogType.WEIGHT).sort((a,b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime());
-      return weightLogs[0];
-  }, [logs]);
-
-  const lastFeed = useMemo(() => {
-      const feedLogs = logs.filter(l => l.log_type === LogType.FEED).sort((a,b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime());
-      return feedLogs[0];
-  }, [logs]);
 
   return (
     <div className="bg-slate-50 min-h-screen pb-24 font-sans">
@@ -388,11 +388,13 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                  )}
 
                  {/* TAB ROUTING FOR THE REST OF THE COMPONENTS */}
-                 {activeTab === 'History' && <DailyLog />}
-                 {activeTab === 'Medical' && <MedicalRecords />}
-                 {activeTab === 'Tasks' && <Tasks />}
+                 {activeTab === 'History' && <DailyLog animalId={animalId} />}
+                 {activeTab === 'Medical' && <MedicalRecords animalId={animalId} />}
+                 {activeTab === 'Tasks' && <Tasks animalId={animalId} />}
             </div>
         </div>
+        {isArchived && (
+            <div className="bg-rose-50 text-rose-700 p-4 rounded-xl border border-rose-200 flex items-center gap-3 mb-6">
                 <AlertTriangle size={20} />
                 ⚠️ ARCHIVED RECORD - Reason: {animal?.archive_reason}
             </div>

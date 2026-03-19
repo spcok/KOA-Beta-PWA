@@ -9,7 +9,7 @@ import { BirdRow } from './components/BirdRow';
 import { MammalRow } from './components/MammalRow';
 import { ExoticRow } from './components/ExoticRow';
 
-const DailyLog: React.FC = () => {
+const DailyLog: React.FC<{ animalId?: string }> = ({ animalId }) => {
   const [viewDate, setViewDate] = useState(new Date().toISOString().split('T')[0]);
   
   const handlePrevDay = () => {
@@ -42,6 +42,10 @@ const DailyLog: React.FC = () => {
   const visibleAnimals = hideSubAccounts 
     ? animals.filter(a => !(a.entity_type === EntityType.INDIVIDUAL && a.parent_mob_id))
     : animals;
+
+  const filteredAnimals = animalId 
+    ? visibleAnimals.filter(a => a.id === animalId)
+    : visibleAnimals;
 
   const categories = [
     AnimalCategory.OWLS,
@@ -104,71 +108,75 @@ const DailyLog: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">DAILY LOG</h1>
-            <p className="text-sm text-slate-500 mt-1">Log and track daily animal activities.</p>
-            <div className="flex items-center gap-1 mt-2 bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit shadow-sm">
-              <button 
-                onClick={handlePrevDay} 
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
-                title="Previous Day"
-              >
-                <ChevronLeft size={16} />
-              </button>
+        {!animalId && (
+          <div>
+              <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">DAILY LOG</h1>
+              <p className="text-sm text-slate-500 mt-1">Log and track daily animal activities.</p>
+              <div className="flex items-center gap-1 mt-2 bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit shadow-sm">
+                <button 
+                  onClick={handlePrevDay} 
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
+                  title="Previous Day"
+                >
+                  <ChevronLeft size={16} />
+                </button>
 
-              <div className="flex items-center gap-2 px-2 border-x border-slate-200">
-                <Calendar size={14} className="text-slate-400" />
-                <input 
-                  type="date" 
-                  value={viewDate}
-                  onChange={(e) => setViewDate(e.target.value)}
-                  className="text-xs font-bold text-slate-700 bg-transparent focus:outline-none w-28 text-center cursor-pointer"
-                />
+                <div className="flex items-center gap-2 px-2 border-x border-slate-200">
+                  <Calendar size={14} className="text-slate-400" />
+                  <input 
+                    type="date" 
+                    value={viewDate}
+                    onChange={(e) => setViewDate(e.target.value)}
+                    className="text-xs font-bold text-slate-700 bg-transparent focus:outline-none w-28 text-center cursor-pointer"
+                  />
+                </div>
+
+                <button 
+                  onClick={handleNextDay} 
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
+                  title="Next Day"
+                >
+                  <ChevronRight size={16} />
+                </button>
+
+                <button 
+                  onClick={handleToday}
+                  className={`ml-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors ${viewDate === new Date().toISOString().split('T')[0] ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-200'}`}
+                >
+                  Today
+                </button>
               </div>
-
-              <button 
-                onClick={handleNextDay} 
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"
-                title="Next Day"
-              >
-                <ChevronRight size={16} />
-              </button>
-
-              <button 
-                onClick={handleToday}
-                className={`ml-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors ${viewDate === new Date().toISOString().split('T')[0] ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-200'}`}
-              >
-                Today
-              </button>
-            </div>
-        </div>
+          </div>
+        )}
         {isSyncing && <span className="text-sm text-slate-500 animate-pulse">Syncing Weather...</span>}
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-        <div className="flex overflow-x-auto scrollbar-hide bg-slate-100 p-1 rounded-xl gap-0.5 sm:gap-1">
-          {categories.map(category => (
-            <button
-              key={category}
-              onClick={() => setActiveCategory(category)}
-              className={`flex-1 min-w-fit sm:min-w-[100px] py-1.5 px-1 sm:py-2.5 text-[11px] sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
-                activeCategory === category 
-                  ? 'bg-white text-blue-700 shadow-sm font-bold' 
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
+      {!animalId && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div className="flex overflow-x-auto scrollbar-hide bg-slate-100 p-1 rounded-xl gap-0.5 sm:gap-1">
+            {categories.map(category => (
+              <button
+                key={category}
+                onClick={() => setActiveCategory(category)}
+                className={`flex-1 min-w-fit sm:min-w-[100px] py-1.5 px-1 sm:py-2.5 text-[11px] sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                  activeCategory === category 
+                    ? 'bg-white text-blue-700 shadow-sm font-bold' 
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+          <button 
+            onClick={() => setHideSubAccounts(!hideSubAccounts)}
+            className={`ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${hideSubAccounts ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+          >
+            <Users size={14} />
+            {hideSubAccounts ? 'Sub-Accounts Hidden' : 'Showing All'}
+          </button>
         </div>
-        <button 
-          onClick={() => setHideSubAccounts(!hideSubAccounts)}
-          className={`ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${hideSubAccounts ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-        >
-          <Users size={14} />
-          {hideSubAccounts ? 'Sub-Accounts Hidden' : 'Showing All'}
-        </button>
-      </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <table className="w-full">
@@ -192,7 +200,7 @@ const DailyLog: React.FC = () => {
                 </tr>
               ))
             ) : (
-              visibleAnimals.map(renderRow)
+              filteredAnimals.map(renderRow)
             )}
           </tbody>
         </table>
