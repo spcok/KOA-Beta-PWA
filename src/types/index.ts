@@ -200,6 +200,15 @@ export interface LogEntry {
   integrity_seal?: string;
 }
 
+export interface TrainingRecord {
+  id: string;
+  animal_id: string;
+  date: string;
+  behavior: string;
+  notes?: string;
+  staff_initials: string;
+}
+
 export interface Task {
   id: string;
   animal_id?: string;
