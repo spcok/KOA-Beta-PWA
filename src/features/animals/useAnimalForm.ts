@@ -45,7 +45,6 @@ export const animalFormSchema = z.object({
   target_humidity_max_percent: z.number().nullable().optional(),
   misting_frequency: z.string().optional(),
   acquisition_type: z.enum(['BORN', 'TRANSFERRED_IN', 'RESCUE', 'UNKNOWN']).optional(),
-  critical_husbandry_notes: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.entity_type === EntityType.INDIVIDUAL || !data.entity_type) {
     if (!data.acquisition_date) {
@@ -108,7 +107,6 @@ export function useAnimalForm({ initialData, onClose }: UseAnimalFormProps) {
       is_quarantine: initialData.is_quarantine || false,
       water_tipping_temp: initialData.water_tipping_temp,
       acquisition_type: initialData.acquisition_type || 'UNKNOWN',
-      critical_husbandry_notes: initialData.critical_husbandry_notes?.join('\n') || '',
     } : {
       name: '',
       species: '',
@@ -140,7 +138,6 @@ export function useAnimalForm({ initialData, onClose }: UseAnimalFormProps) {
       is_quarantine: false,
       water_tipping_temp: undefined,
       acquisition_type: 'UNKNOWN',
-      critical_husbandry_notes: '',
     },
   });
 
