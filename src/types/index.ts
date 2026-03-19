@@ -172,11 +172,6 @@ export interface Animal {
   distribution_map_url?: string;
   water_tipping_temp?: number;
   acquisition_type?: 'BORN' | 'TRANSFERRED_IN' | 'RESCUE' | 'UNKNOWN';
-  enclosure_id?: string;
-  temp_range?: string;
-  uvb_requirements?: string;
-  weight?: number;
-  feed_type?: string;
 }
 
 export interface LogEntry {
@@ -198,15 +193,6 @@ export interface LogEntry {
   created_at?: string;
   created_by?: string;
   integrity_seal?: string;
-}
-
-export interface TrainingRecord {
-  id: string;
-  animal_id: string;
-  date: string;
-  behavior: string;
-  notes?: string;
-  staff_initials: string;
 }
 
 export interface Task {
