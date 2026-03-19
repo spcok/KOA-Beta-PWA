@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Animal, LogType, HazardRating } from '../../types';
 import { 
-  ChevronLeft, Scale, Utensils, Printer, Edit, 
+  ChevronLeft, Printer, Edit, 
   AlertTriangle, Plus, Archive, Skull, 
   Loader2, Info, Calendar, MapPin, ShieldCheck,
   History, Heart, Layers, Thermometer, Droplets,
@@ -58,9 +58,6 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
     type: 'Disposition'
   });
   const [entryType, setEntryType] = useState<LogType>(LogType.GENERAL);
-
-  const latestWeight = useMemo(() => logs.find(l => l.log_type === LogType.WEIGHT), [logs]);
-  const lastFeed = useMemo(() => logs.find(l => l.log_type === LogType.FEED), [logs]);
 
   const filteredLogs = useMemo(() => {
       if (logFilter === 'ALL') return logs;
@@ -198,151 +195,114 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
         </div>
 
         <div className="px-2 md:px-4 py-4">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                
-                {/* LEFT COLUMN: IDENTITY & STATS (BENTO) */}
-                <div className="lg:col-span-4 space-y-6">
-                    
-                    {/* IDENTITY CARD */}
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group flex flex-col sm:flex-row lg:flex-col lg:items-center">
-                        <div className="w-full sm:w-[40%] lg:w-[90%] lg:mx-auto aspect-square relative overflow-hidden shrink-0">
-                            <img src={animal.image_url || 'https://picsum.photos/seed/placeholder/800/800'} alt={animal.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-                            <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end">
-                                <div>
-                                    <p className="text-white/70 text-[10px] font-black uppercase tracking-widest mb-1">Subject ID</p>
-                                    <p className="text-white font-mono text-xs font-bold">{String(animal.id).split('-')[0].toUpperCase()}</p>
-                                </div>
-                                <IUCNBadge status={animal.red_list_status} size="md" />
-                            </div>
-                        </div>
-                        <div className="p-6 space-y-4 flex-1 flex flex-col justify-center">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-white p-4 rounded-xl border border-slate-200">
-                                    <p className="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1.5"><Calendar size={14}/> Hatched/DOB</p>
-                                    <p className="text-sm font-semibold text-slate-900">{animal.dob ? new Date(animal.dob).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : 'Unknown'}</p>
-                                </div>
-                                <div className="bg-white p-4 rounded-xl border border-slate-200">
-                                    <p className="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1.5"><User size={14}/> Sex</p>
-                                    <p className="text-sm font-semibold text-slate-900">{String(animal.sex || 'Unknown')}</p>
-                                </div>
-                            </div>
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between px-4 py-3 bg-white rounded-xl border border-slate-200">
-                                    <div className="flex items-center gap-3">
-                                        <Fingerprint size={16} className="text-slate-400" />
-                                        <span className="text-sm font-medium text-slate-700">Microchip</span>
-                                    </div>
-                                    <span className="text-sm font-semibold text-slate-900 font-mono">{String(animal.microchip_id || 'N/A')}</span>
-                                </div>
-                                <div className="flex items-center justify-between px-4 py-3 bg-white rounded-xl border border-slate-200">
-                                    <div className="flex items-center gap-3">
-                                        <Layers size={16} className="text-slate-400" />
-                                        <span className="text-sm font-medium text-slate-700">Ring No.</span>
-                                    </div>
-                                    <span className="text-sm font-semibold text-slate-900 font-mono">{String(animal.ring_number || 'N/A')}</span>
-                                </div>
-                                <div className="flex items-center justify-between px-4 py-3 bg-white rounded-xl border border-slate-200">
-                                    <div className="flex items-center gap-3">
-                                        <MapPin size={16} className="text-slate-400" />
-                                        <span className="text-sm font-medium text-slate-700">Location</span>
-                                    </div>
-                                    <span className="text-sm font-semibold text-slate-900">{String(animal.location)}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* QUICK STATS */}
-                    <div className="grid grid-cols-1 gap-4">
-                        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm relative overflow-hidden">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="p-2 bg-slate-100 text-slate-600 rounded-lg"><Scale size={18} /></div>
-                                <button 
-                                    onClick={() => { setEntryType(LogType.WEIGHT); setIsAddEntryOpen(true); }}
-                                    className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700 transition-colors"
-                                >
-                                    + Log Weight
-                                </button>
-                            </div>
+            {/* TOP SECTION: PHOTO & ZLA RECORD */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
+                {/* 1. PHOTO CARD */}
+                <div className="md:col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <div className="w-full flex-1 min-h-[300px] relative overflow-hidden bg-slate-100">
+                        <img src={animal.image_url || 'https://picsum.photos/seed/placeholder/1200/800'} alt={animal.name} className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none"></div>
+                        <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end pointer-events-none">
                             <div>
-                                <h3 className="text-2xl font-bold text-slate-900 mb-1">
-                                    {latestWeight?.log_type === LogType.WEIGHT ? (
-                                        (() => {
-                                            // 1. If it has strict DB grams, use it
-                                            if (latestWeight.weight_grams) return formatWeightDisplay(latestWeight.weight_grams, animal.weight_unit);
-
-                                            // 2. If it's a legacy string, parse and format it
-                                            const parsedGrams = parseLegacyWeightToGrams(latestWeight.value);
-                                            if (parsedGrams !== null) return formatWeightDisplay(parsedGrams, animal.weight_unit);
-
-                                            // 3. Absolute fallback
-                                            return latestWeight.weight ? `${latestWeight.weight}${latestWeight.weight_unit || 'g'}` : String(latestWeight.value || 'N/A');
-                                        })()
-                                    ) : String(latestWeight?.value || 'N/A')}
-                                </h3>
-                                <p className="text-sm font-medium text-slate-500">
-                                    {latestWeight ? `Last recorded ${new Date(latestWeight.log_date).toLocaleDateString('en-GB')}` : 'No records found'}
-                                </p>
+                                <p className="text-white/80 text-[10px] font-black uppercase tracking-widest mb-1">Subject ID</p>
+                                <p className="text-white font-mono text-xs font-bold shadow-sm">{String(animal.id).split('-')[0].toUpperCase()}</p>
                             </div>
-                        </div>
-
-                        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-slate-100 text-slate-600 rounded-lg"><Utensils size={18} /></div>
-                                    <h4 className="text-sm font-semibold text-slate-900">Nutrition Status</h4>
-                                </div>
-                                <button 
-                                    onClick={() => { setEntryType(LogType.FEED); setIsAddEntryOpen(true); }}
-                                    className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700 transition-colors"
-                                >
-                                    + Log Feed
-                                </button>
-                            </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <p className="text-xs font-medium text-slate-500 mb-1">Last Intake</p>
-                                    <p className="text-sm font-semibold text-slate-900">{String(lastFeed?.value || 'NIL')}</p>
-                                    <p className="text-xs text-slate-500 mt-0.5 italic">{String(lastFeed?.notes || 'No notes available')}</p>
-                                </div>
-                                <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                                    <span className="text-xs font-medium text-slate-500">Flying Weight</span>
-                                    <span className="text-sm font-semibold text-slate-900">
-                                        {animal.flying_weight_g ? formatWeightDisplay(animal.flying_weight_g, animal.weight_unit) : '--'}
-                                    </span>
-                                </div>
-                            </div>
+                            <IUCNBadge status={animal.red_list_status} size="md" />
                         </div>
                     </div>
                 </div>
 
-                {/* RIGHT COLUMN: CONTENT TABS (BENTO) */}
-                <div className="lg:col-span-8 space-y-6">
-                                     {/* TABS NAVIGATION */}
-                    <div className="bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm flex gap-1 overflow-x-auto scrollbar-hide">
-                        {[
-                            { id: 'Overview', icon: Info, label: 'Overview' },
-                            { id: 'History', icon: History, label: 'Husbandry Feed' },
-                            { id: 'Medical', icon: Heart, label: 'Clinical File' }
-                        ].map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id as 'Overview' | 'History' | 'Medical')}
-                                className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
-                                    activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                                }`}
-                            >
-                                <tab.icon size={14} /> {tab.label}
-                            </button>
-                        ))}
+                {/* 2. ZLA 1981 STATUTORY RECORD CARD */}
+                <div className="md:col-span-9 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <div className="p-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-2">
+                            <ShieldCheck size={18} className="text-slate-700" />
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-900 leading-tight">ZLA 1981 Record</h3>
+                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Statutory Stock Ledger</p>
+                            </div>
+                        </div>
                     </div>
+                    <div className="p-5 grid grid-cols-2 gap-y-5 gap-x-4 flex-1 content-start">
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><Calendar size={12}/> Entry / Hatched</p>
+                            <p className="text-sm font-semibold text-slate-900">
+                                {animal.acquisition_date ? new Date(animal.acquisition_date).toLocaleDateString('en-GB') : (animal.dob ? new Date(animal.dob).toLocaleDateString('en-GB') : 'Unknown')}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><User size={12}/> Sex</p>
+                            <p className="text-sm font-semibold text-slate-900">{String(animal.sex || 'Unknown')}</p>
+                        </div>
+                        <div className="col-span-2">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><MapPin size={12}/> Current Location</p>
+                            <p className="text-sm font-semibold text-slate-900">{String(animal.location)}</p>
+                        </div>
+                        <div className="col-span-2">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><FileText size={12}/> Source / Origin</p>
+                            <div className="flex items-center gap-2 flex-wrap mt-1">
+                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-mono font-bold">{String(animal.acquisition_type || 'UNKNOWN').replace('_', ' ')}</span>
+                                <span className="text-sm font-semibold text-slate-900">{String(animal.origin || 'Not specified')}</span>
+                            </div>
+                        </div>
+                        <div className="col-span-2 pt-4 border-t border-slate-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><ShieldCheck size={12}/> Statutory Metadata</p>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><AlertTriangle size={12}/> Hazard Class</p>
+                                    <p className="text-sm font-semibold text-rose-600">{String(animal.hazard_rating)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="col-span-2 pt-4 border-t border-slate-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Distinctive Marks (ID)</p>
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                    <span className="text-xs font-medium text-slate-500 flex items-center gap-2"><Fingerprint size={14}/> Microchip</span>
+                                    <span className="text-sm font-mono font-bold text-slate-900 break-all text-right ml-2">{String(animal.microchip_id || 'N/A')}</span>
+                                </div>
+                                <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                    <span className="text-xs font-medium text-slate-500 flex items-center gap-2"><Layers size={14}/> Ring No.</span>
+                                    <span className="text-sm font-mono font-bold text-slate-900 break-all text-right ml-2">{String(animal.ring_number || 'N/A')}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {isArchived && (
+                             <div className="col-span-2 pt-4 border-t border-slate-100">
+                                 <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-1">Departure / Death Record</p>
+                                 <p className="text-sm font-semibold text-slate-900">{animal.archive_reason || 'Unknown'}</p>
+                             </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* BOTTOM SECTION: CONTENT TABS (BENTO) */}
+            <div className="space-y-6 min-w-0">
+                {/* TABS NAVIGATION */}
+                <div className="bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm flex gap-1 overflow-x-auto scrollbar-hide">
+                    {[
+                        { id: 'Overview', icon: Info, label: 'Overview' },
+                        { id: 'History', icon: History, label: 'Husbandry Feed' },
+                        { id: 'Medical', icon: Heart, label: 'Clinical File' }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as 'Overview' | 'History' | 'Medical')}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                                activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                            }`}
+                        >
+                            <tab.icon size={14} /> {tab.label}
+                        </button>
+                    ))}
+                </div>
 
                     {/* TAB CONTENT: OVERVIEW */}
                     {activeTab === 'Overview' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-4">
-                                <div>
+                            <div className="space-y-4">
+                                <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
                                     <h4 className="text-xs font-semibold text-slate-900 mb-2 flex items-center gap-2">
                                         <Info size={14}/> Subject Narrative
                                     </h4>
@@ -393,35 +353,18 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                                     <div className="mt-3 p-2 bg-blue-50 rounded-lg border border-blue-100 flex items-center justify-between">
                                         <div className="flex items-center gap-1">
                                             <Droplets size={14} className="text-blue-500" />
+                                            <span className="text-xs font-medium text-blue-700">Water Tipping Temp</span>
+                                        </div>
+                                        <span className={`text-xs font-semibold ${animal.water_tipping_temp !== undefined && animal.water_tipping_temp !== null ? 'text-blue-600' : 'text-slate-400'}`}>
+                                            {animal.water_tipping_temp !== undefined && animal.water_tipping_temp !== null ? `${animal.water_tipping_temp}°C` : 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div className="mt-3 p-2 bg-blue-50 rounded-lg border border-blue-100 flex items-center justify-between">
+                                        <div className="flex items-center gap-1">
+                                            <Droplets size={14} className="text-blue-500" />
                                             <span className="text-xs font-medium text-blue-700">Misting Frequency</span>
                                         </div>
                                         <span className="text-xs font-semibold text-blue-900">{String(animal.misting_frequency || 'N/A')}</span>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-                                    <h4 className="text-xs font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                                        <ShieldCheck size={14}/> Statutory Metadata
-                                    </h4>
-                                    <div className="grid grid-cols-1 gap-2">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-xs text-slate-500">Arrival Date</span>
-                                            <span className="text-xs font-medium text-slate-900">{animal.acquisition_date ? new Date(animal.acquisition_date).toLocaleDateString('en-GB') : 'N/A'}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-xs text-slate-500">Origin</span>
-                                            <span className="text-xs font-medium text-slate-900">{String(animal.origin || 'Unknown')}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-xs text-slate-500">Hazard Class</span>
-                                            <span className="text-xs font-semibold text-rose-600">{String(animal.hazard_rating)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-xs text-slate-500">Water Tipping Temp</span>
-                                            <span className={`text-xs font-semibold ${animal.water_tipping_temp !== undefined && animal.water_tipping_temp !== null ? 'text-blue-600' : 'text-slate-400'}`}>
-                                                {animal.water_tipping_temp !== undefined && animal.water_tipping_temp !== null ? `${animal.water_tipping_temp}°C` : 'N/A'}
-                                            </span>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -547,7 +490,6 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
 
                 </div>
             </div>
-        </div>
 
         {/* MODALS */}
         {isSignGeneratorOpen && (

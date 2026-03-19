@@ -9,6 +9,9 @@ import { mutateOnlineFirst } from '../../lib/dataEngine';
 import { useOperationalLists } from '../../hooks/useOperationalLists';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../lib/db';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '../../utils/cropImage';
+import { uploadFile } from '../../lib/storageEngine';
 
 interface AnimalFormModalProps {
   isOpen: boolean;
@@ -26,6 +29,45 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
 
   const { register, watch, setValue, getValues } = form;
   const { locations } = useOperationalLists();
+
+  // Cropper State
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<{ x: number, y: number, width: number, height: number } | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
+  const [isUploadingCrop, setIsUploadingCrop] = useState(false);
+
+  const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        setImageToCrop(reader.result?.toString() || null);
+        setIsCropping(true);
+      });
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const handleCropConfirm = async () => {
+    if (!imageToCrop || !croppedAreaPixels) return;
+    try {
+      setIsUploadingCrop(true);
+      const croppedBlob = await getCroppedImg(imageToCrop, croppedAreaPixels);
+      const croppedFile = new File([croppedBlob], `cropped-${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+      const url = await uploadFile(croppedFile, 'animals');
+      setValue('image_url', url, { shouldValidate: true, shouldDirty: true });
+
+      setIsCropping(false);
+      setImageToCrop(null);
+    } catch (error) {
+      console.error('Crop/Upload failed:', error);
+      alert('Failed to process image. Please try again.');
+    } finally {
+      setIsUploadingCrop(false);
+    }
+  };
 
   // Weight State
   const [weightUnit, setWeightUnit] = useState<'g' | 'lb' | 'oz'>(
@@ -62,6 +104,9 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
 
     const payload = {
       ...sanitizedData,
+      critical_husbandry_notes: sanitizedData.critical_husbandry_notes
+        ? sanitizedData.critical_husbandry_notes.split('\n').map(n => n.trim()).filter(n => n.length > 0)
+        : [],
       flying_weight_g: flightGrams > 0 ? flightGrams : null,
       winter_weight_g: winterGrams > 0 ? winterGrams : null,
       weight_unit: weightUnit === 'lb' ? 'lbs_oz' : weightUnit
@@ -198,7 +243,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                 />
                                 <label className="absolute inset-0 bg-black/5 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
                                     <div className="bg-white/90 p-2 rounded-full shadow-sm"><Camera size={16} /></div>
-                                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'image_url')} className="hidden" />
+                                    <input type="file" accept="image/*" onChange={onFileSelect} className="hidden" />
                                 </label>
                             </div>
                         </section>
@@ -701,6 +746,21 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                             </section>
                         )}
 
+                        {/* NEW: CRITICAL HUSBANDRY NOTES */}
+                        <section className="space-y-4">
+                            <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
+                                <Shield size={18} className="text-amber-500" /> Critical Husbandry Notes
+                            </h3>
+                            <div>
+                                <label className={labelClass}>Important Care Instructions (One per line)</label>
+                                <textarea 
+                                    {...register('critical_husbandry_notes')} 
+                                    className={`${inputClass} min-h-[100px] resize-y`} 
+                                    placeholder="e.g. Requires daily beak inspection&#10;Prone to bumblefoot, check perches" 
+                                />
+                            </div>
+                        </section>
+
                     </div>
                 </div>
 
@@ -718,6 +778,39 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                     </div>
                 </div>
             </form>
+
+            {/* CROPPER OVERLAY */}
+            {isCropping && imageToCrop && (
+              <div className="fixed inset-0 z-[70] bg-black flex flex-col">
+                <div className="relative flex-1 w-full h-full">
+                  <Cropper
+                    image={imageToCrop}
+                    crop={crop}
+                    zoom={zoom}
+                    aspect={4 / 3}
+                    onCropChange={setCrop}
+                    onZoomChange={setZoom}
+                    onCropComplete={(_, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
+                  />
+                </div>
+                <div className="bg-slate-900 p-6 pb-safe flex flex-col sm:flex-row items-center gap-4 justify-between border-t border-slate-800">
+                  <input 
+                      type="range" value={zoom} min={1} max={3} step={0.1}
+                      onChange={(e) => setZoom(Number(e.target.value))}
+                      className="w-full sm:w-1/2 accent-blue-500"
+                  />
+                  <div className="flex gap-3 w-full sm:w-auto">
+                      <button type="button" onClick={() => { setIsCropping(false); setImageToCrop(null); }} className="flex-1 px-6 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 transition-colors">
+                          Cancel
+                      </button>
+                      <button type="button" onClick={handleCropConfirm} disabled={isUploadingCrop} className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                          {isUploadingCrop ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />}
+                          {isUploadingCrop ? 'Uploading...' : 'Confirm Crop'}
+                      </button>
+                  </div>
+                </div>
+              </div>
+            )}
         </div>
     </div>
   );
