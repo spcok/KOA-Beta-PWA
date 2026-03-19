@@ -104,6 +104,9 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
 
     const payload = {
       ...sanitizedData,
+      critical_husbandry_notes: sanitizedData.critical_husbandry_notes
+        ? sanitizedData.critical_husbandry_notes.split('\n').map(n => n.trim()).filter(n => n.length > 0)
+        : [],
       flying_weight_g: flightGrams > 0 ? flightGrams : null,
       winter_weight_g: winterGrams > 0 ? winterGrams : null,
       weight_unit: weightUnit === 'lb' ? 'lbs_oz' : weightUnit
@@ -742,6 +745,21 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ isOpen, onClose, init
                                 )}
                             </section>
                         )}
+
+                        {/* NEW: CRITICAL HUSBANDRY NOTES */}
+                        <section className="space-y-4">
+                            <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
+                                <Shield size={18} className="text-amber-500" /> Critical Husbandry Notes
+                            </h3>
+                            <div>
+                                <label className={labelClass}>Important Care Instructions (One per line)</label>
+                                <textarea 
+                                    {...register('critical_husbandry_notes')} 
+                                    className={`${inputClass} min-h-[100px] resize-y`} 
+                                    placeholder="e.g. Requires daily beak inspection&#10;Prone to bumblefoot, check perches" 
+                                />
+                            </div>
+                        </section>
 
                     </div>
                 </div>
