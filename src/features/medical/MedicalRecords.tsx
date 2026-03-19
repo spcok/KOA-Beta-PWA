@@ -8,7 +8,7 @@ import { AddQuarantineModal } from './AddQuarantineModal';
 import { generateMarChartDocx } from './exportMarChart';
 import { ClinicalNote } from '../../types';
 
-const MedicalRecords: React.FC<{ animalId?: string }> = ({ animalId }) => {
+const MedicalRecords: React.FC = () => {
   const permissions = usePermissions();
   const { clinicalNotes, marCharts, quarantineRecords, animals, isLoading, addClinicalNote, updateClinicalNote, addMarChart, addQuarantineRecord, updateQuarantineRecord } = useMedicalData();
   const [activeTab, setActiveTab] = useState<'notes' | 'mar' | 'quarantine'>('notes');
@@ -111,27 +111,25 @@ const MedicalRecords: React.FC<{ animalId?: string }> = ({ animalId }) => {
   };
 
   const filteredNotes = (clinicalNotes || [])
-    .filter(n => (selectedPatient === 'All' || n.animal_id === selectedPatient) && (!animalId || n.animal_id === animalId))
+    .filter(n => selectedPatient === 'All' || n.animal_id === selectedPatient)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div className="space-y-6">
-      {!animalId && (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-              <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Clinical Records</h1>
-              <p className="text-sm text-slate-500 mt-1">Manage clinical notes, medication charts, and quarantine records.</p>
-          </div>
-          { (activeTab === 'notes' && permissions.add_clinical_notes) || (activeTab === 'mar' && permissions.prescribe_medications) || (activeTab === 'quarantine' && permissions.manage_quarantine) ? (
-            <button 
-              onClick={handleAdd}
-              className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <Plus size={16} /> Add {activeTab === 'notes' ? 'Note' : activeTab === 'mar' ? 'Medication' : 'Record'}
-            </button>
-          ) : null}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Clinical Records</h1>
+            <p className="text-sm text-slate-500 mt-1">Manage clinical notes, medication charts, and quarantine records.</p>
         </div>
-      )}
+        { (activeTab === 'notes' && permissions.add_clinical_notes) || (activeTab === 'mar' && permissions.prescribe_medications) || (activeTab === 'quarantine' && permissions.manage_quarantine) ? (
+          <button 
+            onClick={handleAdd}
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <Plus size={16} /> Add {activeTab === 'notes' ? 'Note' : activeTab === 'mar' ? 'Medication' : 'Record'}
+          </button>
+        ) : null}
+      </div>
       
       <AddClinicalNoteModal 
         isOpen={isNoteModalOpen} 
