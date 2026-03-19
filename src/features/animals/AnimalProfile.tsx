@@ -3,9 +3,9 @@ import { Animal, LogType, HazardRating } from '../../types';
 import { 
   ChevronLeft, Printer, Edit, 
   AlertTriangle, Plus, Archive, Skull, 
-  Loader2, Info, Calendar, MapPin, ShieldCheck,
-  History, Heart, Layers, Thermometer, Droplets,
-  User, Fingerprint, FileText, RotateCcw
+  Loader2, Info,
+  History, Heart, Thermometer, Droplets,
+  FileText, RotateCcw, Fingerprint, Layers
 } from 'lucide-react';
 import { formatWeightDisplay, parseLegacyWeightToGrams } from '../../services/weightUtils';
 import AddEntryModal from './AddEntryModal';
@@ -195,87 +195,84 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
         </div>
 
         <div className="px-2 md:px-4 py-4">
-            {/* TOP SECTION: PHOTO & ZLA RECORD */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
-                {/* 1. PHOTO CARD */}
-                <div className="md:col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                    <div className="w-full flex-1 min-h-[300px] relative overflow-hidden bg-slate-100">
-                        <img src={animal.image_url || 'https://picsum.photos/seed/placeholder/1200/800'} alt={animal.name} className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none"></div>
-                        <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end pointer-events-none">
-                            <div>
-                                <p className="text-white/80 text-[10px] font-black uppercase tracking-widest mb-1">Subject ID</p>
-                                <p className="text-white font-mono text-xs font-bold shadow-sm">{String(animal.id).split('-')[0].toUpperCase()}</p>
-                            </div>
-                            <IUCNBadge status={animal.red_list_status} size="md" />
-                        </div>
+{/* LEFT COLUMN: THE BULLETPROOF ID CARD */}
+<div className="lg:col-span-4 space-y-6 min-w-0">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row min-w-0">
+        
+        {/* THE PHOTO - Fixed max-width on tablet/desktop to prevent blowout */}
+        <div className="w-full md:w-72 lg:w-80 shrink-0 bg-slate-100 relative">
+            <img 
+                src={animal.image_url || 'https://picsum.photos/seed/placeholder/800/600'} 
+                alt={animal.name} 
+                className="w-full h-full object-cover" 
+                referrerPolicy="no-referrer" 
+            />
+            <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm">
+                <IUCNBadge status={animal.red_list_status} size="sm" />
+            </div>
+        </div>
+
+        {/* THE INFO - Fills the rest of the card */}
+        <div className="p-6 flex-1 min-w-0 flex flex-col justify-center">
+            
+            {/* Header: Name & Subject ID */}
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+                <div>
+                    <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                        {String(animal.name)}
+                        {isHighHazard && <span className="text-rose-500 animate-pulse"><Skull size={18}/></span>}
+                    </h2>
+                    <p className="text-sm font-medium text-slate-500 mt-1">{String(animal.latin_name || animal.species)}</p>
+                </div>
+                <div className="text-right">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Subject ID</p>
+                    <p className="text-sm font-mono font-bold text-slate-900">{String(animal.id).split('-')[0].toUpperCase()}</p>
+                </div>
+            </div>
+
+            {/* ZLA & Core Stats Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">Entry / Hatched</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">
+                        {animal.acquisition_date ? new Date(animal.acquisition_date).toLocaleDateString('en-GB') : (animal.dob ? new Date(animal.dob).toLocaleDateString('en-GB') : 'Unknown')}
+                    </p>
+                </div>
+                <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">Sex</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">{String(animal.sex || 'Unknown')}</p>
+                </div>
+                <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">Source</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">{String(animal.acquisition_type || 'Unknown').replace('_', ' ')}</p>
+                </div>
+                <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">Location</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">{String(animal.location)}</p>
+                </div>
+            </div>
+
+            {/* Distinctive Marks (ID Plates) */}
+            <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 min-w-[140px] flex-1 sm:flex-none">
+                    <Fingerprint size={14} className="text-slate-400 shrink-0"/>
+                    <div className="min-w-0">
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Microchip</p>
+                        <p className="text-xs font-mono font-bold text-slate-900 leading-none truncate">{String(animal.microchip_id || 'N/A')}</p>
                     </div>
                 </div>
-
-                {/* 2. ZLA 1981 STATUTORY RECORD CARD */}
-                <div className="md:col-span-9 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                    <div className="p-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-2">
-                            <ShieldCheck size={18} className="text-slate-700" />
-                            <div>
-                                <h3 className="text-sm font-bold text-slate-900 leading-tight">ZLA 1981 Record</h3>
-                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Statutory Stock Ledger</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="p-5 grid grid-cols-2 gap-y-5 gap-x-4 flex-1 content-start">
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><Calendar size={12}/> Entry / Hatched</p>
-                            <p className="text-sm font-semibold text-slate-900">
-                                {animal.acquisition_date ? new Date(animal.acquisition_date).toLocaleDateString('en-GB') : (animal.dob ? new Date(animal.dob).toLocaleDateString('en-GB') : 'Unknown')}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><User size={12}/> Sex</p>
-                            <p className="text-sm font-semibold text-slate-900">{String(animal.sex || 'Unknown')}</p>
-                        </div>
-                        <div className="col-span-2">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><MapPin size={12}/> Current Location</p>
-                            <p className="text-sm font-semibold text-slate-900">{String(animal.location)}</p>
-                        </div>
-                        <div className="col-span-2">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><FileText size={12}/> Source / Origin</p>
-                            <div className="flex items-center gap-2 flex-wrap mt-1">
-                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-mono font-bold">{String(animal.acquisition_type || 'UNKNOWN').replace('_', ' ')}</span>
-                                <span className="text-sm font-semibold text-slate-900">{String(animal.origin || 'Not specified')}</span>
-                            </div>
-                        </div>
-                        <div className="col-span-2 pt-4 border-t border-slate-100">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><ShieldCheck size={12}/> Statutory Metadata</p>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><AlertTriangle size={12}/> Hazard Class</p>
-                                    <p className="text-sm font-semibold text-rose-600">{String(animal.hazard_rating)}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="col-span-2 pt-4 border-t border-slate-100">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Distinctive Marks (ID)</p>
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                                    <span className="text-xs font-medium text-slate-500 flex items-center gap-2"><Fingerprint size={14}/> Microchip</span>
-                                    <span className="text-sm font-mono font-bold text-slate-900 break-all text-right ml-2">{String(animal.microchip_id || 'N/A')}</span>
-                                </div>
-                                <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                                    <span className="text-xs font-medium text-slate-500 flex items-center gap-2"><Layers size={14}/> Ring No.</span>
-                                    <span className="text-sm font-mono font-bold text-slate-900 break-all text-right ml-2">{String(animal.ring_number || 'N/A')}</span>
-                                </div>
-                            </div>
-                        </div>
-                        {isArchived && (
-                             <div className="col-span-2 pt-4 border-t border-slate-100">
-                                 <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-1">Departure / Death Record</p>
-                                 <p className="text-sm font-semibold text-slate-900">{animal.archive_reason || 'Unknown'}</p>
-                             </div>
-                        )}
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 min-w-[140px] flex-1 sm:flex-none">
+                    <Layers size={14} className="text-slate-400 shrink-0"/>
+                    <div className="min-w-0">
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Ring No.</p>
+                        <p className="text-xs font-mono font-bold text-slate-900 leading-none truncate">{String(animal.ring_number || 'N/A')}</p>
                     </div>
                 </div>
             </div>
+
+        </div>
+    </div>
+</div>
 
             {/* BOTTOM SECTION: CONTENT TABS (BENTO) */}
             <div className="space-y-6 min-w-0">
