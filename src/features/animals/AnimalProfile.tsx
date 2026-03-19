@@ -5,7 +5,7 @@ import {
   AlertTriangle, Plus, Archive, Skull, 
   Loader2, Info, Calendar, MapPin, ShieldCheck,
   History, Heart, Layers, Thermometer, Droplets,
-  CheckCircle2, Clock, User, Fingerprint, ClipboardCheck, FileText, RotateCcw
+  User, Fingerprint, FileText, RotateCcw
 } from 'lucide-react';
 import { formatWeightDisplay, parseLegacyWeightToGrams } from '../../services/weightUtils';
 import AddEntryModal from './AddEntryModal';
@@ -28,7 +28,6 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
   const {
     animal,
     logs,
-    tasks,
     orgProfile,
     allAnimals,
     isLoading,
@@ -148,10 +147,7 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                     <button onClick={onBack} className="p-2.5 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-900">
                         <ChevronLeft size={20} />
                     </button>
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-100 overflow-hidden border border-slate-200 shadow-sm">
-                            <img src={animal.image_url || 'https://picsum.photos/seed/placeholder/200/200'} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                        </div>
+                    <div className="flex items-center">
                         <div>
                             <div className="flex items-center gap-2">
                                 <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">{String(animal.name)}</h1>
@@ -167,28 +163,28 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                     {!isArchived && (
                         <>
                             {animal.acquisition_type === 'BORN' && (
-                                <button onClick={handleGenerateBirthCertificate} className="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-sm font-medium transition-colors" title="Birth Certificate">
-                                    <FileText size={18} />
+                                <button onClick={handleGenerateBirthCertificate} className="px-3 py-1.5 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-xs font-medium transition-colors" title="Birth Certificate">
+                                    <FileText size={16} />
                                 </button>
                             )}
-                            <button onClick={() => setIsSignGeneratorOpen(true)} className="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-sm font-medium transition-colors" title="Signage">
-                                <Printer size={18} />
+                            <button onClick={() => setIsSignGeneratorOpen(true)} className="px-3 py-1.5 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-xs font-medium transition-colors" title="Signage">
+                                <Printer size={16} />
                             </button>
                             {permissions.edit_animals && (
-                                <button onClick={() => setIsEditProfileOpen(true)} className="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-sm font-medium transition-colors" title="Edit Profile">
-                                    <Edit size={18} />
+                                <button onClick={() => setIsEditProfileOpen(true)} className="px-3 py-1.5 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-xs font-medium transition-colors" title="Edit Profile">
+                                    <Edit size={16} />
                                 </button>
                             )}
                             {permissions.archive_animals && (
-                                <button onClick={() => setIsArchiveModalOpen(true)} className="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-sm font-medium transition-colors" title="Archive">
-                                    <Archive size={18} />
+                                <button onClick={() => setIsArchiveModalOpen(true)} className="px-3 py-1.5 bg-white text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 text-xs font-medium transition-colors" title="Archive">
+                                    <Archive size={16} />
                                 </button>
                             )}
                             <button 
                                 onClick={() => { setEntryType(LogType.GENERAL); setIsAddEntryOpen(true); }}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2"
+                                className="bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1.5"
                             >
-                                <Plus size={16} /> Log Activity
+                                <Plus size={14} /> Log Activity
                             </button>
                         </>
                     )}
@@ -323,108 +319,106 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
 
                 {/* RIGHT COLUMN: CONTENT TABS (BENTO) */}
                 <div className="lg:col-span-8 space-y-6">
-                    
-                    {/* TABS NAVIGATION */}
-                    <div className="bg-white p-1 rounded-lg border border-slate-200 shadow-sm flex gap-1 overflow-x-auto scrollbar-hide">
+                                     {/* TABS NAVIGATION */}
+                    <div className="bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm flex gap-1 overflow-x-auto scrollbar-hide">
                         {[
                             { id: 'Overview', icon: Info, label: 'Overview' },
                             { id: 'History', icon: History, label: 'Husbandry Feed' },
-                            { id: 'Medical', icon: Heart, label: 'Clinical File' },
-                            { id: 'Tasks', icon: ClipboardCheck, label: 'Duties' }
+                            { id: 'Medical', icon: Heart, label: 'Clinical File' }
                         ].map(tab => (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id as 'Overview' | 'History' | 'Medical' | 'Tasks')}
-                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                                onClick={() => setActiveTab(tab.id as 'Overview' | 'History' | 'Medical')}
+                                className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                                     activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
                                 }`}
                             >
-                                <tab.icon size={16} /> {tab.label}
+                                <tab.icon size={14} /> {tab.label}
                             </button>
                         ))}
                     </div>
 
                     {/* TAB CONTENT: OVERVIEW */}
                     {activeTab === 'Overview' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-4">
                                 <div>
-                                    <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                                        <Info size={16}/> Subject Narrative
+                                    <h4 className="text-xs font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                                        <Info size={14}/> Subject Narrative
                                     </h4>
-                                    <p className="text-sm text-slate-600 leading-relaxed">{String(animal.description || "No physical description available.")}</p>
+                                    <p className="text-xs text-slate-600 leading-relaxed">{String(animal.description || "No physical description available.")}</p>
                                 </div>
-                                <div className="bg-amber-50 border border-amber-100 rounded-xl p-6">
-                                    <h4 className="text-sm font-semibold text-amber-900 mb-3 flex items-center gap-2">
-                                        <AlertTriangle size={16}/> Critical Husbandry Notes
+                                <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+                                    <h4 className="text-xs font-semibold text-amber-900 mb-2 flex items-center gap-2">
+                                        <AlertTriangle size={14}/> Critical Husbandry Notes
                                     </h4>
                                     {animal.critical_husbandry_notes && animal.critical_husbandry_notes.length > 0 ? (
-                                        <ul className="space-y-2">
+                                        <ul className="space-y-1">
                                             {animal.critical_husbandry_notes?.map((note, idx) => (
-                                                <li key={idx} className="flex items-start gap-2 text-sm text-amber-800">
-                                                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></div>
+                                                <li key={idx} className="flex items-start gap-2 text-xs text-amber-800">
+                                                    <div className="mt-1 w-1 h-1 rounded-full bg-amber-500 shrink-0"></div>
                                                     {String(note)}
                                                 </li>
                                             ))}
                                         </ul>
                                     ) : (
-                                        <p className="text-sm text-amber-800/70 italic">No critical notes flagged for this subject.</p>
+                                        <p className="text-xs text-amber-800/70 italic">No critical notes flagged for this subject.</p>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="space-y-6">
-                                <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                                    <h4 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                                        <Thermometer size={16}/> Target Environment
+                            <div className="space-y-4">
+                                <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                                    <h4 className="text-xs font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                                        <Thermometer size={14}/> Target Environment
                                     </h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                            <p className="text-xs text-slate-500 mb-1">Day Temp</p>
-                                            <p className="text-sm font-semibold text-slate-900">{animal.target_day_temp_c ? `${animal.target_day_temp_c}°C` : '--'}</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                            <p className="text-[10px] text-slate-500 mb-0.5">Day Temp</p>
+                                            <p className="text-xs font-semibold text-slate-900">{animal.target_day_temp_c ? `${animal.target_day_temp_c}°C` : '--'}</p>
                                         </div>
-                                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                            <p className="text-xs text-slate-500 mb-1">Night Temp</p>
-                                            <p className="text-sm font-semibold text-slate-900">{animal.target_night_temp_c ? `${animal.target_night_temp_c}°C` : '--'}</p>
+                                        <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                            <p className="text-[10px] text-slate-500 mb-0.5">Night Temp</p>
+                                            <p className="text-xs font-semibold text-slate-900">{animal.target_night_temp_c ? `${animal.target_night_temp_c}°C` : '--'}</p>
                                         </div>
-                                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                            <p className="text-xs text-slate-500 mb-1">Humidity Min</p>
-                                            <p className="text-sm font-semibold text-slate-900">{animal.target_humidity_min_percent ? `${animal.target_humidity_min_percent}%` : '--'}</p>
+                                        <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                            <p className="text-[10px] text-slate-500 mb-0.5">Humidity Min</p>
+                                            <p className="text-xs font-semibold text-slate-900">{animal.target_humidity_min_percent ? `${animal.target_humidity_min_percent}%` : '--'}</p>
                                         </div>
-                                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                            <p className="text-xs text-slate-500 mb-1">Humidity Max</p>
-                                            <p className="text-sm font-semibold text-slate-900">{animal.target_humidity_max_percent ? `${animal.target_humidity_max_percent}%` : '--'}</p>
+                                        <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                            <p className="text-[10px] text-slate-500 mb-0.5">Humidity Max</p>
+                                            <p className="text-xs font-semibold text-slate-900">{animal.target_humidity_max_percent ? `${animal.target_humidity_max_percent}%` : '--'}</p>
                                         </div>
                                     </div>
-                                    <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100 flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Droplets size={16} className="text-blue-500" />
-                                            <span className="text-sm font-medium text-blue-700">Misting Frequency</span>
+                                    <div className="mt-3 p-2 bg-blue-50 rounded-lg border border-blue-100 flex items-center justify-between">
+                                        <div className="flex items-center gap-1">
+                                            <Droplets size={14} className="text-blue-500" />
+                                            <span className="text-xs font-medium text-blue-700">Misting Frequency</span>
                                         </div>
-                                        <span className="text-sm font-semibold text-blue-900">{String(animal.misting_frequency || 'N/A')}</span>
+                                        <span className="text-xs font-semibold text-blue-900">{String(animal.misting_frequency || 'N/A')}</span>
                                     </div>
                                 </div>
 
-                                <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                                    <h4 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                                        <ShieldCheck size={16}/> Statutory Metadata
+                                <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                                    <h4 className="text-xs font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                                        <ShieldCheck size={14}/> Statutory Metadata
                                     </h4>
-                                    <div className="grid grid-cols-1 gap-3">
+                                    <div className="grid grid-cols-1 gap-2">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-sm text-slate-500">Arrival Date</span>
-                                            <span className="text-sm font-medium text-slate-900">{animal.acquisition_date ? new Date(animal.acquisition_date).toLocaleDateString('en-GB') : 'N/A'}</span>
+                                            <span className="text-xs text-slate-500">Arrival Date</span>
+                                            <span className="text-xs font-medium text-slate-900">{animal.acquisition_date ? new Date(animal.acquisition_date).toLocaleDateString('en-GB') : 'N/A'}</span>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                            <span className="text-sm text-slate-500">Origin</span>
-                                            <span className="text-sm font-medium text-slate-900">{String(animal.origin || 'Unknown')}</span>
+                                            <span className="text-xs text-slate-500">Origin</span>
+                                            <span className="text-xs font-medium text-slate-900">{String(animal.origin || 'Unknown')}</span>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                            <span className="text-sm text-slate-500">Hazard Class</span>
-                                            <span className="text-sm font-semibold text-rose-600">{String(animal.hazard_rating)}</span>
+                                            <span className="text-xs text-slate-500">Hazard Class</span>
+                                            <span className="text-xs font-semibold text-rose-600">{String(animal.hazard_rating)}</span>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                            <span className="text-sm text-slate-500">Water Tipping Temp</span>
-                                            <span className={`text-sm font-semibold ${animal.water_tipping_temp !== undefined && animal.water_tipping_temp !== null ? 'text-blue-600' : 'text-slate-400'}`}>
+                                            <span className="text-xs text-slate-500">Water Tipping Temp</span>
+                                            <span className={`text-xs font-semibold ${animal.water_tipping_temp !== undefined && animal.water_tipping_temp !== null ? 'text-blue-600' : 'text-slate-400'}`}>
                                                 {animal.water_tipping_temp !== undefined && animal.water_tipping_temp !== null ? `${animal.water_tipping_temp}°C` : 'N/A'}
                                             </span>
                                         </div>
@@ -477,11 +471,9 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                                                             (() => {
                                                                 // 1. If it has strict DB grams, use it
                                                                 if (log.weight_grams) return formatWeightDisplay(log.weight_grams, animal.weight_unit);
-
                                                                 // 2. If it's a legacy string, parse and format it
                                                                 const parsedGrams = parseLegacyWeightToGrams(log.value);
                                                                 if (parsedGrams !== null) return formatWeightDisplay(parsedGrams, animal.weight_unit);
-
                                                                 // 3. Absolute fallback
                                                                 return log.weight ? `${log.weight}${log.weight_unit || 'g'}` : String(log.value);
                                                             })()
@@ -553,44 +545,6 @@ const AnimalProfile: React.FC<AnimalProfileProps> = ({ animalId, onBack }) => {
                         </div>
                     )}
 
-                    {/* TAB CONTENT: TASKS */}
-                    {activeTab === 'Tasks' && (
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-sm font-semibold text-slate-900">Assigned Duties</h3>
-                                <div className="flex items-center gap-2 text-xs font-medium text-emerald-700 bg-emerald-50 px-3 py-1 rounded border border-emerald-100">
-                                    <CheckCircle2 size={14} /> {(tasks || []).filter(t => t.completed).length} / {(tasks || []).length} Resolved
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {tasks?.map(task => (
-                                    <div key={task.id} className={`p-5 rounded-xl border transition-all ${task.completed ? 'bg-slate-50 border-slate-200 opacity-60' : 'bg-white border-slate-200 shadow-sm hover:border-blue-500'}`}>
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className={`p-2 rounded-lg ${task.completed ? 'bg-slate-200 text-slate-500' : 'bg-blue-50 text-blue-600'}`}>
-                                                <ClipboardCheck size={18} />
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-xs font-medium text-slate-500 mb-0.5">Due Date</p>
-                                                <p className="text-xs font-semibold text-slate-900 flex items-center gap-1.5 justify-end">
-                                                    <Clock size={12} className="text-slate-400" />
-                                                    {new Date(task.due_date).toLocaleDateString('en-GB')}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <h4 className={`text-sm font-semibold mb-1 ${task.completed ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{String(task.title)}</h4>
-                                        <p className="text-xs text-slate-500 italic line-clamp-2">{String(task.notes || 'No additional instructions provided.')}</p>
-                                    </div>
-                                ))}
-                                {(tasks?.length || 0) === 0 && (
-                                    <div className="col-span-full py-12 text-center bg-white rounded-xl border border-dashed border-slate-300">
-                                        <CheckCircle2 size={32} className="mx-auto mb-2 text-slate-300" />
-                                        <p className="text-sm text-slate-500">No Pending Duties</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
