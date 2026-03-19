@@ -60,10 +60,24 @@ if ('serviceWorker' in navigator) {
 
       // 2. Background Sync Registration (Wait for active state)
       navigator.serviceWorker.ready.then((readyRegistration) => {
-        if ('sync' in readyRegistration) {
-          // @ts-expect-error - sync is not in standard types yet
-          readyRegistration.sync.register('koa-sync').catch((err) => {
-            console.warn('🛠️ [PWA] Background Sync registration failed:', err);
+        if (readyRegistration.active && readyRegistration.active.state === 'activated') {
+          if ('sync' in readyRegistration) {
+            // @ts-expect-error - sync is not in standard types yet
+            readyRegistration.sync.register('koa-sync-queue').catch((err) => {
+              console.warn('🛠️ [PWA] Background Sync registration failed:', err);
+            });
+          }
+        } else {
+          readyRegistration.addEventListener('updatefound', () => {
+            const newWorker = readyRegistration.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'activated' && 'sync' in readyRegistration) {
+                  // @ts-expect-error
+                  readyRegistration.sync.register('koa-sync-queue').catch(console.warn);
+                }
+              });
+            }
           });
         }
       });

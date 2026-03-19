@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Animal, LogEntry, Task, ClinicalNote, MARChart, QuarantineRecord, InternalMovement, ExternalTransfer, Timesheet, Holiday, User, OrgProfileSettings, Contact, ZLADocument, SafetyDrill, MaintenanceLog, FirstAidLog, Incident, DailyRound, RolePermissionConfig, SyncQueueItem, OperationalList, Shift } from '../types';
+import { Animal, LogEntry, Task, ClinicalNote, MARChart, QuarantineRecord, InternalMovement, ExternalTransfer, Timesheet, Holiday, User, OrgProfileSettings, Contact, ZLADocument, SafetyDrill, MaintenanceLog, FirstAidLog, Incident, DailyRound, RolePermissionConfig, SyncQueueItem, OperationalList, Shift, TrainingRecord } from '../types';
 
 export interface UploadQueueItem {
   id?: number;
@@ -49,14 +49,15 @@ export class AppDatabase extends Dexie {
   daily_rounds!: Table<DailyRound, string>;
   operational_lists!: Table<OperationalList, string>;
   shifts!: Table<Shift, string>;
+  training_records!: Table<TrainingRecord, string>;
   sync_queue!: Table<SyncQueueItem, number>;
   upload_queue!: Table<UploadQueueItem, number>;
   media_upload_queue!: Table<MediaUploadQueueItem, number>;
 
   constructor() {
     super('KentOwlAcademyDB');
-    // BUMPED TO VERSION 32 FOR COMPOUND INDEXING
-    this.version(32).stores({
+    // BUMPED TO VERSION 33 FOR TRAINING RECORDS
+    this.version(33).stores({
       animals: 'id, name, species, category, location',
       archived_animals: 'id, name, species, category, location',
       daily_logs: 'id, animal_id, log_type, log_date, created_at',
@@ -80,6 +81,7 @@ export class AppDatabase extends Dexie {
       daily_rounds: 'id, date, shift, status, completed_by, completed_at, updated_at',
       operational_lists: 'id, type, category, value',
       shifts: 'id, user_id, user_name, date, user_role, assigned_area, pattern_id, notes',
+      training_records: 'id, animal_id, date',
       // FLASH UPGRADE: Added [table_name+record_id] compound index
       sync_queue: '++id, [table_name+record_id], table_name, record_id, operation, status, priority, retry_count',
       upload_queue: '++id, status, created_at',

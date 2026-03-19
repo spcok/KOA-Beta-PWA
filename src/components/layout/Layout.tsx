@@ -15,10 +15,26 @@ import { useOrgSettings } from '../../features/settings/useOrgSettings';
 import GlobalBugReporter from '../ui/GlobalBugReporter';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { UpdateBanner } from './UpdateBanner';
+import { useHybridQuery } from '../../lib/dataEngine';
+import { db } from '../../lib/db';
+import { supabase } from '../../lib/supabase';
 
 interface LayoutProps {
   fontScale?: number;
   setFontScale?: (scale: number) => void;
+}
+
+function ColdBootWarning() {
+  return (
+    <div className="flex flex-col items-center justify-center h-screen bg-slate-50 p-6 text-center">
+      <div className="bg-red-50 border-2 border-red-600 rounded-lg p-8 max-w-lg shadow-xl">
+         <h1 className="text-2xl font-black text-red-700 mb-4">SYSTEM OFFLINE: INITIALIZATION REQUIRED</h1>
+         <p className="text-slate-800 font-medium">
+           The KOA-Manager registry cannot be accessed. A secure network connection is required for the initial database synchronization to comply with Zoo Licensing Act 1981 record accessibility standards.
+         </p>
+      </div>
+    </div>
+  );
 }
 
 const NavItem = ({ to, icon: Icon, label, permission, isSidebarCollapsed, setIsMobileMenuOpen }: { 
@@ -62,6 +78,7 @@ const SectionHeader = ({ title, isSidebarCollapsed }: { title: string, isSidebar
 };
 
 const Layout: React.FC<LayoutProps> = () => {
+  const coldBootCheck = useHybridQuery('animals', supabase.from('animals').select('*'), () => db.animals.toArray(), []);
   const { currentUser, logout } = useAuthStore();
   const permissions = usePermissions();
   const { 
@@ -133,6 +150,10 @@ const Layout: React.FC<LayoutProps> = () => {
 
   const handleLogout = async () => {
     logout();
+  }
+
+  if (!isOnline && coldBootCheck && (coldBootCheck as { status?: string }).status === 'cold_offline') {
+    return <ColdBootWarning />;
   }
 
   const sidebarContent = (

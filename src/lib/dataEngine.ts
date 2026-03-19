@@ -12,20 +12,46 @@ export function useHybridQuery<T>(
   depsOrUndefined?: unknown[]
 ): T | undefined {
   let onlineQuery: PromiseLike<{ data: unknown; error: unknown }>;
-  let offlineQuery: () => T | Promise<T>;
+  let offlineQuery: () => Promise<{ status: string; data: T | [] }>;
   let deps: unknown[];
 
   if (typeof queryOrDexieFn === 'function') {
     onlineQuery = supabase.from(tableName as string).select('*');
-    offlineQuery = queryOrDexieFn as () => T | Promise<T>;
+    const originalOfflineQuery = queryOrDexieFn as () => T | Promise<T>;
+    offlineQuery = async () => {
+      try {
+        const localData = await originalOfflineQuery();
+        if (!localData || (Array.isArray(localData) && localData.length === 0)) {
+          console.warn(`🛠️ [Sync Engine] Cold Boot Detected: No local data for ${tableName as string}`);
+          return { status: 'cold_offline', data: [] }; // DO NOT throw an error here.
+        }
+        return { status: 'offline_cache', data: localData };
+      } catch (cacheError) {
+        console.warn(`🛠️ [Sync Engine] Cache read failed for ${tableName as string}:`, cacheError);
+        return { status: 'cold_offline', data: [] };
+      }
+    };
     deps = (dexieFnOrDeps as unknown[]) || [];
   } else {
     onlineQuery = queryOrDexieFn as PromiseLike<{ data: unknown; error: unknown }>;
-    offlineQuery = typeof dexieFnOrDeps === 'function' ? (dexieFnOrDeps as () => T | Promise<T>) : (() => dexieFnOrDeps as T);
+    const originalOfflineQuery = typeof dexieFnOrDeps === 'function' ? (dexieFnOrDeps as () => T | Promise<T>) : (() => dexieFnOrDeps as T);
+    offlineQuery = async () => {
+      try {
+        const localData = await originalOfflineQuery();
+        if (!localData || (Array.isArray(localData) && localData.length === 0)) {
+          console.warn(`🛠️ [Sync Engine] Cold Boot Detected: No local data for ${tableName as string}`);
+          return { status: 'cold_offline', data: [] }; // DO NOT throw an error here.
+        }
+        return { status: 'offline_cache', data: localData };
+      } catch (cacheError) {
+        console.warn(`🛠️ [Sync Engine] Cache read failed for ${tableName as string}:`, cacheError);
+        return { status: 'cold_offline', data: [] };
+      }
+    };
     deps = depsOrUndefined || [];
   }
 
-  const data = useLiveQuery(offlineQuery, deps);
+  const queryResult = useLiveQuery(offlineQuery, deps);
 
   useEffect(() => {
     let isMounted = true;
@@ -117,9 +143,21 @@ export function useHybridQuery<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableName, ...deps]);
 
-  const filteredData = Array.isArray(data)
-    ? data.filter((item: Record<string, unknown>) => !item.is_deleted)
-    : (data as Record<string, unknown>)?.is_deleted ? undefined : data;
+  const actualData = queryResult ? queryResult.data : undefined;
+
+  const filteredData = Array.isArray(actualData)
+    ? actualData.filter((item: Record<string, unknown>) => !item.is_deleted)
+    : (actualData as Record<string, unknown>)?.is_deleted ? undefined : actualData;
+
+  if (queryResult && (queryResult as { status?: string }).status === 'cold_offline') {
+    if (!navigator.onLine) {
+      const result = [] as unknown as T;
+      (result as { status?: string }).status = 'cold_offline';
+      return result;
+    } else {
+      return [] as unknown as T;
+    }
+  }
 
   return filteredData as T;
 }
